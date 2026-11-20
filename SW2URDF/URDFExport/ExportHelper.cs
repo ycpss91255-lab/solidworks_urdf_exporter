@@ -174,7 +174,7 @@ namespace SW2URDF.URDFExport
             string windowsURDFFileName = package.WindowsRobotsDirectory +
                 XacroOutput.RobotFileName(URDFRobot.Name, writeXacro);
             string windowsCSVFileName = package.WindowsRobotsDirectory + URDFRobot.Name + ".csv";
-            string windowsPackageXMLFileName = package.WindowsPackageDirectory + "package.xml";
+            string windowsPackageXMLFileName = package.WindowsPackageXML;
 
             //Create CMakeLists
             logger.Info("Creating CMakeLists.txt at " + package.WindowsCMakeLists);
@@ -664,12 +664,11 @@ namespace SW2URDF.URDFExport
             string windowsMeshFileName = package.WindowsMeshesDirectory + meshBaseName + ".STL";
             string windowsURDFFileName = package.WindowsRobotsDirectory +
                 XacroOutput.RobotFileName(FileNames.SanitizeFileName(URDFRobot.Name, "robot"), URDFRobot.BaseLink.WriteXacro);
-            string windowsManifestFileName = package.WindowsPackageDirectory + "manifest.xml";
 
-            //Creating manifest file
-            PackageXMLWriter manifestWriter = new PackageXMLWriter(windowsManifestFileName);
-            PackageXML Manifest = new PackageXML(package.PackageName);
-            Manifest.WriteElement(manifestWriter);
+            //Creating package.xml, the same file the assembly export writes
+            PackageXMLWriter packageXMLWriter = new PackageXMLWriter(package.WindowsPackageXML);
+            PackageXML packageXML = new PackageXML(package.PackageName);
+            packageXML.WriteElement(packageXMLWriter);
 
             //Customizing STL preferences to how I want them
             SaveUserPreferences();
