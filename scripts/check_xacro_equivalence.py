@@ -235,10 +235,12 @@ def check_pair(results, case, original_path, expanded_loader, tolerance):
 
 
 def rel(path):
+    """Repository-relative path for files inside the checkout, the bare file name for anything else."""
     try:
-        return os.path.relpath(path, REPO).replace("\\", "/")
+        text = os.path.relpath(path, REPO).replace("\\", "/")
     except ValueError:
-        return path
+        return os.path.basename(path)
+    return os.path.basename(path) if text.startswith("..") else text
 
 
 def example_urdfs(folder):
