@@ -46,6 +46,7 @@ namespace SW2URDF.URDFExport
         public string WindowsLaunchDirectory { get; }
         public string WindowsConfigDirectory { get; }
         public string WindowsCMakeLists { get; }
+        public string WindowsPackageXML { get; }
         public string WindowsConfigYAML { get; }
 
         public URDFPackage(string name, string dir, UiText displayText = null)
@@ -70,6 +71,7 @@ namespace SW2URDF.URDFExport
             WindowsLaunchDirectory = WindowsPackageDirectory + @"launch\";
             WindowsConfigDirectory = WindowsPackageDirectory + @"config\";
             WindowsCMakeLists = WindowsPackageDirectory + @"CMakeLists.txt";
+            WindowsPackageXML = WindowsPackageDirectory + @"package.xml";
             WindowsConfigYAML = WindowsConfigDirectory + @"joint_names_" + name + ".yaml";
         }
 
