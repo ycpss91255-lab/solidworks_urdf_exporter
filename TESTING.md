@@ -329,6 +329,32 @@ Observations (`INFO`, not failures):
   by a 90 degree turn). The add-in's property page generates the frame first, so the add-in itself is not
   affected. Any other caller that builds a robot without the page has to do the same.
 
+## xacro vs URDF equivalence (`scripts/check_xacro_equivalence.py`)
+
+Offline check for the optional xacro output discussed in issue 139: expanding a xacro with its default parameters
+must give the same robot as the plain URDF. It needs Python 3 (standard library only) and, for the expansion
+itself, the external `xacro` command or `python -m xacro`. It compares the two files semantically: link names
+and count, joint names, types, parents and children, origins, axes, limits, inertial mass, origin and inertia,
+visual and collision geometry and mesh filenames. Numbers are compared with a tolerance (`--tolerance`, default
+1e-9); whitespace, attribute order, XML comments, link and joint order and number formatting (`1e-3` against
+`0.001`) are ignored. Like `regress_obj_export.py` it prints one `PASS`, `FAIL` or `SKIP` line per file (a `FAIL`
+is followed by the list of differences, each with its element path such as
+`robot[x]/link[base]/inertial/mass@value`), then a summary table, and can write `--json` and `--markdown`.
+
+    python scripts/check_xacro_equivalence.py                          # every examples/**/urdf/*.urdf, expanded with xacro
+    python scripts/check_xacro_equivalence.py --pair a.urdf a.urdf.xacro   # a plain URDF against its xacro (repeatable)
+    python scripts/check_xacro_equivalence.py --expanded a.urdf expanded.urdf   # against an already expanded file; no xacro needed
+    python scripts/check_xacro_equivalence.py --identity               # each committed example against itself; no xacro needed
+
+Exit codes: `0` everything checked passed; `1` at least one `FAIL` (including a file that cannot be read or
+expanded); `2` bad command line; `3` nothing failed but at least one check was `SKIP`ped because xacro is not
+installed, so the equivalence was **not** verified. A hosted CI job that must prove the equivalence has to treat
+`3` as a failure. `--identity` proves that the parser reads every committed example; it says nothing about xacro.
+
+The comparison logic is tested without xacro by `python scripts/test_xacro_equivalence.py` (identical files,
+whitespace, attribute order, comment and number-format differences pass; a changed mass, origin, mesh path, a
+missing joint or a renamed link fail).
+
 ## Known limitations
 
 - Existing export tests (`TestExportHelper`) still write into the home folder and the example folders;
