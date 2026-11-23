@@ -368,7 +368,7 @@ written axis to the world frame and compares. Mates:
 * hinge: concentric (boss/hole) + coincident (faces) + one angle limit mate, reference 90 degrees;
 * slide: concentric + perpendicular (side faces, no turning) + one distance limit mate, reference 10 mm.
 
-In this model the exported axis is world +Z. Ranges are relative to the
+The host converts the written axis to the world frame and compares along it. Ranges are relative to the
 pose the model is exported in.
 
 Compile `LimitLiveProbe.cs` the way `scripts/ObjRegressProbe.cs` is compiled (references: `SW2URDF.dll` of a
@@ -377,22 +377,35 @@ it against a SolidWorks instance you own that holds no other document:
 `LimitLiveProbe.exe <pid> <folder with the three unmated files> <out dir> [variant ...]`. Set the user profile
 folder to a private one for the run if other exporters write the shared log at the same time.
 
-| Variant | SolidWorks truth (along the exported axis) | Exporter wrote | Match |
-|---------|--------------------------------------------|----------------|-------|
-| hinge, limits 60..180, reference 90 | -90..+30 deg | -90..+30 | yes |
-| hinge, limits 0..180, reference 90 | -90..+90 deg | -90..+90 | yes |
-| hinge, 60..180, `Flip` set on the mate | -30..+90 deg | -30..+90 | yes |
-| hinge, 60..180, anti-aligned | -90..+30 deg | -90..+30 | yes |
-| hinge, 60..180, faces picked in the other order | -90..+30 deg | -90..+30 | yes |
-| hinge, 60..180, exported at 120 degrees | -60..+60 deg | -60..+60 | yes |
-| slide, distance 0..30 mm, reference 10 | -10..+20 mm | -20..+10 (before the fix of issue 149) | no, fixed |
-| slide, same, `Flip` set | -20..+10 mm | -10..+20 (before the fix) | no, fixed |
-| slide, same, anti-aligned / other pick order | -10..+20 mm | -20..+10 (before the fix) | no, fixed |
-| slide, same, exported at 20 mm | -20..+10 mm | -10..+20 (before the fix) | no, fixed |
+| Variant | SolidWorks truth (along the written axis) | Written | Exported axis | Match |
+|---------|-------------------------------------------|---------|---------------|-------|
+| hinge, limits 60..180, reference 90 | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 0..180, reference 90 | -90..+90 deg | -90..+90 | world +Z | yes |
+| hinge, 60..180, `Flip` set | -30..+90 deg | -30..+90 | world +Z | yes |
+| hinge, 60..180, anti-aligned | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 60..180, faces picked in the other order | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 60..180, exported at 120 degrees | -60..+60 deg | -60..+60 | world +Z | yes |
+| hinge, 60..180, concentric mate anti-aligned | -30..+90 deg | -30..+90 | world -Z | yes |
+| hinge, 60..180, base turned by 180 degrees about X | -30..+90 deg | -30..+90 | world -Z | yes |
+| slide, distance 0..30 mm, reference 10 | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, `Flip` set | -20..+10 mm | -20..+10 | world +Z | yes |
+| slide, same, anti-aligned | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, faces picked in the other order | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, exported at 20 mm | -20..+10 mm | -20..+10 | world +Z | yes |
+| slide, concentric mate anti-aligned | -20..+10 mm | -20..+10 | world -Z | yes |
+| slide, base turned by 180 degrees about X | -10..+20 mm | -10..+20 | world -Z | yes |
 
-Not covered: limit mates on advanced hinge/slider mates, geometry where the exported axis points along the
-negative world axis, joints with a parent that is itself moving. The sign rule is unit tested without SolidWorks
-in `TestLimitFromMate`.
+Before the fixes of issue 149 the slide rows with the axis along +Z (and the rows with the axis along -Z) were
+mirrored: the sign rule for angle mates was applied to distance mates, and the limits were not mirrored when the
+written axis pointed the other way than the axis SolidWorks reported. The exporter now measures the direction
+on the model (it moves the dimension of the limit mate a little inside its limits, looks at how the child moves
+relative to the axis and puts the dimension back), mirrors the limits when the written axis is turned, and uses
+the old rule only when the measurement is not possible. The sign rules are unit tested without SolidWorks in
+`TestLimitFromMate`.
+
+Not covered: limit mates on advanced hinge/slider mates, joints whose parent is itself moving, limit mates
+inside sub-assemblies (the dimension is looked up in the top-level document), several limit mates on one joint.
+
 
 ## Known limitations
 
