@@ -337,6 +337,7 @@
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
+    <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
@@ -397,6 +398,7 @@
     <Compile Include="URDFExport\ObjConverter.cs" />
     <Compile Include="URDFExport\ThreeDxmlReader.cs" />
     <Compile Include="URDFExport\ExportHelperExtension.cs" />
+    <Compile Include="URDFExport\LimitMateProbe.cs" />
     <Compile Include="UI\AssemblyExportFormExtension.cs">
       <SubType>Form</SubType>
     </Compile>
