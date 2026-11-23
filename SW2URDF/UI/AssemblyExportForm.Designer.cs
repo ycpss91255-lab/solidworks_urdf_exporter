@@ -1603,8 +1603,8 @@
             // 
             // Read-only description of where the limits come from; the text is set when the joint is shown.
             this.labelLimitSource.AutoSize = true;
-            this.labelLimitSource.Location = new System.Drawing.Point(494, 474);
-            this.labelLimitSource.MaximumSize = new System.Drawing.Size(340, 0);
+            this.labelLimitSource.Location = new System.Drawing.Point(494, 4);
+            this.labelLimitSource.MaximumSize = new System.Drawing.Size(560, 0);
             this.labelLimitSource.Name = "labelLimitSource";
             this.labelLimitSource.Size = new System.Drawing.Size(0, 12);
             this.labelLimitSource.TabIndex = 234;
