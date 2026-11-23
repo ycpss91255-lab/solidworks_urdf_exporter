@@ -601,4 +601,7 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>空連桿 {0} 請選取既有的參考座標系統</value>
   </data>
+  <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
+    <value>匯出程式量測極限配合 {0} 的方向後，無法將它還原為 {2}，目前為 {1}。儲存模型前請先檢查這個配合。</value>
+  </data>
 </root>
