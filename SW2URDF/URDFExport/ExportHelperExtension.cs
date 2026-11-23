@@ -1961,6 +1961,29 @@ namespace SW2URDF.URDFExport
             return new List<string>(ReferenceAxesNames);
         }
 
+
+        /// <summary>
+        /// Converts the minimum and maximum variation SolidWorks reports for a limit mate (relative to
+        /// the pose the mate was made in) into the lower and upper limit of the joint along its axis.
+        /// Measured live on a hinge and on a slide: for an angle mate that is not flipped the child
+        /// turns by the negative variation about the axis, for a distance mate that is not flipped it
+        /// moves by the positive variation along the axis; a flipped mate reverses either. Free of
+        /// SolidWorks calls so it can be tested.
+        /// </summary>
+        public static void LimitFromMate(bool prismatic, bool flipped, double minimum, double maximum,
+            out double lower, out double upper)
+        {
+            if (prismatic != flipped)
+            {
+                lower = minimum;
+                upper = maximum;
+            }
+            else
+            {
+                lower = -maximum;
+                upper = -minimum;
+            }
+        }
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
         private static void AddLimits(Joint Joint, List<Mate2> limitMates,
@@ -2006,21 +2029,11 @@ namespace SW2URDF.URDFExport
                         (Joint.Type == "prismatic" && swMate.Type ==
                             (int)swMateType_e.swMateDISTANCE))
                     {
-                        // Unclear if flipped is the right thing we want to be checking here.
-                        // From a sample size of 1, in SolidWorks it appears that an aligned and
-                        // anti-aligned mates are NOT flipped...
-                        if (!swMate.Flipped)
-                        {
-                            // Reverse mate directions, for some reason
-                            Joint.Limit.Upper = -swMate.MinimumVariation;
-                            Joint.Limit.Lower = -swMate.MaximumVariation;
-                        }
-                        else
-                        {
-                            // Lucky me that no conversion is necessary
-                            Joint.Limit.Upper = swMate.MaximumVariation;
-                            Joint.Limit.Lower = swMate.MinimumVariation;
-                        }
+                        LimitFromMate(Joint.Type == "prismatic", swMate.Flipped,
+                            swMate.MinimumVariation, swMate.MaximumVariation,
+                            out double lower, out double upper);
+                        Joint.Limit.Lower = lower;
+                        Joint.Limit.Upper = upper;
                         if (Joint.Type == "continuous")
                         {
                             Joint.Type = "revolute";
