@@ -1998,28 +1998,49 @@ namespace SW2URDF.URDFExport
         /// Moves the dimension of a limit mate a little inside its limits, sees how the child moves
         /// relative to the axis and puts the model back. Returns +1 when the child moves along the axis
         /// (turns about it, right-handed) while the variation grows, -1 for the other way, 0 when it
-        /// could not be measured.
+        /// could not be (or must not be) measured, in which case the rule per mate type is used.
+        /// The dimension is only moved when it can be put back reliably (see LimitMateProbe.Blocker),
+        /// and the result of putting it back is verified (dimension value and the child's pose).
         /// </summary>
         private int ProbeVariationDirection(Mate2 swMate, bool prismatic, double[] axis, Component2 child)
         {
             Dimension dimension = null;
+            string mateName = null;
             double start = 0;
+            double[][] before = null;
+            bool changed = false;
             try
             {
                 Feature feature = (Feature)swMate;
-                dimension = ActiveSWModel.Parameter("D1@" + feature.Name) as Dimension;
-                if (dimension == null)
+                mateName = feature.Name;
+                dimension = ActiveSWModel.Parameter("D1@" + mateName) as Dimension;
+                double value = double.NaN;
+                bool readOnly = true, driven = true, designTable = false;
+                if (dimension != null)
                 {
+                    value = dimension.SystemValue;
+                    readOnly = dimension.ReadOnly;
+                    driven = dimension.DrivenState == (int)swDimensionDrivenState_e.swDimensionDriven;
+                    designTable = dimension.IsDesignTableDimension();
+                }
+                string blocker = LimitMateProbe.Blocker(dimension != null, readOnly, driven, designTable,
+                    dimension != null && LimitMateProbe.EquationDrives(EquationTexts(), "D1@" + mateName), value);
+                if (blocker != null)
+                {
+                    logger.Info("The direction of limit mate " + mateName + " is not measured: " + blocker);
+                    dimension = null;
                     return 0;
                 }
                 double room = swMate.MaximumVariation > 1e-9 ? swMate.MaximumVariation : swMate.MinimumVariation;
                 double delta = Math.Sign(room) * Math.Min(Math.Abs(room) / 2.0, prismatic ? 0.001 : 0.05);
                 if (Math.Abs(delta) < 1e-9)
                 {
+                    dimension = null;
                     return 0;
                 }
-                start = dimension.SystemValue;
-                double[][] before = ChildProbePoints(child);
+                start = value;
+                before = ChildProbePoints(child);
+                changed = true;
                 dimension.SystemValue = start + delta;
                 ActiveSWModel.ForceRebuild3(false);
                 double[][] after = ChildProbePoints(child);
@@ -2070,20 +2091,57 @@ namespace SW2URDF.URDFExport
             }
             finally
             {
-                if (dimension != null)
+                if (changed)
                 {
-                    try
-                    {
-                        dimension.SystemValue = start;
-                        ActiveSWModel.ForceRebuild3(false);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.Warn("Putting a limit mate back failed: " + e.Message);
-                    }
+                    RestoreLimitMate(dimension, mateName, prismatic, start, before, child);
                 }
             }
         }
+
+        // Puts the dimension of a limit mate back and checks that both the dimension and the child are where they
+        // were; tries once more if not, and tells the user when the model could not be put back.
+        private void RestoreLimitMate(Dimension dimension, string mateName, bool prismatic, double start,
+            double[][] before, Component2 child)
+        {
+            double now = double.NaN;
+            bool restored = LimitMateProbe.RestoreVerified(attempt =>
+            {
+                dimension.SystemValue = start;
+                ActiveSWModel.ForceRebuild3(false);
+                now = dimension.SystemValue;
+                return LimitMateProbe.ValuesMatch(now, start) &&
+                    LimitMateProbe.PointsMatch(before, ChildProbePoints(child));
+            }, 2);
+            if (restored)
+            {
+                return;
+            }
+            string expected = LimitMateProbe.FormatValue(prismatic, start);
+            string actual = LimitMateProbe.FormatValue(prismatic, now);
+            logger.Error("Limit mate " + mateName + " could not be put back after measuring its direction: value " +
+                actual + " instead of " + expected);
+            UiText ui = UiText.FromSolidWorks(iSwApp);
+            URDFPackage.MessageBox.Show(string.Format(
+                ui.Get("The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it."),
+                mateName, actual, expected) + "\n" +
+                string.Format(ui.Get("Email your maintainer with the log file found at {0}"), Logger.GetFileName()));
+        }
+
+        // The equations of the active model, as text
+        private List<string> EquationTexts()
+        {
+            List<string> texts = new List<string>();
+            EquationMgr manager = ActiveSWModel.GetEquationMgr();
+            if (manager != null)
+            {
+                for (int i = 0; i < manager.GetCount(); i++)
+                {
+                    texts.Add(manager.get_Equation(i));
+                }
+            }
+            return texts;
+        }
+
 
         // World position of the origin of a component and the world images of its three local unit vectors
         private double[][] ChildProbePoints(Component2 child)
