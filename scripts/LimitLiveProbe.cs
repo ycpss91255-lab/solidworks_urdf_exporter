@@ -45,6 +45,7 @@ public static class LimitLiveProbe
         public swMateAlign_e Align = swMateAlign_e.swMateAlignCLOSEST;
         public swMateAlign_e ConcAlign = swMateAlign_e.swMateAlignALIGNED; // alignment of the concentric mate
         public bool BaseFlip;        // the base is turned by 180 degrees about X before it is fixed
+        public bool Equation;        // an equation sets the value of the limit mate dimension (the exporter must not move it)
         public bool Flip;            // the Flip argument of AddMate4
         public bool SwapOrder;       // select the arm entity before the base entity
         public double PoseValue = double.NaN; // dimension value to export in (deg or mm); NaN = the reference
@@ -67,6 +68,8 @@ public static class LimitLiveProbe
         new Variant { Name = "g2_hinge_base_turned", Description = "hinge, 60..180, base turned by 180 degrees about X", Reference = 90, Lower = 60, Upper = 180, BaseFlip = true },
         new Variant { Name = "h1_slide_conc_anti", Description = "slide, distance 0..30 mm, concentric mate anti-aligned", Slide = true, Reference = 10, Lower = 0, Upper = 30, ConcAlign = swMateAlign_e.swMateAlignANTI_ALIGNED },
         new Variant { Name = "h2_slide_base_turned", Description = "slide, distance 0..30 mm, base turned by 180 degrees about X", Slide = true, Reference = 10, Lower = 0, Upper = 30, BaseFlip = true },
+        new Variant { Name = "k1_hinge_equation", Description = "hinge, 60..180, the dimension is set by an equation", Reference = 90, Lower = 60, Upper = 180, Equation = true },
+        new Variant { Name = "k2_slide_equation", Description = "slide, distance 0..30 mm, the dimension is set by an equation", Slide = true, Reference = 10, Lower = 0, Upper = 30, Equation = true },
     };
 
     static readonly List<string> rows = new List<string>();
@@ -346,6 +349,21 @@ public static class LimitLiveProbe
 
     static string Fmt(double[] v) { return "(" + string.Join(", ", v.Select(Num).ToArray()) + ")"; }
 
+    // the world position of the origin of a component and the world images of its local unit vectors, as one list
+    static double[] Pose(Component2 comp)
+    {
+        var list = new List<double>(World(comp, 0, 0, 0));
+        foreach (double[] unit in new[] { new double[] { 1, 0, 0 }, new double[] { 0, 1, 0 }, new double[] { 0, 0, 1 } })
+            list.AddRange((double[])((MathVector)((MathVector)math.CreateVector(unit)).MultiplyTransform(comp.Transform2)).ArrayData);
+        return list.ToArray();
+    }
+
+    static bool PoseMatches(double[] a, double[] b)
+    {
+        for (int i = 0; i < a.Length; i++) if (!(Math.Abs(a[i] - b[i]) < 1e-7)) return false;
+        return true;
+    }
+
     static int failures = 0;
     static Link PendingChild;
 
@@ -393,7 +411,38 @@ public static class LimitLiveProbe
                 doc.ClearSelection2(true);
                 Say("  base component unfixed before the export");
             }
+            Component2 armNow = ((AssemblyDoc)doc).GetComponentByName(ArmName);
+            if (v.Equation)
+            {
+                // from here on an equation decides the value of the limit mate dimension (the truth was measured before)
+                string equation = "\"D1@" + mateName + "\" = " + Num(v.Reference) + (v.Slide ? "mm" : "deg");
+                EquationMgr equations = doc.GetEquationMgr();
+                int index = equations.Add2(-1, equation, true);
+                doc.ForceRebuild3(false);
+                Say("  equation added (index " + index + "): " + equation);
+            }
             doc.SaveAs3(file, 0, 1);
+
+            // The probe on its own, on a saved (clean) model: the exporter's own call, reached through reflection
+            double valueBefore = dim.SystemValue, minBefore = mate.MinimumVariation, maxBefore = mate.MaximumVariation;
+            double[] poseBefore = Pose(armNow);
+            bool flagBefore = doc.GetSaveFlag();
+            var probeHelper = new ExportHelper(app);
+            MethodInfo probe = typeof(ExportHelper).GetMethod("ProbeVariationDirection", BindingFlags.NonPublic | BindingFlags.Instance);
+            int direction = (int)probe.Invoke(probeHelper, new object[] { mate, v.Slide, new double[] { 0, 0, 1 }, armNow });
+            double valueAfter = dim.SystemValue;
+            bool flagAfter = doc.GetSaveFlag();
+            bool restored = Math.Abs(valueAfter - valueBefore) < 1e-9 && PoseMatches(poseBefore, Pose(armNow)) &&
+                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9;
+            Say(string.Format("  PROBE direction={0} dimension {1} -> {2} pose restored={3} min/max restored={4} save flag {5} -> {6}", direction,
+                Num(valueBefore * unit), Num(valueAfter * unit), PoseMatches(poseBefore, Pose(armNow)),
+                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9, flagBefore, flagAfter));
+            bool probeOk = restored && (v.Equation ? direction == 0 : direction != 0);
+            Say("RESULT-PROBE " + v.Name + "\t" + (v.Equation ? "skipped expected" : "measured expected") + "\tdirection " + direction + "\trestored " + restored + "\tsave flag unchanged " + (flagBefore == flagAfter) + "\t" + (probeOk ? "yes" : "NO"));
+            if (!probeOk) failures++;
+            doc.SaveAs3(file, 0, 1);
+            double valueExport = dim.SystemValue;
+            double[] poseExport = Pose(armNow);
 
             string package = "pkg_" + v.Name;
             Link child;
@@ -404,6 +453,14 @@ public static class LimitLiveProbe
             string root = Path.Combine(dir, "export");
             helper.SavePath = root; helper.PackageName = package; helper.CancellationToken = CancellationToken.None;
             helper.ExportRobot(true, MeshExportFormat.STL);
+            // after the whole export: the dimension, the child and the limits of the mate are where they were before it
+            double[] poseAfterExport = Pose(armNow);
+            bool afterOk = Math.Abs(dim.SystemValue - valueExport) < 1e-9 && PoseMatches(poseExport, poseAfterExport) &&
+                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9;
+            Say(string.Format("RESULT-EXPORT {0}\tdimension {1} -> {2}\tpose restored {3}\tmate limits unchanged {4}\tsave flag {5}\t{6}", v.Name,
+                Num(valueExport * unit), Num(dim.SystemValue * unit), PoseMatches(poseExport, poseAfterExport),
+                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9, doc.GetSaveFlag(), afterOk ? "yes" : "NO"));
+            if (!afterOk) failures++;
             string urdf = Directory.GetFiles(Path.Combine(root, package), "*.urdf", SearchOption.AllDirectories).FirstOrDefault();
             if (urdf == null) throw new Exception("no URDF written");
             var xml = new XmlDocument(); xml.Load(urdf);
