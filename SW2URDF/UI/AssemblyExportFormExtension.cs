@@ -84,6 +84,7 @@ namespace SW2URDF.UI
         public void FillJointPropertyBoxes(Joint joint)
         {
             FillBlank(jointBoxes);
+            labelLimitSource.Text = "";
             AutoUpdatingForm = true;
             if (joint != null) //For the base_link or if none is selected
             {
@@ -120,6 +121,11 @@ namespace SW2URDF.UI
                                           textBoxLimitVelocity,
                                           "R");
                 }
+
+                // Display only: where the limits come from. Nothing here is exported.
+                labelLimitSource.Text = (joint.Limit != null && (joint.Type == "revolute" || joint.Type == "prismatic"))
+                    ? LimitMateInfo.Describe(joint.LimitInfo, joint.Limit.Lower, joint.Limit.Upper, ui)
+                    : "";
 
                 if (joint.Calibration != null)
                 {
