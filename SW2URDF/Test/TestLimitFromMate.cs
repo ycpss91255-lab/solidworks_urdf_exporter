@@ -55,6 +55,38 @@ namespace SW2URDF.Test
         }
 
         [Fact]
+        public void LimitsKeepTheirSignWhenTheWrittenAxisFollowsTheMateAxis()
+        {
+            double lower = -1.5707963267948966, upper = 0.5235987755982988;
+            ExportHelper.LimitsForAxis(new double[] { 0, 0, 1 }, new double[] { 0, 0, 1 }, ref lower, ref upper);
+            Assert.Equal(-1.5707963267948966, lower, 9);
+            Assert.Equal(0.5235987755982988, upper, 9);
+        }
+
+        [Fact]
+        public void LimitsAreMirroredWhenTheWrittenAxisPointsTheOtherWay()
+        {
+            // hinge 60..180 around reference 90, concentric mate anti-aligned: the child turns -90..+30 deg about
+            // the axis of the mate (+Z) and the written axis is -Z, so the written range is -30..+90 deg
+            double lower = -1.5707963267948966, upper = 0.5235987755982988;
+            ExportHelper.LimitsForAxis(new double[] { 0, 0, 1 }, new double[] { 0, 0, -1 }, ref lower, ref upper);
+            Assert.Equal(-0.5235987755982988, lower, 9);
+            Assert.Equal(1.5707963267948966, upper, 9);
+        }
+
+        [Fact]
+        public void MeasuredDirectionGivesTheLimits()
+        {
+            // variation -30..+90 deg: the child turns the same way (+1) or the other way (-1) about the axis
+            ExportHelper.LimitFromDirection(1, -0.5235987755982988, 1.5707963267948966, out double lower, out double upper);
+            Assert.Equal(-0.5235987755982988, lower, 9);
+            Assert.Equal(1.5707963267948966, upper, 9);
+            ExportHelper.LimitFromDirection(-1, -0.5235987755982988, 1.5707963267948966, out lower, out upper);
+            Assert.Equal(-1.5707963267948966, lower, 9);
+            Assert.Equal(0.5235987755982988, upper, 9);
+        }
+
+        [Fact]
         public void LowerIsNeverAboveUpper()
         {
             foreach (bool prismatic in new[] { false, true })

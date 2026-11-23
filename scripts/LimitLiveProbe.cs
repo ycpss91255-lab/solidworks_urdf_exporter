@@ -43,6 +43,8 @@ public static class LimitLiveProbe
         public double Reference;     // reference angle (deg) or distance (mm) the limit mate is created with
         public double Lower, Upper;  // absolute limits in the same unit
         public swMateAlign_e Align = swMateAlign_e.swMateAlignCLOSEST;
+        public swMateAlign_e ConcAlign = swMateAlign_e.swMateAlignALIGNED; // alignment of the concentric mate
+        public bool BaseFlip;        // the base is turned by 180 degrees about X before it is fixed
         public bool Flip;            // the Flip argument of AddMate4
         public bool SwapOrder;       // select the arm entity before the base entity
         public double PoseValue = double.NaN; // dimension value to export in (deg or mm); NaN = the reference
@@ -57,11 +59,14 @@ public static class LimitLiveProbe
         new Variant { Name = "c3_swapped_order", Description = "hinge, ref 90, limits 60..180, entities picked in the other order", Reference = 90, Lower = 60, Upper = 180, SwapOrder = true },
         new Variant { Name = "d_slide_distance", Description = "slide, distance ref 10 mm, limits 0..30 mm", Slide = true, Reference = 10, Lower = 0, Upper = 30 },
         new Variant { Name = "d2_slide_flip_arg", Description = "slide, distance ref 10 mm, limits 0..30 mm, Flip=true", Slide = true, Reference = 10, Lower = 0, Upper = 30, Flip = true },
-        new Variant { Name = "d3_slide_aligned", Description = "slide, distance ref 10 mm, limits 0..30 mm, aligned", Slide = true, Reference = 10, Lower = 0, Upper = 30, Align = swMateAlign_e.swMateAlignALIGNED },
         new Variant { Name = "d4_slide_anti", Description = "slide, distance ref 10 mm, limits 0..30 mm, anti-aligned", Slide = true, Reference = 10, Lower = 0, Upper = 30, Align = swMateAlign_e.swMateAlignANTI_ALIGNED },
         new Variant { Name = "d5_slide_swapped", Description = "slide, distance ref 10 mm, limits 0..30 mm, entities picked in the other order", Slide = true, Reference = 10, Lower = 0, Upper = 30, SwapOrder = true },
         new Variant { Name = "e_posed_120", Description = "hinge, ref 90, limits 60..180, exported at 120 deg", Reference = 90, Lower = 60, Upper = 180, PoseValue = 120 },
         new Variant { Name = "f_slide_posed", Description = "slide, distance ref 10 mm, limits 0..30 mm, exported at 20 mm", Slide = true, Reference = 10, Lower = 0, Upper = 30, PoseValue = 20 },
+        new Variant { Name = "g1_hinge_conc_anti", Description = "hinge, 60..180, concentric mate anti-aligned", Reference = 90, Lower = 60, Upper = 180, ConcAlign = swMateAlign_e.swMateAlignANTI_ALIGNED },
+        new Variant { Name = "g2_hinge_base_turned", Description = "hinge, 60..180, base turned by 180 degrees about X", Reference = 90, Lower = 60, Upper = 180, BaseFlip = true },
+        new Variant { Name = "h1_slide_conc_anti", Description = "slide, distance 0..30 mm, concentric mate anti-aligned", Slide = true, Reference = 10, Lower = 0, Upper = 30, ConcAlign = swMateAlign_e.swMateAlignANTI_ALIGNED },
+        new Variant { Name = "h2_slide_base_turned", Description = "slide, distance 0..30 mm, base turned by 180 degrees about X", Slide = true, Reference = 10, Lower = 0, Upper = 30, BaseFlip = true },
     };
 
     static readonly List<string> rows = new List<string>();
@@ -165,12 +170,22 @@ public static class LimitLiveProbe
         doc.ClearSelection2(true);
         if (!doc.Extension.SelectByID2(BaseName + "@" + System.IO.Path.GetFileNameWithoutExtension(doc.GetPathName()), "COMPONENT", 0, 0, 0, false, 0, null, 0))
             throw new Exception("base component not found");
+        if (v.BaseFlip)
+        {
+            // turn the base by 180 degrees about X before it is fixed, so that the boss points the other way
+            Component2 baseComponent = ((AssemblyDoc)doc).GetComponentByName(BaseName);
+            double[] t = (double[])baseComponent.Transform2.ArrayData;
+            baseComponent.Transform2 = (MathTransform)math.CreateTransform(new double[] { 1, 0, 0, 0, -1, 0, 0, 0, -1, t[9], t[10], t[11], 1, 0, 0, 0 });
+            doc.ForceRebuild3(false);
+            doc.ClearSelection2(true);
+            doc.Extension.SelectByID2(BaseName + "@" + System.IO.Path.GetFileNameWithoutExtension(doc.GetPathName()), "COMPONENT", 0, 0, 0, false, 0, null, 0);
+        }
         ((AssemblyDoc)doc).FixComponent();
         doc.ClearSelection2(true);
 
         SelectFace(BaseName, false, (f, b, s) => s.IsCylinder(), "base boss cylinder");
         SelectFace(ArmName, true, (f, b, s) => s.IsCylinder(), "arm hole cylinder");
-        AddMate(swMateType_e.swMateCONCENTRIC, swMateAlign_e.swMateAlignALIGNED, false, 0, 0, 0, 0, 0, 0, "concentric boss/hole");
+        AddMate(swMateType_e.swMateCONCENTRIC, v.ConcAlign, false, 0, 0, 0, 0, 0, 0, "concentric boss/hole");
 
         Func<Face2, double[], Surface, bool> baseTop = (f, b, s) => s.IsPlane() && Near(b[2], 0.02) && Near(b[5], 0.02) && b[3] - b[0] > 0.09;
         Func<Face2, double[], Surface, bool> armTop = (f, b, s) => s.IsPlane() && Near(b[2], 0) && Near(b[5], 0); // the arm face at z = 0 of the part: it ends up on top of the base
