@@ -654,6 +654,7 @@ namespace SW2URDF.URDFExport
             string coordSysName = child.Joint.CoordinateSystemName;
             string axisName = child.Joint.AxisName;
             string jointType = child.Joint.Type;
+            double[] axisOfMateLimits = null;
 
             child.Joint.Parent.Name = parent.Name;
             child.Joint.Child.Name = child.Name;
@@ -676,6 +677,7 @@ namespace SW2URDF.URDFExport
                 // We have to estimate the joint if the user specifies automatic for either the
                 // reference coordinate system, the reference axis or the joint type.
                 EstimateGlobalJointFromComponents(parent, child);
+                axisOfMateLimits = LimitsFromMate ? child.Joint.Axis.GetXYZ() : null;
                 bool autoGenerateError = (
                     child.Joint.Origin.X == 0.0 && child.Joint.Origin.Y == 0.0 && child.Joint.Origin.Z == 0.0 &&
                     child.Joint.Origin.Roll == 0.0 && child.Joint.Origin.Pitch == 0.0 && child.Joint.Origin.Yaw == 0.0);
@@ -726,6 +728,15 @@ namespace SW2URDF.URDFExport
             }
 
             EstimateGlobalJointFromRefGeometry(child);
+            if (axisOfMateLimits != null && child.Joint.Type != "fixed")
+            {
+                // The limits were computed for the axis SolidWorks reported; the written axis can point the other way
+                double lower = child.Joint.Limit.Lower;
+                double upper = child.Joint.Limit.Upper;
+                LimitsForAxis(axisOfMateLimits, child.Joint.Axis.GetXYZ(), ref lower, ref upper);
+                child.Joint.Limit.Lower = lower;
+                child.Joint.Limit.Upper = upper;
+            }
 
             coordSysName = parent.Joint.CoordinateSystemName;
 
@@ -1526,6 +1537,7 @@ namespace SW2URDF.URDFExport
         // the axis of rotation/translation, and the type of joint
         public Boolean EstimateGlobalJointFromComponents(Link parent, Link child)
         {
+            LimitsFromMate = false;
             //Create the ref objects
             int degreesOfFreedom;
 
@@ -1611,7 +1623,7 @@ namespace SW2URDF.URDFExport
                 UnsuppressLimitMates(limitMates);
                 if (limitMates.Count > 0 && ComputeJointLimits)
                 {
-                    AddLimits(child.Joint, limitMates, parent.SWMainComponent, child.SWMainComponent);
+                    LimitsFromMate = AddLimits(child.Joint, limitMates, parent.SWMainComponent, child.SWMainComponent);
                 }
             }
 
@@ -1963,6 +1975,156 @@ namespace SW2URDF.URDFExport
 
 
         /// <summary>
+        /// Limits of the joint along its axis from the variation of a limit mate, given the measured
+        /// direction: +1 when the child moves along the axis (turns about it) while the variation
+        /// grows, -1 when it moves the other way. Free of SolidWorks calls so it can be tested.
+        /// </summary>
+        public static void LimitFromDirection(int direction, double minimum, double maximum,
+            out double lower, out double upper)
+        {
+            if (direction > 0)
+            {
+                lower = minimum;
+                upper = maximum;
+            }
+            else
+            {
+                lower = -maximum;
+                upper = -minimum;
+            }
+        }
+
+        /// <summary>
+        /// Moves the dimension of a limit mate a little inside its limits, sees how the child moves
+        /// relative to the axis and puts the model back. Returns +1 when the child moves along the axis
+        /// (turns about it, right-handed) while the variation grows, -1 for the other way, 0 when it
+        /// could not be measured.
+        /// </summary>
+        private int ProbeVariationDirection(Mate2 swMate, bool prismatic, double[] axis, Component2 child)
+        {
+            Dimension dimension = null;
+            double start = 0;
+            try
+            {
+                Feature feature = (Feature)swMate;
+                dimension = ActiveSWModel.Parameter("D1@" + feature.Name) as Dimension;
+                if (dimension == null)
+                {
+                    return 0;
+                }
+                double room = swMate.MaximumVariation > 1e-9 ? swMate.MaximumVariation : swMate.MinimumVariation;
+                double delta = Math.Sign(room) * Math.Min(Math.Abs(room) / 2.0, prismatic ? 0.001 : 0.05);
+                if (Math.Abs(delta) < 1e-9)
+                {
+                    return 0;
+                }
+                start = dimension.SystemValue;
+                double[][] before = ChildProbePoints(child);
+                dimension.SystemValue = start + delta;
+                ActiveSWModel.ForceRebuild3(false);
+                double[][] after = ChildProbePoints(child);
+
+                double moved;
+                if (prismatic)
+                {
+                    moved = axis[0] * (after[0][0] - before[0][0]) + axis[1] * (after[0][1] - before[0][1]) +
+                        axis[2] * (after[0][2] - before[0][2]);
+                    if (Math.Abs(moved) < 0.2 * Math.Abs(delta))
+                    {
+                        return 0;
+                    }
+                }
+                else
+                {
+                    // the local direction that is the most perpendicular to the axis shows the turn best
+                    int best = 1;
+                    double bestLength = -1;
+                    for (int i = 1; i <= 3; i++)
+                    {
+                        double along = before[i][0] * axis[0] + before[i][1] * axis[1] + before[i][2] * axis[2];
+                        double length = 1 - along * along;
+                        if (length > bestLength)
+                        {
+                            bestLength = length;
+                            best = i;
+                        }
+                    }
+                    double[] a = before[best];
+                    double[] b = after[best];
+                    double[] cross = new double[]
+                    {
+                        a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]
+                    };
+                    moved = axis[0] * cross[0] + axis[1] * cross[1] + axis[2] * cross[2];
+                    if (Math.Abs(moved) < 0.2 * Math.Abs(delta) * bestLength)
+                    {
+                        return 0;
+                    }
+                }
+                return moved * delta > 0 ? 1 : -1;
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Measuring the direction of a limit mate failed: " + e.Message);
+                return 0;
+            }
+            finally
+            {
+                if (dimension != null)
+                {
+                    try
+                    {
+                        dimension.SystemValue = start;
+                        ActiveSWModel.ForceRebuild3(false);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Warn("Putting a limit mate back failed: " + e.Message);
+                    }
+                }
+            }
+        }
+
+        // World position of the origin of a component and the world images of its three local unit vectors
+        private double[][] ChildProbePoints(Component2 child)
+        {
+            MathTransform transform = child.Transform2;
+            double[][] result = new double[4][];
+            MathPoint origin = (MathPoint)swMath.CreatePoint(new double[] { 0, 0, 0 });
+            result[0] = (double[])((MathPoint)origin.MultiplyTransform(transform)).ArrayData;
+            double[][] units = new double[][]
+            {
+                new double[] { 1, 0, 0 }, new double[] { 0, 1, 0 }, new double[] { 0, 0, 1 }
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                MathVector vector = (MathVector)swMath.CreateVector(units[i]);
+                result[i + 1] = (double[])((MathVector)vector.MultiplyTransform(transform)).ArrayData;
+            }
+            return result;
+        }
+
+        // Set when the limits of the joint being built were computed from a limit mate
+        private bool LimitsFromMate;
+
+        /// <summary>
+        /// The limits of a limit mate hold for the axis SolidWorks reported for the free degree of
+        /// freedom. The axis that is written can point the other way (a generated reference axis is
+        /// turned to favour positive directions, a chosen one can be anything), and then the limits
+        /// have to be mirrored. Free of SolidWorks calls so it can be tested.
+        /// </summary>
+        public static void LimitsForAxis(double[] mateAxis, double[] writtenAxis, ref double lower, ref double upper)
+        {
+            double dot = mateAxis[0] * writtenAxis[0] + mateAxis[1] * writtenAxis[1] + mateAxis[2] * writtenAxis[2];
+            if (dot < 0)
+            {
+                double mirroredLower = -upper;
+                upper = -lower;
+                lower = mirroredLower;
+            }
+        }
+
+        /// <summary>
         /// Converts the minimum and maximum variation SolidWorks reports for a limit mate (relative to
         /// the pose the mate was made in) into the lower and upper limit of the joint along its axis.
         /// Measured live on a hinge and on a slide: for an angle mate that is not flipped the child
@@ -1986,9 +2148,10 @@ namespace SW2URDF.URDFExport
         }
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
-        private static void AddLimits(Joint Joint, List<Mate2> limitMates,
+        private bool AddLimits(Joint Joint, List<Mate2> limitMates,
             Component2 parentComponent, Component2 childComponent)
         {
+            bool limitsWritten = false;
             logger.Info("Parent SW Component: " + parentComponent.Name2);
             logger.Info("Child SW Component: " + childComponent.Name2);
             // The number of limit Mates should only be one. But for completeness, I cycle through
@@ -2029,11 +2192,27 @@ namespace SW2URDF.URDFExport
                         (Joint.Type == "prismatic" && swMate.Type ==
                             (int)swMateType_e.swMateDISTANCE))
                     {
-                        LimitFromMate(Joint.Type == "prismatic", swMate.Flipped,
-                            swMate.MinimumVariation, swMate.MaximumVariation,
-                            out double lower, out double upper);
+                        // Which way the child moves along the axis when the variation grows depends on
+                        // the faces and the alignment of the mate, so it is measured on the model;
+                        // the rule of LimitFromMate is only the fallback.
+                        int direction = ProbeVariationDirection(swMate, Joint.Type == "prismatic",
+                            Joint.Axis.GetXYZ(), childComponent);
+                        double lower, upper;
+                        if (direction != 0)
+                        {
+                            LimitFromDirection(direction, swMate.MinimumVariation, swMate.MaximumVariation,
+                                out lower, out upper);
+                        }
+                        else
+                        {
+                            logger.Warn("The direction of the limit mate could not be measured, using the rule for the mate type");
+                            LimitFromMate(Joint.Type == "prismatic", swMate.Flipped,
+                                swMate.MinimumVariation, swMate.MaximumVariation,
+                                out lower, out upper);
+                        }
                         Joint.Limit.Lower = lower;
                         Joint.Limit.Upper = upper;
+                        limitsWritten = true;
                         if (Joint.Type == "continuous")
                         {
                             Joint.Type = "revolute";
@@ -2041,6 +2220,7 @@ namespace SW2URDF.URDFExport
                     }
                 }
             }
+            return limitsWritten;
         }
 
         // Suppresses limit mates to make it easier to find the free degree of freedom in a joint
