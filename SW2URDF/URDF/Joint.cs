@@ -65,6 +65,10 @@ namespace SW2URDF.URDF
         [DataMember]
         public string AxisName;
 
+        // Where the limits came from, for the joint form only. Not serialised, so the saved
+        // configuration and the URDF do not change.
+        public LimitMateInfo LimitInfo;
+
         public Joint() : base("joint", false)
         {
             Origin = new Origin(false);
@@ -143,6 +147,7 @@ namespace SW2URDF.URDF
             // These strings aren't kept as URDFAttribute objects and so they are tracked separately
             CoordinateSystemName = joint.CoordinateSystemName;
             AxisName = joint.AxisName;
+            LimitInfo = joint.LimitInfo?.Clone();
         }
 
         public override void SetElementFromData(List<string> context, StringDictionary dictionary)
