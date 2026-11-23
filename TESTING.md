@@ -355,6 +355,45 @@ The comparison logic is tested without xacro by `python scripts/test_xacro_equiv
 whitespace, attribute order, comment and number-format differences pass; a changed mass, origin, mesh path, a
 missing joint or a renamed link fail).
 
+## Joint limits from limit mates (`scripts/LimitLiveProbe.cs`)
+
+The live host compares the joint axis and the `<limit lower upper>` the exporter writes with the motion
+SolidWorks really allows. The model is minimal: a base plate with a 10 mm boss (`LIM_BASE`) and an arm with a
+14 mm hole (`LIM_ARM`), placed in `LIM_HINGE.SLDASM`. For each variant the host works on a copy of the three
+files (renamed, so that they can be open beside the originals), builds the mates, drives the mate dimension to
+its limits and measures how the arm moves (SolidWorks' own point transform, no matrix convention assumed), then
+builds a base link and a child link with automatic joint detection, exports, parses the written URDF, converts the
+written axis to the world frame and compares. Mates:
+
+* hinge: concentric (boss/hole) + coincident (faces) + one angle limit mate, reference 90 degrees;
+* slide: concentric + perpendicular (side faces, no turning) + one distance limit mate, reference 10 mm.
+
+In this model the exported axis is world +Z. Ranges are relative to the
+pose the model is exported in.
+
+Compile `LimitLiveProbe.cs` the way `scripts/ObjRegressProbe.cs` is compiled (references: `SW2URDF.dll` of a
+private build, the two SolidWorks interop assemblies, `WindowsBase`, `PresentationFramework`, `System.Xml`) and run
+it against a SolidWorks instance you own that holds no other document:
+`LimitLiveProbe.exe <pid> <folder with the three unmated files> <out dir> [variant ...]`. Set the user profile
+folder to a private one for the run if other exporters write the shared log at the same time.
+
+| Variant | SolidWorks truth (along the exported axis) | Exporter wrote | Match |
+|---------|--------------------------------------------|----------------|-------|
+| hinge, limits 60..180, reference 90 | -90..+30 deg | -90..+30 | yes |
+| hinge, limits 0..180, reference 90 | -90..+90 deg | -90..+90 | yes |
+| hinge, 60..180, `Flip` set on the mate | -30..+90 deg | -30..+90 | yes |
+| hinge, 60..180, anti-aligned | -90..+30 deg | -90..+30 | yes |
+| hinge, 60..180, faces picked in the other order | -90..+30 deg | -90..+30 | yes |
+| hinge, 60..180, exported at 120 degrees | -60..+60 deg | -60..+60 | yes |
+| slide, distance 0..30 mm, reference 10 | -10..+20 mm | -20..+10 (before the fix of issue 149) | no, fixed |
+| slide, same, `Flip` set | -20..+10 mm | -10..+20 (before the fix) | no, fixed |
+| slide, same, anti-aligned / other pick order | -10..+20 mm | -20..+10 (before the fix) | no, fixed |
+| slide, same, exported at 20 mm | -20..+10 mm | -10..+20 (before the fix) | no, fixed |
+
+Not covered: limit mates on advanced hinge/slider mates, geometry where the exported axis points along the
+negative world axis, joints with a parent that is itself moving. The sign rule is unit tested without SolidWorks
+in `TestLimitFromMate`.
+
 ## Known limitations
 
 - Existing export tests (`TestExportHelper`) still write into the home folder and the example folders;
