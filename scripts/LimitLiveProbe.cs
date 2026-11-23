@@ -429,7 +429,11 @@ public static class LimitLiveProbe
             bool flagBefore = doc.GetSaveFlag();
             var probeHelper = new ExportHelper(app);
             MethodInfo probe = typeof(ExportHelper).GetMethod("ProbeVariationDirection", BindingFlags.NonPublic | BindingFlags.Instance);
+            // as in the exporter, the parent is fixed while the direction is measured
+            string asmTitle = System.IO.Path.GetFileNameWithoutExtension(doc.GetPathName());
+            doc.ClearSelection2(true); doc.Extension.SelectByID2(BaseName + "@" + asmTitle, "COMPONENT", 0, 0, 0, false, 0, null, 0); ((AssemblyDoc)doc).FixComponent(); doc.ClearSelection2(true);
             int direction = (int)probe.Invoke(probeHelper, new object[] { mate, v.Slide, new double[] { 0, 0, 1 }, armNow });
+            doc.ClearSelection2(true); doc.Extension.SelectByID2(BaseName + "@" + asmTitle, "COMPONENT", 0, 0, 0, false, 0, null, 0); ((AssemblyDoc)doc).UnfixComponent(); doc.ClearSelection2(true);
             double valueAfter = dim.SystemValue;
             bool flagAfter = doc.GetSaveFlag();
             bool restored = Math.Abs(valueAfter - valueBefore) < 1e-9 && PoseMatches(poseBefore, Pose(armNow)) &&
@@ -457,9 +461,9 @@ public static class LimitLiveProbe
             double[] poseAfterExport = Pose(armNow);
             bool afterOk = Math.Abs(dim.SystemValue - valueExport) < 1e-9 && PoseMatches(poseExport, poseAfterExport) &&
                 Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9;
-            Say(string.Format("RESULT-EXPORT {0}\tdimension {1} -> {2}\tpose restored {3}\tmate limits unchanged {4}\tsave flag {5}\t{6}", v.Name,
+            Say(string.Format("RESULT-EXPORT {0}\tdimension {1} -> {2}\tpose restored {3}\tmate limits unchanged {4}\tsave flag after {5}\t{6}\tmodel already modified when the probe started: {7}", v.Name,
                 Num(valueExport * unit), Num(dim.SystemValue * unit), PoseMatches(poseExport, poseAfterExport),
-                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9, doc.GetSaveFlag(), afterOk ? "yes" : "NO"));
+                Math.Abs(mate.MinimumVariation - minBefore) < 1e-9 && Math.Abs(mate.MaximumVariation - maxBefore) < 1e-9, doc.GetSaveFlag(), afterOk ? "yes" : "NO", ExportHelper.LastProbeStartedOnModifiedModel));
             if (!afterOk) failures++;
             string urdf = Directory.GetFiles(Path.Combine(root, package), "*.urdf", SearchOption.AllDirectories).FirstOrDefault();
             if (urdf == null) throw new Exception("no URDF written");

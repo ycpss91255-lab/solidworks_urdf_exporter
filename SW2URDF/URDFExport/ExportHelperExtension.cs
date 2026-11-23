@@ -1994,6 +1994,9 @@ namespace SW2URDF.URDFExport
             }
         }
 
+        /// <summary>Whether the model was already marked modified when the last direction probe started (for the live checks).</summary>
+        public static bool LastProbeStartedOnModifiedModel;
+
         /// <summary>
         /// Moves the dimension of a limit mate a little inside its limits, sees how the child moves
         /// relative to the axis and puts the model back. Returns +1 when the child moves along the axis
@@ -2039,6 +2042,11 @@ namespace SW2URDF.URDFExport
                     return 0;
                 }
                 start = value;
+                LastProbeStartedOnModifiedModel = ActiveSWModel.GetSaveFlag();
+                if (!LastProbeStartedOnModifiedModel)
+                {
+                    logger.Info("The model was not modified when the direction of limit mate " + mateName + " was measured; it will be marked modified");
+                }
                 before = ChildProbePoints(child);
                 changed = true;
                 dimension.SystemValue = start + delta;
