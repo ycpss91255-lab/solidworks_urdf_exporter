@@ -385,16 +385,16 @@
     <value>摩擦 (N)</value>
   </data>
   <data xml:space="preserve" name="friction (n-m)">
-    <value>摩擦 (N-m)</value>
+    <value>摩擦 (N·m)</value>
   </data>
   <data xml:space="preserve" name="damping">
     <value>阻尼</value>
   </data>
   <data xml:space="preserve" name="damping (n-m-s/rad)">
-    <value>阻尼 (N-m-s/rad)</value>
+    <value>阻尼 (N·m·s/rad)</value>
   </data>
   <data xml:space="preserve" name="damping (n-s/m)">
-    <value>阻尼 (N-s/m)</value>
+    <value>阻尼 (N·s/m)</value>
   </data>
   <data xml:space="preserve" name="soft lower limit">
     <value>軟下限</value>
