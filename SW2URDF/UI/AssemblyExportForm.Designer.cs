@@ -78,6 +78,7 @@
             this.panelObjColorNote = new System.Windows.Forms.Panel();
             this.panelLinkContent = new System.Windows.Forms.Panel();
             this.panelLinkButtons = new System.Windows.Forms.TableLayoutPanel();
+            this.checkBoxXacro = new System.Windows.Forms.CheckBox();
             this.flowLayoutPanelLinkButtons = new System.Windows.Forms.FlowLayoutPanel();
             this.panelJointPage = new System.Windows.Forms.Panel();
             this.panelJointContent = new System.Windows.Forms.Panel();
@@ -253,6 +254,17 @@
             this.panelLinkButtons.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.panelLinkButtons.Size = new System.Drawing.Size(1073, 34);
             this.panelLinkButtons.TabIndex = 1;
+            //
+            // checkBoxXacro
+            //
+            this.checkBoxXacro.AutoSize = true;
+            this.checkBoxXacro.Location = new System.Drawing.Point(184, 205);
+            this.checkBoxXacro.Name = "checkBoxXacro";
+            this.checkBoxXacro.Size = new System.Drawing.Size(150, 17);
+            this.checkBoxXacro.TabIndex = 2;
+            this.checkBoxXacro.Text = "Write xacro (.urdf.xacro)";
+            this.checkBoxXacro.UseVisualStyleBackColor = true;
+            this.checkBoxXacro.CheckedChanged += new System.EventHandler(this.CheckBoxXacroCheckedChanged);
             //
             // flowLayoutPanelLinkButtons
             //
@@ -629,6 +641,7 @@
             // 
             this.groupBox4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox4.Controls.Add(this.groupBox1);
+            this.groupBox4.Controls.Add(this.checkBoxXacro);
             this.groupBox4.Controls.Add(this.panelObjColorNote);
             this.groupBox4.Controls.Add(this.label19);
             this.groupBox4.Controls.Add(this.textBoxVisualOriginZ);
@@ -2033,6 +2046,7 @@
         private System.Windows.Forms.Panel panelObjColorNote;
         private System.Windows.Forms.Panel panelLinkContent;
         private System.Windows.Forms.TableLayoutPanel panelLinkButtons;
+        private System.Windows.Forms.CheckBox checkBoxXacro;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelLinkButtons;
         private System.Windows.Forms.Panel panelJointPage;
         private System.Windows.Forms.Panel panelJointContent;

@@ -125,6 +125,35 @@ function Get-Problems($form, [string]$tag) {
     return ,$result
 }
 
+# The Write xacro checkbox must have room whatever the language and scale: inside its container,
+# clear of every sibling (also controls that are only shown sometimes, such as the OBJ note), and
+# its container clear of the groups next to it. Findings are returned as signatures like the rest.
+function Test-XacroCheckBox($form, [string]$label) {
+    $found = New-Object System.Collections.ArrayList
+    $box = @($form.Controls.Find('checkBoxXacro', $true))
+    if ($box.Count -ne 1) { [void]$found.Add("xacro|$label|checkbox missing"); return ,$found }
+    $box = $box[0]
+    if ($box.Checked) { [void]$found.Add("xacro|$label|not unchecked by default") }
+    $parent = $box.Parent
+    $client = $parent.ClientSize
+    if ($box.Right -gt $client.Width + 1 -or $box.Bottom -gt $client.Height + 1 -or $box.Left -lt 0 -or $box.Top -lt 0) {
+        [void]$found.Add("xacro|$label|checkbox outside $($parent.Name): $($box.Bounds) in $client")
+    }
+    foreach ($sibling in $parent.Controls) {
+        if ($sibling -eq $box) { continue }
+        $x = [System.Drawing.Rectangle]::Intersect($box.Bounds, $sibling.Bounds)
+        if ($x.Width -gt 0 -and $x.Height -gt 0) { [void]$found.Add("xacro|$label|checkbox overlaps $($sibling.Name)") }
+    }
+    if ($parent -is [System.Windows.Forms.FlowLayoutPanel]) {
+        foreach ($sibling in $parent.Parent.Controls) {
+            if ($sibling -eq $parent) { continue }
+            $x = [System.Drawing.Rectangle]::Intersect($parent.Bounds, $sibling.Bounds)
+            if ($x.Width -gt 0 -and $x.Height -gt 0) { [void]$found.Add("xacro|$label|$($parent.Name) overlaps $($sibling.Name)") }
+        }
+    }
+    return ,$found
+}
+
 $formTypes = @('SW2URDF.UI.AssemblyExportForm', 'SW2URDF.UI.PartExportForm')
 $fonts = @(@('Microsoft Sans Serif', 8.25), @('Microsoft JhengHei UI', 9))
 $scales = @(1.0, 1.25, 1.5)
@@ -138,8 +167,12 @@ foreach ($typeName in $formTypes) {
             $font = New-Object System.Drawing.Font($f[0], [single]($f[1] * $scale), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
             $tag = "{0}_{1}_x{2}_{3}" -f $type.Name, ($f[0] -replace ' ', ''), $scale, $Language
             $english = New-Form $type $font $null
+            $xe = Test-XacroCheckBox $english "$($type.Name) [$($f[0]) $($f[1])pt x$scale] en"
+            foreach ($p in $xe) { [void]$newProblems.Add($p) }
             try { $en = Get-Problems $english ($tag -replace "_$Language$", '_en') } finally { $english.Dispose() }
             $zh = New-Form $type $font $translated
+            $xz = Test-XacroCheckBox $zh "$($type.Name) [$($f[0]) $($f[1])pt x$scale] $Language"
+            foreach ($p in $xz) { [void]$newProblems.Add($p) }
             try { $tr = Get-Problems $zh $tag } finally { $zh.Dispose() }
             $font.Dispose()
             $baselineCount += $en.Count; $checked++
