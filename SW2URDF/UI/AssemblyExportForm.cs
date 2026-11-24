@@ -109,6 +109,18 @@ namespace SW2URDF.UI
             UiText.PlaceAfter(label1, label54);
             UiText.PlaceAfter(AxisRequiredLabel, label60);
             UiText.PlaceAfter(LimitRequiredLabel, label68);
+            // The group titles of the Origin/Axis/Limit row sit right above the "Position (m)"
+            // caption; with the font's real line height they touch it. Lift the whole title row.
+            Label[] titles = { label54, label1, label60, AxisRequiredLabel, label68, LimitRequiredLabel };
+            int bottom = Math.Max(label54.Bottom, label1.Bottom);
+            int lift = bottom + Math.Max(2, Font.Height / 6) - label3.Top;
+            if (lift > 0)
+            {
+                foreach (Label title in titles)
+                {
+                    title.Top -= lift;
+                }
+            }
         }
 
         public AssemblyExportForm(SldWorks SwApp, LinkNode node, ExportHelper exporter)
