@@ -1602,7 +1602,7 @@
             // 
             this.LimitRequiredLabel.AutoSize = true;
             this.LimitRequiredLabel.Font = new System.Drawing.Font(this.Font.FontFamily, this.Font.SizeInPoints * 0.945F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(1)));
-            this.LimitRequiredLabel.Location = new System.Drawing.Point(980, 247);
+            this.LimitRequiredLabel.Location = new System.Drawing.Point(987, 247);
             this.LimitRequiredLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.LimitRequiredLabel.Name = "LimitRequiredLabel";
             this.LimitRequiredLabel.Size = new System.Drawing.Size(12, 13);
