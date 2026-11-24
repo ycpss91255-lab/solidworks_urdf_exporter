@@ -66,11 +66,11 @@
   <data xml:space="preserve" name="blank entries are not written to the model file.">
     <value>空白欄位不會寫入模型檔。</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>僅匯出 URDF…</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>僅匯出模型檔…</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>匯出 URDF 與網格…</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>匯出模型檔與網格…</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>匯出為 URDF</value>

@@ -66,11 +66,11 @@
   <data xml:space="preserve" name="blank entries are not written to the model file.">
     <value>Blank entries are not written to the model file.</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>Export URDF Only...</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>Export Model File Only...</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>Export URDF and Meshes...</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>Export Model File and Meshes...</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>Export as URDF</value>

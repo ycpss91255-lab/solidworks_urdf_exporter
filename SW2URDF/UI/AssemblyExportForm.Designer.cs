@@ -289,7 +289,7 @@
             this.buttonLinksExportUrdfOnly.Name = "buttonLinksExportUrdfOnly";
             this.buttonLinksExportUrdfOnly.Size = new System.Drawing.Size(150, 21);
             this.buttonLinksExportUrdfOnly.TabIndex = 94;
-            this.buttonLinksExportUrdfOnly.Text = "Export URDF Only...";
+            this.buttonLinksExportUrdfOnly.Text = "Export Model File Only...";
             this.buttonLinksExportUrdfOnly.UseVisualStyleBackColor = true;
             this.buttonLinksExportUrdfOnly.Click += new System.EventHandler(this.ButtonLinksExportUrdfOnlyClick);
             // 
@@ -336,7 +336,7 @@
             this.buttonLinksFinish.Name = "buttonLinksFinish";
             this.buttonLinksFinish.Size = new System.Drawing.Size(150, 21);
             this.buttonLinksFinish.TabIndex = 91;
-            this.buttonLinksFinish.Text = "Export URDF and Meshes...";
+            this.buttonLinksFinish.Text = "Export Model File and Meshes...";
             this.buttonLinksFinish.UseVisualStyleBackColor = true;
             this.buttonLinksFinish.Click += new System.EventHandler(this.ButtonLinksFinishClick);
             // 
