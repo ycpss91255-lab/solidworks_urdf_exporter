@@ -41,6 +41,8 @@ namespace SW2URDF.UI
 
         public ExportHelper Exporter;
         private readonly UiText ui;
+        // DPI the layout is currently built for; the window may be drawn at another one.
+        private float layoutDpi = UiLayout.ScreenDpi();
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
@@ -115,8 +117,10 @@ namespace SW2URDF.UI
                 new ThreadExceptionEventHandler(ExceptionHandler);
             AppDomain.CurrentDomain.UnhandledException +=
                 new UnhandledExceptionEventHandler(UnhandledException);
-            InitializeComponent();
             ui = UiText.FromSolidWorks(SwApp);
+            // One font for the whole form, chosen for the UI language (issue #157).
+            Font = ui.CreateFormFont();
+            InitializeComponent();
             ui.Apply(this);
             // The mesh format captions are bare names; what each format keeps is in the tooltip.
             var meshFormatTips = new ToolTip();
@@ -231,7 +235,7 @@ namespace SW2URDF.UI
         {
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
-            UiLayout.FitButtonHeightsToWindow(this);
+            UiLayout.FollowWindowDpi(this, ref layoutDpi);
         }
 
         // Closing the preview in any way other than a completed export (Cancel, the window's close
@@ -250,7 +254,7 @@ namespace SW2URDF.UI
             base.WndProc(ref m);
             if (m.Msg == UiLayout.WM_DPICHANGED)
             {
-                UiLayout.FitButtonHeightsToWindow(this);
+                UiLayout.FollowWindowDpi(this, ref layoutDpi);
             }
         }
 

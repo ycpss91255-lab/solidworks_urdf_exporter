@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Globalization;
 using System.Resources;
 using System.Runtime.InteropServices;
@@ -38,6 +39,42 @@ namespace SW2URDF.UI
         public string ExportMenuPath { get { return Get("Export as URDF") + "@" + ToolsMenuCaption; } }
         public string ExportAssemblyHint { get { return Get("Export assembly as URDF file"); } }
         public string ExportPartHint { get { return Get("Export part as URDF file"); } }
+
+        // One font for every control of an export form, chosen for the UI language and set on the
+        // form before InitializeComponent, so the designer's bold titles are derived from it too.
+        // Chinese text in the Latin default UI font is drawn with glyphs taken from linked fallback
+        // fonts, which may be a serif face and differ between controls; a CJK UI font draws it all.
+        private static readonly string[] ChineseFormFonts = { "Microsoft JhengHei UI", "Microsoft JhengHei" };
+
+        public Font CreateFormFont()
+        {
+            if (Culture.Name != "en")
+            {
+                foreach (string name in ChineseFormFonts)
+                {
+                    if (IsInstalled(name))
+                    {
+                        return new Font(name, 9f, FontStyle.Regular, GraphicsUnit.Point);
+                    }
+                }
+            }
+            return new Font("Microsoft Sans Serif", 8.25f, FontStyle.Regular, GraphicsUnit.Point);
+        }
+
+        private static bool IsInstalled(string family)
+        {
+            try
+            {
+                using (new FontFamily(family))
+                {
+                    return true;
+                }
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
 
         public string Get(string english)
         {
