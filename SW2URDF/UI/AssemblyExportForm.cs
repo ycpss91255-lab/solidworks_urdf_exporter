@@ -68,8 +68,14 @@ namespace SW2URDF.UI
         {
             int gap = Math.Max(4, Font.Height / 3);
             label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - gap - label69.Left), 0);
-            // Measured with a Chinese character too: Windows may draw it with a taller linked font.
-            int fourLines = TextRenderer.MeasureText("極Ag\n極Ag\n極Ag\n極Ag", labelLimitSource.Font).Height;
+            // Measured the way the label sizes itself, with a Chinese character too: Windows may draw
+            // it with a taller linked font.
+            int fourLines;
+            using (Label sample = new Label { AutoSize = true, Font = labelLimitSource.Font, Padding = labelLimitSource.Padding,
+                Text = "極Ag\n極Ag\n極Ag\n極Ag" })
+            {
+                fourLines = sample.PreferredHeight;
+            }
             int missing = labelLimitSource.Top + fourLines + gap - label64.Top;
             if (missing <= 0)
             {
