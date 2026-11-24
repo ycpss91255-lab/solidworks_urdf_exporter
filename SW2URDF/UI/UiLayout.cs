@@ -325,6 +325,12 @@ namespace SW2URDF.UI
                     }
                     int extra = IsField(above) && IsField(item)
                         ? Math.Max(0, gap - (tops[item] - (tops[above] + above.Height))) : 0;
+                    // A caption or panel right above a control keeps a gap of one pixel to it: with some fonts
+                    // (Chinese drawn through font linking) its lines are taller than the designer's.
+                    if (!IsField(above))
+                    {
+                        extra = Math.Max(extra, 1 - (tops[item] - (tops[above] + above.Height)));
+                    }
                     int growth;
                     grew.TryGetValue(above, out growth);
                     shift = Math.Max(shift, aboveShift + growth + extra);
