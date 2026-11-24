@@ -279,8 +279,20 @@ foreach ($typeName in $formTypes) {
                         [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), '-90 deg', '30 deg', '-1.5708 rad', '0.5236 rad') + "`n" +
                         $ui.Get('Direction: measured on the model')
                 }
+                # The parent and child link names are shown next to their captions, on the same line.
+                foreach ($pair in @(@('label64', 'labelParent', 'base_link'), @('label65', 'labelChild', 'shoulder_upper_arm_link'))) {
+                    $value = @($form.Controls.Find($pair[1], $true)) | Select-Object -First 1
+                    if ($value) { $value.Text = $pair[2] }
+                }
                 try {
                     $problems = New-Object System.Collections.ArrayList
+                    foreach ($pair in @(@('label64', 'labelParent'), @('label65', 'labelChild'))) {
+                        $caption = @($form.Controls.Find($pair[0], $true)) | Select-Object -First 1; $value = @($form.Controls.Find($pair[1], $true)) | Select-Object -First 1
+                        if ($caption -and $value -and $type.Name -eq 'AssemblyExportForm') {
+                            if ($value.Left -lt $caption.Right) { [void]$problems.Add("$($pair[1]) starts at $($value.Left), inside its caption $($pair[0]) ending at $($caption.Right)") }
+                            if ([Math]::Abs(($value.Top + $value.Height / 2) - ($caption.Top + $caption.Height / 2)) -gt 2) { [void]$problems.Add("$($pair[1]) is not on the line of its caption $($pair[0]): $($value.Bounds) vs $($caption.Bounds)") }
+                        }
+                    }
                     if ($how -eq 'moved') {
                         if (-not $scaleForDpi) { [void]$problems.Add('no per-monitor DPI rescale: UiLayout.ScaleForDpi is missing') }
                         else {
