@@ -40,14 +40,21 @@ namespace SW2URDF.UI
         public string ExportAssemblyHint { get { return Get("Export assembly as URDF file"); } }
         public string ExportPartHint { get { return Get("Export part as URDF file"); } }
 
-        // One font for every control of an export form, chosen for the UI language and set on the
-        // form before InitializeComponent, so the designer's bold titles are derived from it too.
-        // Chinese text in the Latin default UI font is drawn with glyphs taken from linked fallback
-        // fonts, which may be a serif face and differ between controls; a CJK UI font draws it all.
+        // One font for every control of an export form, set on the form before InitializeComponent,
+        // so the designer's bold titles are derived from it too. Segoe UI 8.5 pt in both languages:
+        // its Latin letters and digits are compact, and Windows draws Chinese glyphs through font
+        // linking (Microsoft JhengHei UI on a Traditional Chinese system). Where Segoe UI is missing,
+        // a CJK UI font for Chinese and the designer font for English.
+        internal const string FormFontFamily = "Segoe UI";
+        internal const float FormFontSize = 8.5f;
         private static readonly string[] ChineseFormFonts = { "Microsoft JhengHei UI", "Microsoft JhengHei" };
 
         public Font CreateFormFont()
         {
+            if (IsInstalled(FormFontFamily))
+            {
+                return new Font(FormFontFamily, FormFontSize, FontStyle.Regular, GraphicsUnit.Point);
+            }
             if (Culture.Name != "en")
             {
                 foreach (string name in ChineseFormFonts)
