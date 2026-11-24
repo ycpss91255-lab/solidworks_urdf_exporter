@@ -52,10 +52,97 @@ namespace SW2URDF.UI
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
 
+        // Angles are shown in degrees or radians (issue #155); the model always holds radians.
+        private AngleDisplay angles;
+        private string captionJointType;
+        private bool choosingAngleUnit;
+
+        // Shows the angle boxes and captions in the given unit. Only the display changes.
+        private void SetAngleUnit(AngleUnit unit)
+        {
+            if (angles == null)
+            {
+                angles = new AngleDisplay(unit);
+            }
+            else
+            {
+                angles.SetUnit(unit);
+            }
+            bool degrees = unit == AngleUnit.Degrees;
+            choosingAngleUnit = true;
+            comboBoxAngleUnitJoint.SelectedIndex = degrees ? 1 : 0;
+            comboBoxAngleUnitLink.SelectedIndex = degrees ? 1 : 0;
+            choosingAngleUnit = false;
+            label6.Text = degrees ? ui.Get("Orientation (deg)") : ui.Get("Orientation (rad)");
+            label36.Text = degrees ? ui.Get("Origin (m, deg)") : ui.Get("Origin (m, rad)");
+            label23.Text = degrees ? ui.Get("Origin (m, deg)") : ui.Get("Origin (m, rad)");
+            SetJointCaptions(captionJointType);
+        }
+
+        private void AngleUnitChosen(object sender, EventArgs e)
+        {
+            if (choosingAngleUnit)
+            {
+                return;
+            }
+            AngleUnit unit = ((ComboBox)sender).SelectedIndex == 1 ? AngleUnit.Degrees : AngleUnit.Radians;
+            SetAngleUnit(unit);
+            new AngleUnitSetting().Save(unit);
+        }
+
+        // Unit captions of the limit, dynamics and safety boxes for a joint type (null: no joint).
+        private void SetJointCaptions(string jointType)
+        {
+            captionJointType = jointType;
+            bool degrees = angles != null && angles.Unit == AngleUnit.Degrees;
+            if (jointType == "revolute" || jointType == "continuous")
+            {
+                labelLowerLimit.Text = degrees ? ui.Get("lower (deg)") : ui.Get("lower (rad)");
+                labelLimitUpper.Text = degrees ? ui.Get("upper (deg)") : ui.Get("upper (rad)");
+                labelEffort.Text = ui.Get("effort (N-m)");
+                labelVelocity.Text = degrees ? ui.Get("velocity (deg/s)") : ui.Get("velocity (rad/s)");
+                labelFriction.Text = ui.Get("friction (N-m)");
+                labelDamping.Text = ui.Get("damping (N-m-s/rad)");
+                labelSoftLower.Text = degrees ? ui.Get("soft lower limit (deg)") : ui.Get("soft lower limit (rad)");
+                labelSoftUpper.Text = degrees ? ui.Get("soft upper limit (deg)") : ui.Get("soft upper limit (rad)");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            else if (jointType == "prismatic")
+            {
+                labelLowerLimit.Text = ui.Get("lower (m)");
+                labelLimitUpper.Text = ui.Get("upper (m)");
+                labelEffort.Text = ui.Get("effort (N)");
+                labelVelocity.Text = ui.Get("velocity (m/s)");
+                labelFriction.Text = ui.Get("friction (N)");
+                labelDamping.Text = ui.Get("damping (N-s/m)");
+                labelSoftLower.Text = ui.Get("soft lower limit (m)");
+                labelSoftUpper.Text = ui.Get("soft upper limit (m)");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            else if (jointType != null)
+            {
+                labelLowerLimit.Text = ui.Get("lower");
+                labelLimitUpper.Text = ui.Get("upper");
+                labelEffort.Text = ui.Get("effort");
+                labelVelocity.Text = ui.Get("velocity");
+                labelFriction.Text = ui.Get("friction");
+                labelDamping.Text = ui.Get("damping");
+                labelSoftLower.Text = ui.Get("soft lower limit");
+                labelSoftUpper.Text = ui.Get("soft upper limit");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            AlignFieldLabels();
+        }
+
         private void AlignFieldLabels()
         {
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
+            labelAngleUnitJoint.Left = comboBoxAngleUnitJoint.Left;
+            UiText.AlignLabel(labelAngleUnitLink, comboBoxAngleUnitLink);
             UiText.AlignLabel(label14, textBoxIxx);
             UiText.AlignLabel(label11, textBoxIxz);
             UiText.AlignLabel(label13, textBoxInertialOriginX);
@@ -139,6 +226,13 @@ namespace SW2URDF.UI
                 int room = comboBoxJointType.Parent.ClientSize.Width - comboBoxJointType.Left - 8;
                 comboBoxJointType.Width = Math.Min(needed, room);
             }
+            // Angle unit: remembered per user, radians unless the user chose degrees.
+            SetAngleUnit(new AngleUnitSetting().Load());
+            string angleTip = ui.Get("Angles are shown in this unit. The URDF and the saved settings always use radians.");
+            meshFormatTips.SetToolTip(comboBoxAngleUnitJoint, angleTip);
+            meshFormatTips.SetToolTip(comboBoxAngleUnitLink, angleTip);
+            comboBoxAngleUnitJoint.SelectedIndexChanged += AngleUnitChosen;
+            comboBoxAngleUnitLink.SelectedIndexChanged += AngleUnitChosen;
             AlignFieldLabels();
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             swApp = SwApp;

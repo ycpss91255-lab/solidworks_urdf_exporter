@@ -151,6 +151,10 @@
             this.textBoxJointName = new System.Windows.Forms.TextBox();
             this.label62 = new System.Windows.Forms.Label();
             this.comboBoxJointType = new System.Windows.Forms.ComboBox();
+            this.labelAngleUnitJoint = new System.Windows.Forms.Label();
+            this.comboBoxAngleUnitJoint = new System.Windows.Forms.ComboBox();
+            this.labelAngleUnitLink = new System.Windows.Forms.Label();
+            this.comboBoxAngleUnitLink = new System.Windows.Forms.ComboBox();
             this.textBoxAxisX = new System.Windows.Forms.TextBox();
             this.label58 = new System.Windows.Forms.Label();
             this.textBoxAxisY = new System.Windows.Forms.TextBox();
@@ -224,6 +228,8 @@
             // small screens); the buttons stay in a fixed panel below so they are always reachable.
             this.panelLinkContent.AutoScroll = true;
             this.panelLinkContent.Controls.Add(this.label2);
+            this.panelLinkContent.Controls.Add(this.labelAngleUnitLink);
+            this.panelLinkContent.Controls.Add(this.comboBoxAngleUnitLink);
             this.panelLinkContent.Controls.Add(this.labelConfigurationStatus);
             this.panelLinkContent.Controls.Add(this.label5);
             this.panelLinkContent.Controls.Add(this.groupBox5);
@@ -1329,6 +1335,48 @@
             this.label62.TabIndex = 187;
             this.label62.Text = "Joint Type";
             // 
+            // labelAngleUnitJoint
+            // 
+            this.labelAngleUnitJoint.AutoSize = true;
+            this.labelAngleUnitJoint.Location = new System.Drawing.Point(890, 74);
+            this.labelAngleUnitJoint.Name = "labelAngleUnitJoint";
+            this.labelAngleUnitJoint.Size = new System.Drawing.Size(58, 12);
+            this.labelAngleUnitJoint.TabIndex = 243;
+            this.labelAngleUnitJoint.Text = "Angle unit";
+            // 
+            // comboBoxAngleUnitJoint
+            // 
+            this.comboBoxAngleUnitJoint.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxAngleUnitJoint.FormattingEnabled = true;
+            this.comboBoxAngleUnitJoint.Items.AddRange(new object[] {
+            "rad",
+            "deg"});
+            this.comboBoxAngleUnitJoint.Location = new System.Drawing.Point(890, 90);
+            this.comboBoxAngleUnitJoint.Name = "comboBoxAngleUnitJoint";
+            this.comboBoxAngleUnitJoint.Size = new System.Drawing.Size(70, 20);
+            this.comboBoxAngleUnitJoint.TabIndex = 244;
+            // 
+            // labelAngleUnitLink
+            // 
+            this.labelAngleUnitLink.AutoSize = true;
+            this.labelAngleUnitLink.Location = new System.Drawing.Point(928, 56);
+            this.labelAngleUnitLink.Name = "labelAngleUnitLink";
+            this.labelAngleUnitLink.Size = new System.Drawing.Size(58, 12);
+            this.labelAngleUnitLink.TabIndex = 245;
+            this.labelAngleUnitLink.Text = "Angle unit";
+            // 
+            // comboBoxAngleUnitLink
+            // 
+            this.comboBoxAngleUnitLink.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxAngleUnitLink.FormattingEnabled = true;
+            this.comboBoxAngleUnitLink.Items.AddRange(new object[] {
+            "rad",
+            "deg"});
+            this.comboBoxAngleUnitLink.Location = new System.Drawing.Point(992, 52);
+            this.comboBoxAngleUnitLink.Name = "comboBoxAngleUnitLink";
+            this.comboBoxAngleUnitLink.Size = new System.Drawing.Size(70, 20);
+            this.comboBoxAngleUnitLink.TabIndex = 246;
+            // 
             // comboBoxJointType
             // 
             this.comboBoxJointType.FormattingEnabled = true;
@@ -1779,6 +1827,8 @@
             this.panelJointContent.Controls.Add(this.label63);
             this.panelJointContent.Controls.Add(this.textBoxJointName);
             this.panelJointContent.Controls.Add(this.label62);
+            this.panelJointContent.Controls.Add(this.labelAngleUnitJoint);
+            this.panelJointContent.Controls.Add(this.comboBoxAngleUnitJoint);
             this.panelJointContent.Controls.Add(this.comboBoxJointType);
             this.panelJointContent.Controls.Add(this.textBoxAxisX);
             this.panelJointContent.Controls.Add(this.label58);
@@ -1995,6 +2045,10 @@
         private System.Windows.Forms.TextBox textBoxJointName;
         private System.Windows.Forms.Label label62;
         private System.Windows.Forms.ComboBox comboBoxJointType;
+        private System.Windows.Forms.Label labelAngleUnitJoint;
+        private System.Windows.Forms.ComboBox comboBoxAngleUnitJoint;
+        private System.Windows.Forms.Label labelAngleUnitLink;
+        private System.Windows.Forms.ComboBox comboBoxAngleUnitLink;
         private System.Windows.Forms.TextBox textBoxAxisX;
         private System.Windows.Forms.Label label58;
         private System.Windows.Forms.TextBox textBoxAxisY;
