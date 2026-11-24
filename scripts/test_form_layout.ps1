@@ -45,6 +45,15 @@ function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
         if ($font -and $font.Name -ne 'Microsoft Sans Serif') { $sample = [regex]::Unescape('\u4f7f\u7528\u4e2d\u7684\u7d44\u614b\uff1a\u9019\u662f\u4e00\u500b\u76f8\u7576\u9577\u7684\u7d44\u614b\u540d\u7a31\u4e8c\u96f6\u96f6\u96f6\r\n\u76ee\u524d\u4f7f\u7528\u5171\u7528\uff08\u820a\u7248\uff09\u8a2d\u5b9a\uff1b\u4e0b\u6b21\u5132\u5b58\u6642\u6703\u5b58\u5165\u6b64\u7d44\u614b\u3002') }
         [void]$layoutHelper.GetMethod('SetStatusBannerText', [Reflection.BindingFlags]'Static,NonPublic,Public').Invoke($null, [object[]]@([System.Windows.Forms.Label]$banner, [string]$sample))
     }
+    # Required-field stars ('*' labels) are hidden in the designer and shown at run time for some
+    # joint types; show them all so they are checked against the group titles they follow.
+    $stack = New-Object System.Collections.Stack; $stack.Push($form)
+    while ($stack.Count -gt 0) {
+        foreach ($c in $stack.Pop().Controls) {
+            if (($c -is [System.Windows.Forms.Label]) -and $c.Text -eq '*') { $c.Visible = $true }
+            $stack.Push($c)
+        }
+    }
     return $form
 }
 
