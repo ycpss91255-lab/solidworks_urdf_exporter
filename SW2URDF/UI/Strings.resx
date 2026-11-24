@@ -601,4 +601,7 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>Select an existing reference coordinate system for empty link {0}</value>
   </data>
+  <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
+    <value>The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it.</value>
+  </data>
 </root>
