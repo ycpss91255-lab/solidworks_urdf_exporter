@@ -339,6 +339,7 @@
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
     <Compile Include="Test\TestLimitMateProbe.cs" />
+    <Compile Include="Test\TestLimitMateValues.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
