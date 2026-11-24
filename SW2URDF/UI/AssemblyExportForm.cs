@@ -104,6 +104,13 @@ namespace SW2URDF.UI
         // which gets taller when the window and so the header get narrower.
         private void FitHeader()
         {
+            // Not in the middle of a refit: controls are then at their default bounds. The layout runs
+            // this again when it resumes.
+            GrowLayout grow = GrowLayout.Find(this);
+            if (grow != null && grow.IsSuspended)
+            {
+                return;
+            }
             int gap = Math.Max(6, Font.Height / 2);
             SizeF scale = DesignerScale();
             // The limit source text starts where the property area starts, but never over the title.

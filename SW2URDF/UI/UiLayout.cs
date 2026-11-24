@@ -48,6 +48,12 @@ namespace SW2URDF.UI
         // Runs after every change of the layout, for positions that depend on others (header text).
         internal Action AfterApply { get; set; }
 
+        // True while the layout code rearranges the form (DPI rescale, button fitting).
+        internal bool IsSuspended
+        {
+            get { return suspended > 0; }
+        }
+
         private GrowLayout(Form form)
         {
             this.form = form;
