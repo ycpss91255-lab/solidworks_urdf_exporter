@@ -127,7 +127,7 @@
     <value>OBJ + MTL</value>
   </data>
   <data xml:space="preserve" name="obj + mtl (native colors)">
-    <value>OBJ + MTL（原生配色）</value>
+    <value>OBJ + MTL (原生配色)</value>
   </data>
   <data xml:space="preserve" name="obj color and texture are defined by the mtl file.">
     <value>OBJ 的顏色與貼圖由 MTL 檔案決定。</value>
@@ -316,7 +316,7 @@
     <value>從 CSV 載入…</value>
   </data>
   <data xml:space="preserve" name="merge values from the csv written by an earlier export (links are matched by name)">
-    <value>合併先前匯出所寫出 CSV 檔中的數值（依連桿名稱配對）</value>
+    <value>合併先前匯出所寫出 CSV 檔中的數值 (依連桿名稱配對)</value>
   </data>
   <data xml:space="preserve" name="imported file: ">
     <value>匯入檔案：</value>
@@ -409,14 +409,14 @@
     <value>軟上限 (m)</value>
   </data>
   <data xml:space="preserve" name="creating urdf package &quot;{0}&quot; at:&#10;{1}">
-    <value>建立 URDF 套件「{0}」於：
+    <value>建立 URDF 套件「{0}」於:
 {1}</value>
   </data>
   <data xml:space="preserve" name="the following links are missing solidworks components in the active configuration &quot;{0}&quot; (for example because the configuration suppresses a part):">
-    <value>以下連桿在作用中的組態「{0}」缺少 SolidWorks 元件（例如該組態抑制了某個零件）：</value>
+    <value>以下連桿在作用中的組態「{0}」缺少 SolidWorks 元件 (例如該組態抑制了某個零件):</value>
   </data>
   <data xml:space="preserve" name="the following links are missing solidworks components (for example because the configuration suppresses a part):">
-    <value>以下連桿缺少 SolidWorks 元件（例如目前組態抑制了某個零件）：</value>
+    <value>以下連桿缺少 SolidWorks 元件 (例如目前組態抑制了某個零件):</value>
   </data>
   <data xml:space="preserve" name="the exported robot will be incomplete (missing geometry, mass and inertia). export anyway?">
     <value>匯出的機器人將不完整（缺少幾何、質量與慣性）。仍要匯出嗎？</value>
@@ -428,7 +428,7 @@
     <value>缺少元件</value>
   </data>
   <data xml:space="preserve" name="the configuration saved in this model is newer than what this exporter supports ({0} &gt; {1}). please update your exporter version">
-    <value>此模型中儲存的設定版本比目前匯出工具支援的版本新（{0} &gt; {1}）。請更新匯出工具版本。</value>
+    <value>此模型中儲存的設定版本比目前匯出工具支援的版本新 ({0} &gt; {1})。請更新匯出工具版本。</value>
   </data>
   <data xml:space="preserve" name="you have a urdf configuration with an outdated save format. it will automatically be upgraded to the latest version and saved for the active solidworks configuration. the old data is left in place and can be deleted at your convenience.">
     <value>您的 URDF 設定使用舊的儲存格式，將自動升級為最新版本，並儲存到目前作用中的 SolidWorks 組態。舊資料會保留，可隨時刪除。</value>
@@ -566,7 +566,7 @@
     <value>（無）</value>
   </data>
   <data xml:space="preserve" name="active configuration: {0}">
-    <value>使用中的組態：{0}</value>
+    <value>使用中的組態: {0}</value>
   </data>
   <data xml:space="preserve" name="stored for this configuration">
     <value>已儲存於此組態</value>
@@ -590,13 +590,13 @@
     <value>請開啟零件或組合件以使用 URDF 匯出工具。</value>
   </data>
   <data xml:space="preserve" name="saving the document did not finish cleanly (solidworks error code {0}, warning code {1}). the exporter continues, but its settings may not be stored in the file. save the document yourself, otherwise they can be lost when it is closed.">
-    <value>儲存文件時未能順利完成（SolidWorks 錯誤碼 {0}，警告碼 {1}）。匯出器會繼續執行，但其設定可能未存入檔案。請自行儲存文件，否則關閉文件時設定可能遺失。</value>
+    <value>儲存文件時未能順利完成 (SolidWorks 錯誤碼 {0}，警告碼 {1})。匯出器會繼續執行，但其設定可能未存入檔案。請自行儲存文件，否則關閉文件時設定可能遺失。</value>
   </data>
   <data xml:space="preserve" name="exporting the urdf failed unexpectedly.">
     <value>匯出 URDF 時發生未預期的錯誤。</value>
   </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
-    <value>下列連桿的網格無法匯出：{0}。URDF 未寫入，套件不完整（請見 {1}）。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
+    <value>下列連桿的網格無法匯出: {0}。URDF 未寫入，套件不完整 (請見 {1})。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
   </data>
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>空連桿 {0} 請選取既有的參考座標系統</value>
@@ -614,7 +614,7 @@
     <value>距離極限配合</value>
   </data>
   <data xml:space="preserve" name="limit mate {0} ({1})">
-    <value>極限配合 {0}（{1}）</value>
+    <value>極限配合 {0} ({1})</value>
   </data>
   <data xml:space="preserve" name="solidworks variation {0} to {1}">
     <value>SolidWorks 變化量 {0} 至 {1}</value>
@@ -623,13 +623,13 @@
     <value>SolidWorks 範圍 {0} 至 {1}，參考值 {2}</value>
   </data>
   <data xml:space="preserve" name="urdf (relative): {0} to {1} = {2} to {3}">
-    <value>URDF（相對）：{0} 至 {1} = {2} 至 {3}</value>
+    <value>URDF (相對): {0} 至 {1} = {2} 至 {3}</value>
   </data>
   <data xml:space="preserve" name="direction: measured on the model">
     <value>方向：在模型上量測</value>
   </data>
   <data xml:space="preserve" name="direction: taken from the mate type rule ({0})">
-    <value>方向：依配合類型規則（{0}）</value>
+    <value>方向: 依配合類型規則 ({0})</value>
   </data>
   <data xml:space="preserve" name="the direction could not be measured">
     <value>無法量測方向</value>
@@ -653,7 +653,7 @@
     <value>無法讀回尺寸的值</value>
   </data>
   <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>輸出 xacro（.urdf.xacro）</value>
+    <value>輸出 xacro (.urdf.xacro)</value>
   </data>
   <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
     <value>將機器人寫成 .urdf.xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
