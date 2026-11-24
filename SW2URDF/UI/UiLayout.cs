@@ -328,6 +328,32 @@ namespace SW2URDF.UI
         // cut off, even when the button frame itself looks fine. Grow every button that is
         // too short for its text by the missing height, around its centre line.
         // Returns the largest height any single button gained (0 when nothing had to grow).
+        // Horizontal room, at 96 DPI, a push button needs beyond its padded caption: theme border and
+        // focus rectangle on both sides.
+        internal const float ButtonThemeHorizontalMargin96 = 10f;
+
+        // A push button keeps its caption on one line: widen it when the caption (longer in another
+        // language or a larger font) does not fit. A button in a flow or table layout is placed by the
+        // layout; one anchored to the right grows to the left, any other one to the right.
+        private static void FitButtonWidth(Button button, float dpi)
+        {
+            if (string.IsNullOrEmpty(button.Text))
+            {
+                return;
+            }
+            int needed = TextRenderer.MeasureText(button.Text, button.Font).Width +
+                (int)Math.Ceiling(ButtonThemeHorizontalMargin96 * dpi / 96f);
+            int grow = needed - button.Width;
+            if (grow <= 0)
+            {
+                return;
+            }
+            bool placedByLayout = button.Parent is FlowLayoutPanel || button.Parent is TableLayoutPanel;
+            bool right = (button.Anchor & AnchorStyles.Right) != 0 && (button.Anchor & AnchorStyles.Left) == 0;
+            int left = !placedByLayout && right ? button.Left - grow : button.Left;
+            button.SetBounds(left, button.Top, needed, button.Height);
+        }
+
         internal static int FitButtonHeights(Control root, float dpi)
         {
             int gained = 0;
@@ -337,6 +363,7 @@ namespace SW2URDF.UI
                 Button button = child as Button;
                 if (button != null && !button.AutoSize)
                 {
+                    FitButtonWidth(button, dpi);
                     int text = Math.Max(button.Font.Height, TextRenderer.MeasureText(
                         button.Text, button.Font, new Size(Math.Max(1, button.Width - 8), 0),
                         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height);
