@@ -352,7 +352,8 @@
     <value>連桿樹</value>
   </data>
   <data xml:space="preserve" name="customize the joint properties. if you want to adjust the coordinate systems and axes in the model, click cancel and restart the export. the tool will recognize your changes on the next run.">
-    <value>若要修改座標系或軸，請先取消匯出。修改後重新匯出即可套用變更。</value>
+    <value>若要修改座標系或軸，請先取消匯出。
+修改後重新匯出即可套用變更。</value>
   </data>
   <data xml:space="preserve" name="lower">
     <value>下限</value>
