@@ -137,6 +137,31 @@ namespace SW2URDF.UI
             AlignFieldLabels();
         }
 
+        // The limit source text ends before the angle unit choice, so a long one wraps into more
+        // lines than the header was made for. Move the joint properties under it down by what it
+        // needs. The move is set, not added to, so that a shorter text moves them back.
+        private int headerShift;
+
+        private void MakeJointHeaderRoom()
+        {
+            int gap = Math.Max(4, Font.Height / 3);
+            int rowTop = label64.Top - headerShift;
+            int wanted = Math.Max(0, labelLimitSource.Top + labelLimitSource.PreferredHeight + gap - rowTop);
+            int move = wanted - headerShift;
+            if (move == 0)
+            {
+                return;
+            }
+            foreach (Control c in panelJointContent.Controls)
+            {
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= label64.Top - gap)
+                {
+                    c.Top += move;
+                }
+            }
+            headerShift = wanted;
+        }
+
         private void AlignFieldLabels()
         {
             label63.Left = textBoxJointName.Left;
@@ -155,6 +180,7 @@ namespace SW2URDF.UI
                 labelAngleUnitJoint.Left - headerGap - labelLimitSource.Left), 0);
             // The page description wraps before the limit source text next to it.
             label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - headerGap - label69.Left), 0);
+            MakeJointHeaderRoom();
             UiText.AlignLabel(label14, textBoxIxx);
             UiText.AlignLabel(label11, textBoxIxz);
             UiText.AlignLabel(label13, textBoxInertialOriginX);
@@ -246,6 +272,8 @@ namespace SW2URDF.UI
             comboBoxAngleUnitJoint.SelectedIndexChanged += AngleUnitChosen;
             comboBoxAngleUnitLink.SelectedIndexChanged += AngleUnitChosen;
             AlignFieldLabels();
+            // A limit text longer than the room left for it moves the property area down further.
+            labelLimitSource.SizeChanged += delegate { MakeJointHeaderRoom(); };
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             swApp = SwApp;
             BaseNode = node;
