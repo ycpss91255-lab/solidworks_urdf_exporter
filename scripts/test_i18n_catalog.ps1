@@ -57,7 +57,7 @@ if ($english -and $chinese) {
     # Punctuation around Latin text in Traditional Chinese. Full-width brackets and colons next to
     # Latin text, numbers or placeholders are drawn with wide gaps, so a zh-TW text that contains any
     # of those uses half-width ( ) : instead: a space before "(", a space after ":" (unless it ends
-    # the text), and the degree sign rather than "deg". Texts in Chinese only keep full-width marks.
+    # the text). Texts in Chinese only keep full-width marks. Angles are written "deg" in both languages.
     $fullWidth = '[' + [char]0xFF08 + [char]0xFF09 + [char]0xFF1A + ']'
     foreach ($k in $chinese.Keys) {
         $v = $chinese[$k]
@@ -65,7 +65,6 @@ if ($english -and $chinese) {
         if ($v -match $fullWidth) { Fail "zh-TW '$k' mixes Latin text with full-width brackets or colons: '$v'" }
         if ($v -match '[^\s(\[' + [char]0x300C + ']\(') { Fail "zh-TW '$k' needs a space before '(': '$v'" }
         if ($v -match ':[^\s/\\]') { Fail "zh-TW '$k' needs a space after ':': '$v'" }
-        if ($v -match '\bdeg\b') { Fail "zh-TW '$k' writes 'deg' instead of the degree sign: '$v'" }
     }
     # The note under the joint page names the model file, which may be a .urdf or a .xacro file.
     $note = [regex]::Match((Get-Content -LiteralPath (Join-Path $ui 'AssemblyExportForm.Designer.cs') -Raw -Encoding UTF8), 'label4\.Text = "([^"]*)"').Groups[1].Value
