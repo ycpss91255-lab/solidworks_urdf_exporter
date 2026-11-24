@@ -424,6 +424,34 @@ Not covered: limit mates on advanced hinge/slider mates, joints whose parent is 
 inside sub-assemblies (the dimension is looked up in the top-level document), several limit mates on one joint.
 
 
+## Limit mates driven by equations (`scripts/test_limit_equations_live.py`)
+
+`scripts/make_limit_equation_fixture.py` builds the minimal `LIMIT_EQUATIONS` model: a fixed plate, a hinge arm
+with an angle limit mate (60 .. 180 deg) and a slide block with a distance limit mate (5 .. 30 mm). The global
+variables `base_angle` and `base_dist` drive the value of each limit mate (`"D1@HINGE_LIMIT" = "base_angle"`,
+`"D1@SLIDE_LIMIT" = "base_dist"`) and have their own values in the configurations `CFG_A` (90 deg, 10 mm) and
+`CFG_B` (120 deg, 20 mm).
+
+`scripts/test_limit_equations_live.py` builds the model in a temporary folder, compiles
+`scripts/LimitEquationsLiveProbe.cs` against a built `SW2URDF.dll` and runs it. The probe reads each mate with the
+exporter's own `ReadLimitMateValues` and compares the variations exactly with `(limit - value) * pi / 180` (or
+`/ 1000` for mm) computed from the typed numbers, for: the global variables of `CFG_A`; plain equations
+(`"base_angle" * 0.75 + 10.2`, `"base_dist" * 1.25`); a change of both variables followed by a rebuild; `CFG_B`;
+`CFG_A` again. Usage: `python scripts/test_limit_equations_live.py --dll <folder> --launcher <launcher>` or
+`--pid <pid>` of an instance you own with no open documents.
+
+What the live run showed:
+
+* When an equation or a global variable sets the value of an angle limit mate, SOLIDWORKS stores the evaluated
+  value rounded to about 15 significant digits: 90 deg is stored as `1.5707963267949` rad, not pi/2. Without
+  handling this, the limits were off in the 15th digit (`1.57079632679489` instead of `1.5707963267949`). Such a
+  value is now put back on its decimal like a typed one. Distances came back exact.
+* The feature data holds the new value right after a global variable changes, before the rebuild, so the
+  exporter does not need to rebuild before it reads the limits.
+* A limit mate has one dimension only, its value (`D1`). SOLIDWORKS rejects equations for the maximum and the
+  minimum (`"D2@<mate>"`, `"$UPPERLIMIT_ANGLE@<mate>"`), and changing them through the feature data changes every
+  configuration. Only a design table can give them other values per configuration, so the fixture types them.
+
 ## Known limitations
 
 - Existing export tests (`TestExportHelper`) still write into the home folder and the example folders;
