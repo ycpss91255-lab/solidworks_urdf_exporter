@@ -63,8 +63,8 @@
   <data xml:space="preserve" name="dynamics">
     <value>動態參數</value>
   </data>
-  <data xml:space="preserve" name="entries that are blank will not be written to urdf.">
-    <value>空白欄位不會寫入 URDF。</value>
+  <data xml:space="preserve" name="blank entries are not written to the model file.">
+    <value>空白欄位不會寫入模型檔。</value>
   </data>
   <data xml:space="preserve" name="export urdf only...">
     <value>僅匯出 URDF…</value>

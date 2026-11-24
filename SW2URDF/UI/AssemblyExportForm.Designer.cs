@@ -1588,7 +1588,7 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(263, 12);
             this.label4.TabIndex = 230;
-            this.label4.Text = "Entries that are blank will not be written to URDF.";
+            this.label4.Text = "Blank entries are not written to the model file.";
             // 
             // label1
             // 
