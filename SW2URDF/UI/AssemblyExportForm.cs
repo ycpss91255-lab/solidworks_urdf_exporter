@@ -84,11 +84,12 @@ namespace SW2URDF.UI
             }
             // The property area is moved by an amount that is set, not added to, so it can also move
             // back; a font change (DPI rescale) has already scaled the earlier move.
-            if (headerShiftFontHeight != 0 && headerShiftFontHeight != Font.Height)
+            float scale = CurrentAutoScaleDimensions.Height;
+            if (headerShiftScale > 0 && Math.Abs(headerShiftScale - scale) > 0.01f)
             {
-                headerShift = (int)Math.Round(headerShift * (double)Font.Height / headerShiftFontHeight);
+                headerShift = (int)Math.Round(headerShift * scale / headerShiftScale);
             }
-            headerShiftFontHeight = Font.Height;
+            headerShiftScale = scale;
             int rowTop = label64.Top - headerShift;
             int wanted = Math.Max(0, labelLimitSource.Top + room + gap - rowTop);
             int move = wanted - headerShift;
@@ -106,9 +107,10 @@ namespace SW2URDF.UI
             headerShift = wanted;
         }
 
-        // How far MakeJointHeaderRoom has moved the property area, and the font height it was set for.
+        // How far MakeJointHeaderRoom has moved the property area, and the layout scale (the form
+        // font's autoscale height) it was set for: a DPI rescale scales the move with that.
         private int headerShift;
-        private int headerShiftFontHeight;
+        private float headerShiftScale;
 
         private void AlignFieldLabels()
         {
