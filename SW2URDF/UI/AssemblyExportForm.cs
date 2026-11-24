@@ -52,6 +52,97 @@ namespace SW2URDF.UI
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
 
+        // Room beyond the default window size (issue #156). Joint page: the tree takes half of the
+        // extra width and all of the extra height; the property columns move right by the other half
+        // and keep their layout, only the boxes holding names widen. Link page: the same split between
+        // the tree and the property groups, whose texture path box widens.
+        //
+        // Below the default width the trees give up width first while the property area keeps its
+        // size and moves left, down to a tree of TreeMinimumWidth; narrower than that the page scrolls.
+        // The form opens compact, with trees of TreeCompactWidth (designer pixels).
+        private const int TreeMinimumWidth = 200;
+        private const int TreeCompactWidth = 300;
+
+        private void SetUpGrowLayout()
+        {
+            GrowLayout grow = GrowLayout.For(this);
+            foreach (Control c in panelJointContent.Controls)
+            {
+                // The limit source text in the header is placed by FitHeader.
+                if (c != treeViewJointTree && c != labelLimitSource && c.Left >= treeViewJointTree.Right)
+                {
+                    grow.Set(c, 0.5f, 0f, false).SetShrink(c, 1f, 0f);
+                }
+            }
+            grow.Set(treeViewJointTree, 0f, 0.5f, true).SetShrink(treeViewJointTree, 0f, 1f);
+            grow.Set(textBoxJointName, 0.5f, 0.5f, false);
+            grow.Set(label62, 1f, 0f, false);
+            grow.Set(comboBoxJointType, 1f, 0f, false);
+            grow.Set(comboBoxOrigin, 0.5f, 0.5f, false);
+            grow.Set(comboBoxAxis, 0.5f, 0.5f, false);
+
+            grow.Set(treeViewLinkProperties, 0f, 0.5f, true).SetShrink(treeViewLinkProperties, 0f, 1f);
+            grow.Set(labelConfigurationStatus, 0f, 1f, false).SetShrink(labelConfigurationStatus, 0f, 1f);
+            grow.Set(groupBox5, 0.5f, 0.5f, false).SetShrink(groupBox5, 1f, 0f);
+            grow.Set(groupBox4, 0.5f, 0.5f, false).SetShrink(groupBox4, 1f, 0f);
+            grow.Set(textBoxTexture, 0f, 0.5f, false);
+            grow.Set(buttonTextureBrowse, 0.5f, 0f, false);
+
+            float scale = DesignerScale().Width;
+            int narrowestTree = Math.Min(treeViewJointTree.Width, treeViewLinkProperties.Width);
+            int widestTree = Math.Max(treeViewJointTree.Width, treeViewLinkProperties.Width);
+            grow.MaxShrink = Math.Max(0, narrowestTree - (int)Math.Round(TreeMinimumWidth * scale));
+            grow.AfterApply = FitHeader;
+            labelLimitSource.SizeChanged += delegate { FitHeader(); };
+            labelConfigurationStatus.SizeChanged += delegate { FitHeader(); };
+            grow.Capture();
+            Width -= Math.Min(grow.MaxShrink, Math.Max(0, widestTree - (int)Math.Round(TreeCompactWidth * scale)));
+        }
+
+        // The page headers: the joint page description wraps before the limit source text, and each
+        // tree starts below the header text above it (the description, the configuration banner),
+        // which gets taller when the window and so the header get narrower.
+        private void FitHeader()
+        {
+            int gap = Math.Max(6, Font.Height / 2);
+            SizeF scale = DesignerScale();
+            // The limit source text starts where the property area starts, but never over the title.
+            labelLimitSource.Left = Math.Max(label64.Left - (int)Math.Round(18 * scale.Width), label7.Right + gap);
+            int descriptionWidth = Math.Max(1, labelLimitSource.Left - gap - label69.Left);
+            label69.MaximumSize = new Size(descriptionWidth, 0);
+            // Measured, not read back: the label may not have resized to the new width yet.
+            int descriptionHeight = label69.GetPreferredSize(new Size(descriptionWidth, 0)).Height;
+            // Designer tops are in content coordinates; a scrolled panel shows them shifted.
+            int jointTop = Math.Max((int)Math.Round(82 * scale.Height) + panelJointContent.AutoScrollPosition.Y,
+                label69.Top + descriptionHeight + gap);
+            int linkTop = Math.Max((int)Math.Round(74 * scale.Height) + panelLinkContent.AutoScrollPosition.Y,
+                label2.Bottom + gap);
+            if (labelConfigurationStatus.Left < treeViewLinkProperties.Right)
+            {
+                linkTop = Math.Max(linkTop, labelConfigurationStatus.Bottom + gap);
+            }
+            SetTop(treeViewJointTree, jointTop);
+            SetTop(treeViewLinkProperties, linkTop);
+        }
+
+        // Size of the form font relative to the font the designer layout was made with (its
+        // AutoScaleDimensions; WinForms overwrites that property once it has scaled the form).
+        private SizeF DesignerScale()
+        {
+            SizeF now = CurrentAutoScaleDimensions;
+            return new SizeF(now.Width / 6F, now.Height / 12F);
+        }
+
+        // Moves the top edge of a control and keeps its bottom edge.
+        private static void SetTop(Control control, int top)
+        {
+            if (control.Top != top)
+            {
+                int bottom = control.Bottom;
+                control.SetBounds(control.Left, top, control.Width, Math.Max(1, bottom - top));
+            }
+        }
+
         private void AlignFieldLabels()
         {
             label63.Left = textBoxJointName.Left;
@@ -146,6 +237,7 @@ namespace SW2URDF.UI
             checkBoxXacro.Checked = BaseNode.Link.WriteXacro;
             ActiveSWModel = swApp.ActiveDoc;
             RefreshConfigurationStatus();
+            SetUpGrowLayout();
             Exporter = exporter;
             AutoUpdatingForm = false;
 

@@ -312,7 +312,6 @@
             this.labelConfigurationStatus.ForeColor = System.Drawing.Color.FromArgb(64, 40, 0);
             this.labelConfigurationStatus.Padding = new System.Windows.Forms.Padding(6, 3, 6, 3);
             this.labelConfigurationStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.labelConfigurationStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
             this.labelConfigurationStatus.Location = new System.Drawing.Point(360, 4);
             this.labelConfigurationStatus.Name = "labelConfigurationStatus";
             this.labelConfigurationStatus.Size = new System.Drawing.Size(690, 40);
@@ -364,7 +363,6 @@
             // 
             // groupBox5
             // 
-            this.groupBox5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox5.Controls.Add(this.label15);
             this.groupBox5.Controls.Add(this.textBoxIxx);
             this.groupBox5.Controls.Add(this.textBoxIxz);
@@ -639,7 +637,6 @@
             // 
             // groupBox4
             // 
-            this.groupBox4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox4.Controls.Add(this.groupBox1);
             this.groupBox4.Controls.Add(this.checkBoxXacro);
             this.groupBox4.Controls.Add(this.panelObjColorNote);
@@ -991,9 +988,6 @@
             // treeViewLinkProperties
             // 
             this.treeViewLinkProperties.AllowDrop = true;
-            this.treeViewLinkProperties.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.treeViewLinkProperties.Location = new System.Drawing.Point(12, 74);
             this.treeViewLinkProperties.Name = "treeViewLinkProperties";
             this.treeViewLinkProperties.Size = new System.Drawing.Size(451, 520);

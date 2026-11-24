@@ -35,6 +35,21 @@ namespace SW2URDF.UI
         private static readonly log4net.ILog logger = SW2URDF.Utilities.Logger.GetLogger();
         private string loadedConfiguration;
 
+        // Room beyond the default window size (issue #156): the groups and the boxes holding paths
+        // widen, the browse buttons stay at the right end of their boxes.
+        private void SetUpGrowLayout()
+        {
+            GrowLayout grow = GrowLayout.For(this);
+            grow.Set(groupBox1, 0f, 1f, false);
+            grow.Set(groupBox2, 0f, 1f, false);
+            grow.Set(groupBox3, 0f, 1f, false);
+            grow.Set(textBox_save_as, 0f, 1f, false);
+            grow.Set(button_savename_browse, 1f, 0f, false);
+            grow.Set(textBox_texture, 0f, 1f, false);
+            grow.Set(button_texturebrowse, 1f, 0f, false);
+            grow.Capture();
+        }
+
         private void AlignFieldLabels()
         {
             UiText.AlignLabel(label9, textBox_inertial_origin_x);
@@ -79,6 +94,7 @@ namespace SW2URDF.UI
             AlignFieldLabels();
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             Exporter = new ExportHelper(iSwApp);
+            SetUpGrowLayout();
         }
 
         // The window DPI is only known once the handle exists, and changes when the form is moved to a
