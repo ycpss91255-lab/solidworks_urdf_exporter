@@ -76,21 +76,39 @@ namespace SW2URDF.UI
             {
                 room = sample.PreferredHeight;
             }
-            room = Math.Max(room, labelLimitSource.PreferredHeight);
-            int missing = labelLimitSource.Top + room + gap - label64.Top;
-            if (missing <= 0)
+            // The text on display counts when it is longer, but not while the label is squeezed to a
+            // width no real text fits in (during a layout change), where it would measure very tall.
+            if (labelLimitSource.MaximumSize.Width == 0 || labelLimitSource.MaximumSize.Width >= 12 * Font.Height)
+            {
+                room = Math.Max(room, labelLimitSource.PreferredHeight);
+            }
+            // The property area is moved by an amount that is set, not added to, so it can also move
+            // back; a font change (DPI rescale) has already scaled the earlier move.
+            if (headerShiftFontHeight != 0 && headerShiftFontHeight != Font.Height)
+            {
+                headerShift = (int)Math.Round(headerShift * (double)Font.Height / headerShiftFontHeight);
+            }
+            headerShiftFontHeight = Font.Height;
+            int rowTop = label64.Top - headerShift;
+            int wanted = Math.Max(0, labelLimitSource.Top + room + gap - rowTop);
+            int move = wanted - headerShift;
+            if (move == 0)
             {
                 return;
             }
-            int firstRow = label64.Top;
             foreach (Control c in panelJointContent.Controls)
             {
-                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= firstRow - gap)
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= label64.Top - gap)
                 {
-                    c.Top += missing;
+                    c.Top += move;
                 }
             }
+            headerShift = wanted;
         }
+
+        // How far MakeJointHeaderRoom has moved the property area, and the font height it was set for.
+        private int headerShift;
+        private int headerShiftFontHeight;
 
         private void AlignFieldLabels()
         {
