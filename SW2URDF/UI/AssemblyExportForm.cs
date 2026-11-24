@@ -104,6 +104,9 @@ namespace SW2URDF.UI
             UiText.AlignLabel(label66, comboBoxOrigin);
             UiText.AlignLabel(MimicMultiplierLabel, textBoxMimicMultiplier);
             UiText.AlignLabel(MimicOffsetLabel, textBoxMimicOffset);
+            UiText.PlaceAfter(label1, label54);
+            UiText.PlaceAfter(AxisRequiredLabel, label60);
+            UiText.PlaceAfter(LimitRequiredLabel, label68);
         }
 
         public AssemblyExportForm(SldWorks SwApp, LinkNode node, ExportHelper exporter)

@@ -83,6 +83,12 @@ namespace SW2URDF.UI
             label.Top = field.Top + (field.Height - label.PreferredHeight) / 2;
         }
 
+        // A required-field star follows its title, whose width depends on the language and font.
+        internal static void PlaceAfter(Label mark, Label title)
+        {
+            mark.Left = title.Left + title.PreferredWidth + mark.Margin.Left;
+        }
+
         public void Apply(Control control)
         {
             // Editable values, tree node names and protocol-valued ComboBoxes

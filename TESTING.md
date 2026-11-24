@@ -355,6 +355,75 @@ The comparison logic is tested without xacro by `python scripts/test_xacro_equiv
 whitespace, attribute order, comment and number-format differences pass; a changed mass, origin, mesh path, a
 missing joint or a renamed link fail).
 
+## Joint limits from limit mates (`scripts/LimitLiveProbe.cs`)
+
+The live host compares the joint axis and the `<limit lower upper>` the exporter writes with the motion
+SolidWorks really allows. The model is minimal: a base plate with a 10 mm boss (`LIM_BASE`) and an arm with a
+14 mm hole (`LIM_ARM`), placed in `LIM_HINGE.SLDASM`. For each variant the host works on a copy of the three
+files (renamed, so that they can be open beside the originals), builds the mates, drives the mate dimension to
+its limits and measures how the arm moves (SolidWorks' own point transform, no matrix convention assumed), then
+builds a base link and a child link with automatic joint detection, exports, parses the written URDF, converts the
+written axis to the world frame and compares. Mates:
+
+* hinge: concentric (boss/hole) + coincident (faces) + one angle limit mate, reference 90 degrees;
+* slide: concentric + perpendicular (side faces, no turning) + one distance limit mate, reference 10 mm.
+
+The host converts the written axis to the world frame and compares along it. Ranges are relative to the
+pose the model is exported in.
+
+Compile `LimitLiveProbe.cs` the way `scripts/ObjRegressProbe.cs` is compiled (references: `SW2URDF.dll` of a
+private build, the two SolidWorks interop assemblies, `WindowsBase`, `PresentationFramework`, `System.Xml`) and run
+it against a SolidWorks instance you own that holds no other document:
+`LimitLiveProbe.exe <pid> <folder with the three unmated files> <out dir> [variant ...]`. Set the user profile
+folder to a private one for the run if other exporters write the shared log at the same time.
+
+| Variant | SolidWorks truth (along the written axis) | Written | Exported axis | Match |
+|---------|-------------------------------------------|---------|---------------|-------|
+| hinge, limits 60..180, reference 90 | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 0..180, reference 90 | -90..+90 deg | -90..+90 | world +Z | yes |
+| hinge, 60..180, `Flip` set | -30..+90 deg | -30..+90 | world +Z | yes |
+| hinge, 60..180, anti-aligned | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 60..180, faces picked in the other order | -90..+30 deg | -90..+30 | world +Z | yes |
+| hinge, 60..180, exported at 120 degrees | -60..+60 deg | -60..+60 | world +Z | yes |
+| hinge, 60..180, concentric mate anti-aligned | -30..+90 deg | -30..+90 | world -Z | yes |
+| hinge, 60..180, base turned by 180 degrees about X | -30..+90 deg | -30..+90 | world -Z | yes |
+| slide, distance 0..30 mm, reference 10 | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, `Flip` set | -20..+10 mm | -20..+10 | world +Z | yes |
+| slide, same, anti-aligned | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, faces picked in the other order | -10..+20 mm | -10..+20 | world +Z | yes |
+| slide, same, exported at 20 mm | -20..+10 mm | -20..+10 | world +Z | yes |
+| slide, concentric mate anti-aligned | -20..+10 mm | -20..+10 | world -Z | yes |
+| slide, base turned by 180 degrees about X | -10..+20 mm | -10..+20 | world -Z | yes |
+| hinge, 60..180, dimension set by an equation (probe skipped, rule per mate type used) | -90..+30 deg | -90..+30 | world +Z | yes |
+| slide, 0..30 mm, dimension set by an equation (probe skipped) | -10..+20 mm | -10..+20 | world +Z | yes |
+
+Before the fixes of issue 149 the slide rows with the axis along +Z (and the rows with the axis along -Z) were
+mirrored: the sign rule for angle mates was applied to distance mates, and the limits were not mirrored when the
+written axis pointed the other way than the axis SolidWorks reported. The exporter now measures the direction
+on the model (it moves the dimension of the limit mate a little inside its limits, looks at how the child moves
+relative to the axis and puts the dimension back), mirrors the limits when the written axis is turned, and uses
+the old rule only when the measurement is not possible. The sign rules are unit tested without SolidWorks in
+`TestLimitFromMate`.
+
+Putting the model back. In every variant the host also checks, with the same live run, that the dimension of the
+limit mate, the pose of the child (origin and the three local axes) and the limits the mate reports are
+unchanged after the direction probe (called on its own, parent fixed as in the exporter) and after the whole
+export: 17 of 17 variants restored (dimension equal, pose within 1e-7 m, limits unchanged). The probe is skipped
+(and the rule per mate type is used, with the dimension not touched) when an equation or global variable sets the
+dimension, and also when the dimension is read-only, a driven (reference) dimension, from a design table or cannot
+be read back (those four are covered by unit tests only, `TestLimitMateProbe`). If putting the dimension back
+fails twice, the exporter shows a message with the mate name and values and writes the log.
+
+Modified flag: SolidWorks marks the model modified as soon as a dimension is changed, and the API cannot clear
+the flag again. Measured: on a saved (clean) model the probe alone turns the flag from clean to modified; when it is
+skipped the flag stays as it was. In the export itself the model is already modified when the probe starts in all 17
+variants (the exporter fixes and unfixes components and adds reference geometry before), so the probe does not
+change the flag there.
+
+Not covered: limit mates on advanced hinge/slider mates, joints whose parent is itself moving, limit mates
+inside sub-assemblies (the dimension is looked up in the top-level document), several limit mates on one joint.
+
+
 ## Known limitations
 
 - Existing export tests (`TestExportHelper`) still write into the home folder and the example folders;

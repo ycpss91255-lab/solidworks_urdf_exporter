@@ -336,6 +336,9 @@
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
+    <Compile Include="Test\TestLimitFromMate.cs" />
+    <Compile Include="Test\TestLimitMateInfo.cs" />
+    <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
@@ -398,6 +401,7 @@
     <Compile Include="URDFExport\ObjConverter.cs" />
     <Compile Include="URDFExport\ThreeDxmlReader.cs" />
     <Compile Include="URDFExport\ExportHelperExtension.cs" />
+    <Compile Include="URDFExport\LimitMateProbe.cs" />
     <Compile Include="UI\AssemblyExportFormExtension.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -436,6 +440,7 @@
     <Compile Include="URDF\Inertial.cs" />
     <Compile Include="URDF\Joint.cs" />
     <Compile Include="URDF\Limit.cs" />
+    <Compile Include="URDF\LimitMateInfo.cs" />
     <Compile Include="URDF\Link.cs" />
     <Compile Include="URDF\LinkNode.cs" />
     <Compile Include="URDF\Mass.cs" />

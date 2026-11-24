@@ -601,6 +601,57 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>Select an existing reference coordinate system for empty link {0}</value>
   </data>
+  <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
+    <value>The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it.</value>
+  </data>
+  <data xml:space="preserve" name="limits: entered manually, not read from a limit mate">
+    <value>Limits: entered manually, not read from a limit mate</value>
+  </data>
+  <data xml:space="preserve" name="angle limit mate">
+    <value>angle limit mate</value>
+  </data>
+  <data xml:space="preserve" name="distance limit mate">
+    <value>distance limit mate</value>
+  </data>
+  <data xml:space="preserve" name="limit mate {0} ({1})">
+    <value>Limit mate {0} ({1})</value>
+  </data>
+  <data xml:space="preserve" name="solidworks variation {0} to {1}">
+    <value>SolidWorks variation {0} to {1}</value>
+  </data>
+  <data xml:space="preserve" name="solidworks range {0} to {1}, reference {2}">
+    <value>SolidWorks range {0} to {1}, reference {2}</value>
+  </data>
+  <data xml:space="preserve" name="urdf (relative): {0} to {1} = {2} to {3}">
+    <value>URDF (relative): {0} to {1} = {2} to {3}</value>
+  </data>
+  <data xml:space="preserve" name="direction: measured on the model">
+    <value>Direction: measured on the model</value>
+  </data>
+  <data xml:space="preserve" name="direction: taken from the mate type rule ({0})">
+    <value>Direction: taken from the mate type rule ({0})</value>
+  </data>
+  <data xml:space="preserve" name="the direction could not be measured">
+    <value>the direction could not be measured</value>
+  </data>
+  <data xml:space="preserve" name="the dimension of the mate was not found">
+    <value>the dimension of the mate was not found</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is read-only">
+    <value>the dimension is read-only</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is a driven (reference) dimension">
+    <value>the dimension is a driven (reference) dimension</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is controlled by a design table">
+    <value>the dimension is controlled by a design table</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is controlled by an equation or a global variable">
+    <value>the dimension is controlled by an equation or a global variable</value>
+  </data>
+  <data xml:space="preserve" name="the value of the dimension cannot be read back">
+    <value>the value of the dimension cannot be read back</value>
+  </data>
   <data xml:space="preserve" name="write xacro (.urdf.xacro)">
     <value>Write xacro (.urdf.xacro)</value>
   </data>
