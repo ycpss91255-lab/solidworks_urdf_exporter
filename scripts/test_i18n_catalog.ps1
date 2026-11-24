@@ -72,6 +72,12 @@ if ($english -and $chinese) {
     elseif (-not $chinese.Contains($note.ToLowerInvariant()) -or $chinese[$note.ToLowerInvariant()] -ne ((-join [char[]](0x7A7A, 0x767D, 0x6B04, 0x4F4D, 0x4E0D, 0x6703, 0x5BEB, 0x5165, 0x6A21, 0x578B, 0x6A94, 0x3002)))) {
         Fail "the zh-TW blank-field note is not the agreed text"
     }
+    # The joint page description is two sentences; in zh-TW it breaks after the first one instead of
+    # wherever the width ends (Chinese wraps between any two characters, splitting words).
+    $descriptionKey = 'customize the joint properties. if you want to adjust the coordinate systems and axes in the model, click cancel and restart the export. the tool will recognize your changes on the next run.'
+    $period = [string][char]0x3002
+    if (-not $chinese.Contains($descriptionKey)) { Fail 'the joint page description has no zh-TW text' }
+    elseif ($chinese[$descriptionKey] -notmatch ([regex]::Escape($period) + '\r?\n\S')) { Fail "the zh-TW joint page description does not break after its first sentence: '$($chinese[$descriptionKey])'" }
     # The export buttons of the link page name the model file too, not URDF.
     $designer = Get-Content -LiteralPath (Join-Path $ui 'AssemblyExportForm.Designer.cs') -Raw -Encoding UTF8
     $modelFile = -join [char[]](0x6A21, 0x578B, 0x6A94)
