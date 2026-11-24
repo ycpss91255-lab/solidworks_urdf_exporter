@@ -321,7 +321,7 @@
             this.labelConfigurationStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
             this.labelConfigurationStatus.Location = new System.Drawing.Point(360, 4);
             this.labelConfigurationStatus.Name = "labelConfigurationStatus";
-            this.labelConfigurationStatus.Size = new System.Drawing.Size(690, 40);
+            this.labelConfigurationStatus.Size = new System.Drawing.Size(560, 40);
             this.labelConfigurationStatus.TabIndex = 95;
             this.labelConfigurationStatus.Text = "";
             //
@@ -1338,7 +1338,7 @@
             // labelAngleUnitJoint
             // 
             this.labelAngleUnitJoint.AutoSize = true;
-            this.labelAngleUnitJoint.Location = new System.Drawing.Point(890, 74);
+            this.labelAngleUnitJoint.Location = new System.Drawing.Point(928, 10);
             this.labelAngleUnitJoint.Name = "labelAngleUnitJoint";
             this.labelAngleUnitJoint.Size = new System.Drawing.Size(58, 12);
             this.labelAngleUnitJoint.TabIndex = 243;
@@ -1351,7 +1351,7 @@
             this.comboBoxAngleUnitJoint.Items.AddRange(new object[] {
             "rad",
             "deg"});
-            this.comboBoxAngleUnitJoint.Location = new System.Drawing.Point(890, 90);
+            this.comboBoxAngleUnitJoint.Location = new System.Drawing.Point(992, 6);
             this.comboBoxAngleUnitJoint.Name = "comboBoxAngleUnitJoint";
             this.comboBoxAngleUnitJoint.Size = new System.Drawing.Size(70, 20);
             this.comboBoxAngleUnitJoint.TabIndex = 244;
@@ -1359,7 +1359,7 @@
             // labelAngleUnitLink
             // 
             this.labelAngleUnitLink.AutoSize = true;
-            this.labelAngleUnitLink.Location = new System.Drawing.Point(928, 56);
+            this.labelAngleUnitLink.Location = new System.Drawing.Point(928, 10);
             this.labelAngleUnitLink.Name = "labelAngleUnitLink";
             this.labelAngleUnitLink.Size = new System.Drawing.Size(58, 12);
             this.labelAngleUnitLink.TabIndex = 245;
@@ -1372,7 +1372,7 @@
             this.comboBoxAngleUnitLink.Items.AddRange(new object[] {
             "rad",
             "deg"});
-            this.comboBoxAngleUnitLink.Location = new System.Drawing.Point(992, 52);
+            this.comboBoxAngleUnitLink.Location = new System.Drawing.Point(992, 6);
             this.comboBoxAngleUnitLink.Name = "comboBoxAngleUnitLink";
             this.comboBoxAngleUnitLink.Size = new System.Drawing.Size(70, 20);
             this.comboBoxAngleUnitLink.TabIndex = 246;

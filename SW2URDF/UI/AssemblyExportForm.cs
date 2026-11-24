@@ -141,8 +141,20 @@ namespace SW2URDF.UI
         {
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
-            labelAngleUnitJoint.Left = comboBoxAngleUnitJoint.Left;
+            // The angle unit is a setting of the whole form: the same place at the top right of the
+            // header of both pages. The banner and the limit source text end before it.
+            // Right end of the property area; both pages sit at the same place in the form.
+            comboBoxAngleUnitLink.Left = groupBox5.Right - comboBoxAngleUnitLink.Width;
+            comboBoxAngleUnitJoint.Left = comboBoxAngleUnitLink.Left;
+            UiText.AlignLabel(labelAngleUnitJoint, comboBoxAngleUnitJoint);
             UiText.AlignLabel(labelAngleUnitLink, comboBoxAngleUnitLink);
+            int headerGap = Math.Max(6, Font.Height / 2);
+            labelConfigurationStatus.Width = Math.Max(1,
+                labelAngleUnitLink.Left - headerGap - labelConfigurationStatus.Left);
+            labelLimitSource.MaximumSize = new Size(Math.Max(1,
+                labelAngleUnitJoint.Left - headerGap - labelLimitSource.Left), 0);
+            // The page description wraps before the limit source text next to it.
+            label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - headerGap - label69.Left), 0);
             UiText.AlignLabel(label14, textBoxIxx);
             UiText.AlignLabel(label11, textBoxIxz);
             UiText.AlignLabel(label13, textBoxInertialOriginX);
