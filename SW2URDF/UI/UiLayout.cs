@@ -58,7 +58,15 @@ namespace SW2URDF.UI
         {
             this.form = form;
             form.SizeChanged += delegate { Apply(); };
-            form.Shown += delegate { CreateHiddenHandles(form); };
+            form.Shown += delegate
+            {
+                CreateHiddenHandles(form);
+                // Combo boxes take their real height with their window: place what depends on them again.
+                if (AfterApply != null)
+                {
+                    AfterApply();
+                }
+            };
         }
 
         internal static GrowLayout For(Form form)
