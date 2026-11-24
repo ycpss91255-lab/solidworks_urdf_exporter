@@ -60,23 +60,24 @@ namespace SW2URDF.UI
         }
 
         // The joint page header holds the limit source text, four lines when the limits come from a
-        // limit mate, to the right of the page description. Leave room for four lines above the
-        // parent link row (moving the property area down when the font's lines are taller than the
-        // designer's), and let the description wrap before the limit text. Running it again changes
-        // nothing.
+        // limit mate (one of them may wrap), to the right of the page description. Leave room for
+        // five lines, or for the text on display when it is longer, above the parent link row (moving
+        // the property area down when the font's lines are taller than the designer's), and let the
+        // description wrap before the limit text. Running it again changes nothing.
         private void MakeJointHeaderRoom()
         {
             int gap = Math.Max(4, Font.Height / 3);
             label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - gap - label69.Left), 0);
             // Measured the way the label sizes itself, with a Chinese character too: Windows may draw
             // it with a taller linked font.
-            int fourLines;
+            int room;
             using (Label sample = new Label { AutoSize = true, Font = labelLimitSource.Font, Padding = labelLimitSource.Padding,
-                Text = "極Ag\n極Ag\n極Ag\n極Ag" })
+                Text = "極Ag\n極Ag\n極Ag\n極Ag\n極Ag" })
             {
-                fourLines = sample.PreferredHeight;
+                room = sample.PreferredHeight;
             }
-            int missing = labelLimitSource.Top + fourLines + gap - label64.Top;
+            room = Math.Max(room, labelLimitSource.PreferredHeight);
+            int missing = labelLimitSource.Top + room + gap - label64.Top;
             if (missing <= 0)
             {
                 return;
@@ -194,6 +195,8 @@ namespace SW2URDF.UI
                 comboBoxJointType.Width = Math.Min(needed, room);
             }
             AlignFieldLabels();
+            // A limit text longer than the room left for it moves the property area down further.
+            labelLimitSource.SizeChanged += delegate { MakeJointHeaderRoom(); };
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             swApp = SwApp;
             BaseNode = node;
