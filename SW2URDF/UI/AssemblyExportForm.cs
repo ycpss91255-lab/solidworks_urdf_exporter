@@ -107,6 +107,12 @@ namespace SW2URDF.UI
             headerShift = wanted;
         }
 
+        private void PlaceBeside(Label value, Label caption)
+        {
+            value.Left = caption.Left + caption.PreferredWidth + Math.Max(4, Font.Height / 2);
+            value.Top = caption.Top + (caption.Height - value.Height) / 2;
+        }
+
         // How far MakeJointHeaderRoom has moved the property area, and the layout scale (the form
         // font's autoscale height) it was set for: a DPI rescale scales the move with that.
         private int headerShift;
@@ -115,6 +121,10 @@ namespace SW2URDF.UI
         private void AlignFieldLabels()
         {
             MakeJointHeaderRoom();
+            // The parent and child link names follow their captions on the same line: the designer
+            // left no room for a wider caption font.
+            PlaceBeside(labelParent, label64);
+            PlaceBeside(labelChild, label65);
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
             UiText.AlignLabel(label14, textBoxIxx);
