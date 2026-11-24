@@ -270,7 +270,7 @@ namespace SW2URDF.UI
                                                              textBox_collision_origin_roll,
                                                              textBox_collision_origin_pitch,
                                                              textBox_collision_origin_yaw,
-                                                             "R");
+                                                             ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Visual.Origin.FillBoxes(textBox_visual_origin_x,
                                                              textBox_visual_origin_y,
@@ -278,13 +278,13 @@ namespace SW2URDF.UI
                                                              textBox_visual_origin_roll,
                                                              textBox_visual_origin_pitch,
                                                              textBox_visual_origin_yaw,
-                                                             "R");
+                                                             ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Visual.Material.Color.FillBoxes(domainUpDown_red,
                                                                      domainUpDown_green,
                                                                      domainUpDown_blue,
                                                                      domainUpDown_alpha,
-                                                                     "R");
+                                                                     ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Inertial.Origin.FillBoxes(textBox_inertial_origin_x,
                                                                textBox_inertial_origin_y,
@@ -292,9 +292,9 @@ namespace SW2URDF.UI
                                                                textBox_inertial_origin_roll,
                                                                textBox_inertial_origin_pitch,
                                                                textBox_inertial_origin_yaw,
-                                                               "R");
+                                                               ValueFormat.Box);
 
-            Exporter.URDFRobot.BaseLink.Inertial.Mass.FillBoxes(textBox_mass, "R");
+            Exporter.URDFRobot.BaseLink.Inertial.Mass.FillBoxes(textBox_mass, ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Inertial.Inertia.FillBoxes(textBox_ixx,
                                                                 textBox_ixy,
@@ -302,7 +302,7 @@ namespace SW2URDF.UI
                                                                 textBox_iyy,
                                                                 textBox_iyz,
                                                                 textBox_izz,
-                                                                "R");
+                                                                ValueFormat.Box);
         }
 
         #endregion Form event handlers
