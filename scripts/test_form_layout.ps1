@@ -191,15 +191,15 @@ foreach ($typeName in $formTypes) {
 # Build the forms that way, in English and Traditional Chinese, and check that
 #   - every control that shows text uses the form's font family and character set (no control
 #     falls back to another face, which in Chinese mixes serif and sans-serif glyphs),
-#   - the Traditional Chinese form uses a sans-serif CJK UI font, so Chinese glyphs are not
-#     borrowed from a linked fallback font,
+#   - both languages use Segoe UI 8.5 pt (Windows draws Chinese glyphs through font linking),
+#   - the joint page header has room for a four-line limit source text above the parent link row,
 #   - the layout has no overlap, clipping or touching captions at 100-175 %, both when the form is
 #     built at that scale and when an open form is moved to a monitor with that scale
 #     (UiLayout.ScaleForDpi, what WM_DPICHANGED does in a per-monitor DPI aware host).
 # Without CreateFormFont the form keeps the default font, which is what the forms did before.
 $uiType = $assembly.GetType('SW2URDF.UI.UiText', $true)
 $layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
-$cjkSans = @('Microsoft JhengHei UI', 'Microsoft JhengHei')
+$formFamily = 'Segoe UI'; $formSize = 8.5
 $createFont = $uiType.GetMethod('CreateFormFont', $flags)
 $scaleForDpi = if ($layoutType) { $layoutType.GetMethod('ScaleForDpi', [Reflection.BindingFlags]'Static,NonPublic,Public') }
 
@@ -211,9 +211,7 @@ function Get-FormFont($ui, [double]$scale) {
 function Test-FormFonts([System.Windows.Forms.Form]$form, [string]$language, $problems) {
     $family = $form.Font.FontFamily.GetName(1033)
     $charset = $form.Font.GdiCharSet
-    if ($language -ne 'en' -and $cjkSans -notcontains $family) {
-        [void]$problems.Add("form font: $family is not a sans-serif CJK UI font ($($cjkSans -join ', '))")
-    }
+    if ($family -ne $formFamily) { [void]$problems.Add("form font: $family, expected $formFamily") }
     $stack = New-Object System.Collections.Stack; $stack.Push($form)
     while ($stack.Count -gt 0) {
         $parent = $stack.Pop()
@@ -269,6 +267,18 @@ foreach ($typeName in $formTypes) {
                     $form = New-Form $type $font ([single]96) $ui
                 }
                 $label = "$($type.Name) [form font $language x$scale $how]"
+                if ($how -eq 'built' -and $scale -eq 1.0) {
+                    $made = $createFont.Invoke($ui, @())
+                    if ($made.FontFamily.GetName(1033) -ne $formFamily -or [Math]::Abs($made.SizeInPoints - $formSize) -gt 0.01) { [void]$report.Add("$label : CreateFormFont gives $($made.FontFamily.GetName(1033)) $($made.SizeInPoints)pt, expected $formFamily $($formSize)pt"); $total++ }
+                }
+                # A joint with a limit mate shows a four-line limit source text in the joint page header.
+                $source = @($form.Controls.Find('labelLimitSource', $true)) | Select-Object -First 1
+                if ($source) {
+                    $source.Text = [string]::Format($ui.Get('Limit mate {0} ({1})'), 'LimitAngle1', $ui.Get('angle limit mate')) + "`n" +
+                        [string]::Format($ui.Get('SolidWorks range {0} to {1}, reference {2}'), '60 deg', '180 deg', '90 deg') + "`n" +
+                        [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), '-90 deg', '30 deg', '-1.5708 rad', '0.5236 rad') + "`n" +
+                        $ui.Get('Direction: measured on the model')
+                }
                 try {
                     $problems = New-Object System.Collections.ArrayList
                     if ($how -eq 'moved') {
