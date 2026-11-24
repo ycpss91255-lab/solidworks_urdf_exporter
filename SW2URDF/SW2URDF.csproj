@@ -394,6 +394,7 @@
     <Compile Include="URDFExport\ConfigurationSerialization.cs" />
     <Compile Include="URDFExport\ExportHelper.cs" />
     <Compile Include="URDFExport\FileNames.cs" />
+    <Compile Include="URDFExport\LimitMateValues.cs" />
     <Compile Include="URDFExport\XacroOutput.cs" />
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
