@@ -35,7 +35,7 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class AssemblyExportForm : Form
+    public partial class AssemblyExportForm : Form, IAlignsFieldLabels
     {
         private static readonly log4net.ILog logger = Logger.GetLogger();
 
@@ -53,6 +53,11 @@ namespace SW2URDF.UI
         private readonly Control[] jointBoxes;
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
+
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
 
         private void AlignFieldLabels()
         {

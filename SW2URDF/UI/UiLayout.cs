@@ -6,6 +6,12 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
+    /// <summary>A form that places captions next to their fields by measuring the caption text.</summary>
+    internal interface IAlignsFieldLabels
+    {
+        void AlignFieldLabels();
+    }
+
     /// <summary>Layout corrections applied once the designer layout is built.</summary>
     internal static class UiLayout
     {
@@ -80,6 +86,13 @@ namespace SW2URDF.UI
             foreach (KeyValuePair<Control, Font> pair in own)
             {
                 pair.Key.Font = Scaled(pair.Value, factor);
+            }
+            // Captions placed by measuring their text are placed again for the new text widths:
+            // scaling their old position can leave them a pixel into the box they describe.
+            IAlignsFieldLabels aligned = form as IAlignsFieldLabels;
+            if (aligned != null)
+            {
+                aligned.AlignFieldLabels();
             }
             RefitStatusBanner(form);
             FitForm(form, toDpi);

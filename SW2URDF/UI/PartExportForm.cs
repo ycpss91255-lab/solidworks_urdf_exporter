@@ -28,7 +28,7 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class PartExportForm : Form
+    public partial class PartExportForm : Form, IAlignsFieldLabels
     {
         public ExportHelper Exporter;
         private readonly UiText ui;
@@ -36,6 +36,11 @@ namespace SW2URDF.UI
         private float layoutDpi = UiLayout.ScreenDpi();
         private static readonly log4net.ILog logger = SW2URDF.Utilities.Logger.GetLogger();
         private string loadedConfiguration;
+
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
 
         private void AlignFieldLabels()
         {
