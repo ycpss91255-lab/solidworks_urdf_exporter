@@ -122,8 +122,9 @@ function Get-Clipping([System.Windows.Forms.Control]$c, [double]$dpi) {
             $loss = Get-GlyphLoss $c
             if ($loss) { return ,@("glyph rows $($loss[0])", "$($loss[1])") }
             # A push button caption stays on one line: it must not be cut or wrapped at the sides.
-            # Measured with the text padding a button draws with, plus the theme border and focus margin.
-            $line = [System.Windows.Forms.TextRenderer]::MeasureText($c.Text, $c.Font).Width + [Math]::Ceiling(10 * $dpi / 96)
+            # Measured with the text padding, plus the room a themed button draws its caption with
+            # (border, focus rectangle, wider drawing than measured): two lines of the button font.
+            $line = [System.Windows.Forms.TextRenderer]::MeasureText($c.Text, $c.Font).Width + 2 * $c.Font.Height
             if ($line -gt $c.Width) { return ,@("width $line", "width $($c.Width)") }
         } else { $needed = $need.Height }
         $actual = $c.Height
