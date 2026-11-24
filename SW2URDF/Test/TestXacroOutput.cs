@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using SW2URDF.ROS;
+using SW2URDF.UI;
 using SW2URDF.URDF;
 using SW2URDF.URDFExport;
 using Xunit;
@@ -82,7 +83,25 @@ namespace SW2URDF.Test
         public void FileNamesFollowTheChoice()
         {
             Assert.Equal("demo.urdf", XacroOutput.RobotFileName("demo", false));
-            Assert.Equal("demo.urdf.xacro", XacroOutput.RobotFileName("demo", true));
+            // Issue #161: the xacro file is <robot>.xacro, not <robot>.urdf.xacro.
+            Assert.Equal("demo.xacro", XacroOutput.RobotFileName("demo", true));
+        }
+
+        [Fact]
+        public void TheCheckboxNamesTheShortExtension()
+        {
+            UiText english = new UiText(null);
+            UiText chinese = new UiText("chinese");
+            foreach (string text in new[] {
+                english.Get("Write xacro (.xacro)"), chinese.Get("Write xacro (.xacro)"),
+                english.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."),
+                chinese.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro.") })
+            {
+                Assert.Contains(".xacro", text);
+                Assert.DoesNotContain(".urdf.xacro", text);
+            }
+            // Translated, not the English fallback.
+            Assert.NotEqual(english.Get("Write xacro (.xacro)"), chinese.Get("Write xacro (.xacro)"));
         }
 
         [Fact]
@@ -183,16 +202,16 @@ namespace SW2URDF.Test
         [Fact]
         public void LaunchFilesExpandTheXacroWhenChosen()
         {
-            string command = "command=\"$(find xacro)/xacro $(find demo)/urdf/demo.urdf.xacro\"";
+            string command = "command=\"$(find xacro)/xacro $(find demo)/urdf/demo.xacro\"";
 
             string display = WriteLaunch(
-                dir => new Rviz("demo", "demo.urdf.xacro", true).WriteFiles(dir), "display.launch");
+                dir => new Rviz("demo", XacroOutput.RobotFileName("demo", true), true).WriteFiles(dir), "display.launch");
             Assert.Contains("name=\"robot_description\"", display);
             Assert.Contains(command, display);
             Assert.DoesNotContain("textfile", display);
 
             string gazebo = WriteLaunch(
-                dir => new Gazebo("demo", "demo", "demo.urdf.xacro", true).WriteFile(dir), "gazebo.launch");
+                dir => new Gazebo("demo", "demo", XacroOutput.RobotFileName("demo", true), true).WriteFile(dir), "gazebo.launch");
             Assert.Contains(command, gazebo);
             Assert.Contains("-param robot_description -urdf -model demo", gazebo);
             Assert.DoesNotContain("-file", gazebo);
