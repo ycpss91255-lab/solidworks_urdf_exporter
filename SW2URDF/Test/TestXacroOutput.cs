@@ -92,16 +92,16 @@ namespace SW2URDF.Test
         {
             UiText english = new UiText(null);
             UiText chinese = new UiText("chinese");
+            // The caption is short, without the extension in brackets; the tooltip names the file.
+            Assert.Equal("Write xacro", english.Get("Write xacro"));
+            Assert.Equal("輸出 xacro", chinese.Get("Write xacro"));
             foreach (string text in new[] {
-                english.Get("Write xacro (.xacro)"), chinese.Get("Write xacro (.xacro)"),
                 english.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."),
                 chinese.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro.") })
             {
                 Assert.Contains(".xacro", text);
                 Assert.DoesNotContain(".urdf.xacro", text);
             }
-            // Translated, not the English fallback.
-            Assert.NotEqual(english.Get("Write xacro (.xacro)"), chinese.Get("Write xacro (.xacro)"));
         }
 
         [Fact]
