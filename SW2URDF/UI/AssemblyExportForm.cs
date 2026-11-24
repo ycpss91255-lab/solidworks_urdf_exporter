@@ -59,8 +59,35 @@ namespace SW2URDF.UI
             AlignFieldLabels();
         }
 
+        // The joint page header holds the limit source text, four lines when the limits come from a
+        // limit mate, to the right of the page description. Leave room for four lines above the
+        // parent link row (moving the property area down when the font's lines are taller than the
+        // designer's), and let the description wrap before the limit text. Running it again changes
+        // nothing.
+        private void MakeJointHeaderRoom()
+        {
+            int gap = Math.Max(4, Font.Height / 3);
+            label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - gap - label69.Left), 0);
+            // Measured with a Chinese character too: Windows may draw it with a taller linked font.
+            int fourLines = TextRenderer.MeasureText("極Ag\n極Ag\n極Ag\n極Ag", labelLimitSource.Font).Height;
+            int missing = labelLimitSource.Top + fourLines + gap - label64.Top;
+            if (missing <= 0)
+            {
+                return;
+            }
+            int firstRow = label64.Top;
+            foreach (Control c in panelJointContent.Controls)
+            {
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= firstRow - gap)
+                {
+                    c.Top += missing;
+                }
+            }
+        }
+
         private void AlignFieldLabels()
         {
+            MakeJointHeaderRoom();
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
             UiText.AlignLabel(label14, textBoxIxx);
