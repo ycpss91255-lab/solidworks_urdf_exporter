@@ -322,27 +322,25 @@ namespace SW2URDF.UI
             return best;
         }
 
-        // The designer gives push buttons a fixed height, but the visual theme clips the caption to
-        // a rectangle smaller than the button, by a margin that grows with the DPI (and CJK fonts
-        // are taller). A button that is too short shows its caption with the top of the glyphs
-        // cut off, even when the button frame itself looks fine. Grow every button that is
-        // too short for its text by the missing height, around its centre line.
-        // Returns the largest height any single button gained (0 when nothing had to grow).
-        // Horizontal room, at 96 DPI, a push button needs beyond its padded caption: theme border and
-        // focus rectangle on both sides.
-        internal const float ButtonThemeHorizontalMargin96 = 10f;
+        // Horizontal room a push button needs beyond its measured caption: the theme border, the focus
+        // rectangle and the text padding on both sides. A themed button draws its caption wider than
+        // TextRenderer measures it (about 12 px for a 160 px caption at 96 DPI), so the room is two
+        // lines of the button font, which scales with the font and the DPI.
+        internal static int ButtonHorizontalMargin(Font font)
+        {
+            return 2 * font.Height;
+        }
 
         // A push button keeps its caption on one line: widen it when the caption (longer in another
         // language or a larger font) does not fit. A button in a flow or table layout is placed by the
         // layout; one anchored to the right grows to the left, any other one to the right.
-        private static void FitButtonWidth(Button button, float dpi)
+        private static void FitButtonWidth(Button button)
         {
             if (string.IsNullOrEmpty(button.Text))
             {
                 return;
             }
-            int needed = TextRenderer.MeasureText(button.Text, button.Font).Width +
-                (int)Math.Ceiling(ButtonThemeHorizontalMargin96 * dpi / 96f);
+            int needed = TextRenderer.MeasureText(button.Text, button.Font).Width + ButtonHorizontalMargin(button.Font);
             int grow = needed - button.Width;
             if (grow <= 0)
             {
@@ -354,6 +352,13 @@ namespace SW2URDF.UI
             button.SetBounds(left, button.Top, needed, button.Height);
         }
 
+        // The designer gives push buttons a fixed height, but the visual theme clips the caption to
+        // a rectangle smaller than the button, by a margin that grows with the DPI (and CJK fonts
+        // are taller). A button that is too short shows its caption with the top of the glyphs
+        // cut off, even when the button frame itself looks fine. Grow every button that is
+        // too short for its text by the missing height, around its centre line.
+        // Returns the largest height any single button gained (0 when nothing had to grow).
+        // Each button is first made wide enough for its caption (FitButtonWidth).
         internal static int FitButtonHeights(Control root, float dpi)
         {
             int gained = 0;
@@ -363,7 +368,7 @@ namespace SW2URDF.UI
                 Button button = child as Button;
                 if (button != null && !button.AutoSize)
                 {
-                    FitButtonWidth(button, dpi);
+                    FitButtonWidth(button);
                     int text = Math.Max(button.Font.Height, TextRenderer.MeasureText(
                         button.Text, button.Font, new Size(Math.Max(1, button.Width - 8), 0),
                         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height);
