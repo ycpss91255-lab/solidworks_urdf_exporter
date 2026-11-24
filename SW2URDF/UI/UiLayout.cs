@@ -289,16 +289,74 @@ namespace SW2URDF.UI
         // Fits the button heights and gives the form the height the buttons gained. The button row at
         // the bottom sizes itself to its buttons, so taller buttons would otherwise take the room from
         // the content above it and push its last line out of view.
+        private static readonly System.Reflection.MethodInfo GetState = typeof(Control).GetMethod(
+            "GetState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            null, new[] { typeof(int) }, null);
+
+        // Whether the control itself is set visible. Control.Visible is false for every control of a
+        // form that is not shown yet, which is when the constructors fit the layout.
+        private static bool IsSetVisible(Control c)
+        {
+            return GetState == null ? c.Visible : (bool)GetState.Invoke(c, new object[] { 2 });
+        }
+
+        // Pixels the content of the scrolling panels on display needs beyond their height.
+        private static int ScrollOverflow(Control parent)
+        {
+            int over = 0;
+            foreach (Control c in parent.Controls)
+            {
+                if (!IsSetVisible(c))
+                {
+                    continue;
+                }
+                ScrollableControl scrolling = c as ScrollableControl;
+                if (scrolling != null && scrolling.AutoScroll && !(c is Form))
+                {
+                    int bottom = 0;
+                    foreach (Control child in c.Controls)
+                    {
+                        if (IsSetVisible(child))
+                        {
+                            bottom = Math.Max(bottom, child.Bottom + child.Margin.Bottom);
+                        }
+                    }
+                    over = Math.Max(over, bottom - c.ClientSize.Height);
+                }
+                if (!(c is UpDownBase) && !(c is ComboBox))
+                {
+                    over = Math.Max(over, ScrollOverflow(c));
+                }
+            }
+            return over;
+        }
+
         internal static void FitForm(Control root, float dpi)
         {
             int gained = FitButtonHeights(root, dpi) + SpaceRows(root, dpi);
             Form form = root as Form;
-            if (form == null || gained <= 0 || form.WindowState != FormWindowState.Normal)
+            if (form == null || form.WindowState != FormWindowState.Normal)
             {
                 return;
             }
             Rectangle area = Screen.FromControl(form).WorkingArea;
-            form.Height = Math.Min(form.Height + gained, area.Height);
+            if (gained > 0)
+            {
+                form.Height = Math.Min(form.Height + gained, area.Height);
+            }
+            // A scrolling panel counts each control's margin, so content ending just above its bottom
+            // edge can still need a few pixels of scrolling: the page then shows a scroll bar and
+            // its last line is cut. Grow the form until the page on display fits (twice at most:
+            // the first growth can change the layout once more).
+            for (int i = 0; i < 2 && form.Height < area.Height; i++)
+            {
+                int over = ScrollOverflow(form);
+                if (over <= 0)
+                {
+                    break;
+                }
+                form.Height = Math.Min(form.Height + over, area.Height);
+            }
             if (form.IsHandleCreated && form.Bottom > area.Bottom)
             {
                 form.Top = Math.Max(area.Top, area.Bottom - form.Height);
