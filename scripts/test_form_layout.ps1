@@ -23,7 +23,7 @@ $assembly = [Reflection.Assembly]::LoadFrom($AssemblyPath)
 
 $flags = [Reflection.BindingFlags]'Instance,NonPublic,Public'
 
-function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
+function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi, $ui = $null) {
     $form = [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject($type)
     [void][System.Windows.Forms.Form].GetConstructor($flags, $null, [Type[]]@(), $null).Invoke($form, @())
     if ($font) { $form.Font = $font }
@@ -31,6 +31,14 @@ function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
     $events = [System.ComponentModel.Component].GetProperty('Events', $flags).GetValue($form, @())
     $loadKey = [System.Windows.Forms.Form].GetField('EVENT_LOAD', [Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
     $events.RemoveHandler($loadKey, $events[$loadKey])
+    # Translated the way the constructors translate, before the layout is fitted below.
+    if ($ui) {
+        $field = $type.GetField('ui', $flags)
+        if ($field) { $field.SetValue($form, $ui) }
+        $ui.Apply($form)
+        $align = $type.GetMethod('AlignFieldLabels', $flags)
+        if ($align) { [void]$align.Invoke($form, @()) }
+    }
     # The constructors also grow too-short push buttons (UiLayout); check that state at the DPI being simulated.
     $layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
     $fit = if ($layoutType) { $layoutType.GetMethod('FitButtonHeights', [Reflection.BindingFlags]'Static,NonPublic,Public') }
@@ -177,6 +185,131 @@ foreach ($typeName in $formTypes) {
         }
     }
 }
+
+# Form font (issue #157). The checks above hand the form a font; the real constructors let the form
+# choose its own font for the UI language (UiText.CreateFormFont, set before InitializeComponent).
+# Build the forms that way, in English and Traditional Chinese, and check that
+#   - every control that shows text uses the form's font family and character set (no control
+#     falls back to another face, which in Chinese mixes serif and sans-serif glyphs),
+#   - the Traditional Chinese form uses a sans-serif CJK UI font, so Chinese glyphs are not
+#     borrowed from a linked fallback font,
+#   - the layout has no overlap, clipping or touching captions at 100-175 %, both when the form is
+#     built at that scale and when an open form is moved to a monitor with that scale
+#     (UiLayout.ScaleForDpi, what WM_DPICHANGED does in a per-monitor DPI aware host).
+# Without CreateFormFont the form keeps the default font, which is what the forms did before.
+$uiType = $assembly.GetType('SW2URDF.UI.UiText', $true)
+$layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
+$cjkSans = @('Microsoft JhengHei UI', 'Microsoft JhengHei')
+$createFont = $uiType.GetMethod('CreateFormFont', $flags)
+$scaleForDpi = if ($layoutType) { $layoutType.GetMethod('ScaleForDpi', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+
+function Get-FormFont($ui, [double]$scale) {
+    $base = if ($createFont) { $createFont.Invoke($ui, @()) } else { [System.Windows.Forms.Control]::DefaultFont }
+    return New-Object System.Drawing.Font($base.FontFamily, [single]($base.SizeInPoints * $scale), $base.Style, [System.Drawing.GraphicsUnit]::Point, $base.GdiCharSet)
+}
+
+function Test-FormFonts([System.Windows.Forms.Form]$form, [string]$language, $problems) {
+    $family = $form.Font.FontFamily.GetName(1033)
+    $charset = $form.Font.GdiCharSet
+    if ($language -ne 'en' -and $cjkSans -notcontains $family) {
+        [void]$problems.Add("form font: $family is not a sans-serif CJK UI font ($($cjkSans -join ', '))")
+    }
+    $stack = New-Object System.Collections.Stack; $stack.Push($form)
+    while ($stack.Count -gt 0) {
+        $parent = $stack.Pop()
+        foreach ($c in $parent.Controls) {
+            $shows = $c -is [System.Windows.Forms.TextBoxBase] -or $c -is [System.Windows.Forms.ComboBox] -or
+                $c -is [System.Windows.Forms.UpDownBase] -or $c -is [System.Windows.Forms.TreeView] -or
+                (-not [string]::IsNullOrEmpty($c.Text) -and ($c -is [System.Windows.Forms.Label] -or
+                    $c -is [System.Windows.Forms.ButtonBase] -or $c -is [System.Windows.Forms.GroupBox]))
+            if ($shows -and ($c.Font.FontFamily.GetName(1033) -ne $family -or $c.Font.GdiCharSet -ne $charset)) {
+                [void]$problems.Add("font: $($c.Name) $($c.Font.FontFamily.GetName(1033)) charset $($c.Font.GdiCharSet) vs form $family charset $charset")
+            }
+            if (-not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox])) { $stack.Push($c) }
+        }
+    }
+}
+
+# Captions stacked in a column (a group title and the caption under it) must not touch.
+function Test-Touching([System.Windows.Forms.Control]$parent, [string]$path, $problems) {
+    $labels = @($parent.Controls | Where-Object { ($_ -is [System.Windows.Forms.Label]) -and (Test-Shown $_) -and -not [string]::IsNullOrEmpty($_.Text) })
+    for ($i = 0; $i -lt $labels.Count; $i++) {
+        for ($j = 0; $j -lt $labels.Count; $j++) {
+            if ($i -eq $j) { continue }
+            $a = Get-Box $labels[$i]; $b = Get-Box $labels[$j]
+            $sideBySide = [Math]::Min($a.Right, $b.Right) - [Math]::Max($a.Left, $b.Left)
+            $gap = $b.Top - $a.Bottom
+            if ($a.Top -le $b.Top -and $sideBySide -gt 1 -and $gap -lt 1 -and $gap -gt -2) {
+                [void]$problems.Add("touching ${path}: $($labels[$i].Name) '$($labels[$i].Text)' $a above $($labels[$j].Name) '$($labels[$j].Text)' $b")
+            }
+        }
+    }
+    foreach ($c in $parent.Controls) {
+        if ($c.Controls.Count -gt 0 -and -not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox]) -and -not ($c -is [System.Windows.Forms.TreeView])) {
+            Test-Touching $c "$path/$($c.Name)" $problems
+        }
+    }
+}
+
+$fontScales = @(1.0, 1.25, 1.5, 1.75)
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($scale in $fontScales) {
+            foreach ($how in @('built', 'moved')) {
+                if ($how -eq 'moved' -and $scale -eq 1.0) { continue }
+                $script:baseFont = $null
+                if ($how -eq 'built') {
+                    $font = Get-FormFont $ui $scale
+                    $form = New-Form $type $font ([single](96 * $scale)) $ui
+                } else {
+                    # Built for a 100 % monitor, then moved to one with this scale.
+                    $font = Get-FormFont $ui 1.0
+                    $form = New-Form $type $font ([single]96) $ui
+                }
+                $label = "$($type.Name) [form font $language x$scale $how]"
+                try {
+                    $problems = New-Object System.Collections.ArrayList
+                    if ($how -eq 'moved') {
+                        if (-not $scaleForDpi) { [void]$problems.Add('no per-monitor DPI rescale: UiLayout.ScaleForDpi is missing') }
+                        else {
+                            $before = $form.Font.SizeInPoints
+                            [void]$scaleForDpi.Invoke($null, @($form, [single]96, [single](96 * $scale)))
+                            if ([Math]::Abs($form.Font.SizeInPoints - $before * $scale) -gt 0.05) {
+                                [void]$problems.Add("form font is $($form.Font.SizeInPoints)pt after the move, expected $($before * $scale)pt")
+                            }
+                        }
+                    }
+                    Test-FormFonts $form $language $problems
+                    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                    $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                    foreach ($page in (Get-Pages $form)) {
+                        $panel = $page[2]
+                        if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                        if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                        [System.Windows.Forms.Application]::DoEvents()
+                        $pageProblems = New-Object System.Collections.ArrayList
+                        Test-Container $page[1] ($page[0]) $false $pageProblems
+                        Test-Touching $page[1] ($page[0]) $pageProblems
+                        foreach ($p in $pageProblems) { [void]$problems.Add($p) }
+                        if ($ScreenshotDirectory) {
+                            $bmp = New-Object System.Drawing.Bitmap($form.Width, $form.Height)
+                            $form.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+                            $name = ("{0}_formfont_{1}_{2}_{3}_{4}" -f $type.Name, $language, $scale, $how, ($page[0] -replace ' ', ''))
+                            $bmp.Save((Join-Path $ScreenshotDirectory "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+                            $bmp.Dispose()
+                        }
+                    }
+                    foreach ($p in $problems) { [void]$report.Add("$label : $p") }
+                    $total += $problems.Count
+                } finally { $form.Dispose(); $font.Dispose() }
+            }
+        }
+    }
+}
+
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
