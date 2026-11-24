@@ -604,4 +604,52 @@
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>匯出程式量測極限配合 {0} 的方向後，無法將它還原為 {2}，目前為 {1}。儲存模型前請先檢查這個配合。</value>
   </data>
+  <data xml:space="preserve" name="limits: entered manually, not read from a limit mate">
+    <value>限制：手動輸入，非讀取自極限配合</value>
+  </data>
+  <data xml:space="preserve" name="angle limit mate">
+    <value>角度極限配合</value>
+  </data>
+  <data xml:space="preserve" name="distance limit mate">
+    <value>距離極限配合</value>
+  </data>
+  <data xml:space="preserve" name="limit mate {0} ({1})">
+    <value>極限配合 {0}（{1}）</value>
+  </data>
+  <data xml:space="preserve" name="solidworks variation {0} to {1}">
+    <value>SolidWorks 變化量 {0} 至 {1}</value>
+  </data>
+  <data xml:space="preserve" name="solidworks range {0} to {1}, reference {2}">
+    <value>SolidWorks 範圍 {0} 至 {1}，參考值 {2}</value>
+  </data>
+  <data xml:space="preserve" name="urdf (relative): {0} to {1} = {2} to {3}">
+    <value>URDF（相對）：{0} 至 {1} = {2} 至 {3}</value>
+  </data>
+  <data xml:space="preserve" name="direction: measured on the model">
+    <value>方向：在模型上量測</value>
+  </data>
+  <data xml:space="preserve" name="direction: taken from the mate type rule ({0})">
+    <value>方向：依配合類型規則（{0}）</value>
+  </data>
+  <data xml:space="preserve" name="the direction could not be measured">
+    <value>無法量測方向</value>
+  </data>
+  <data xml:space="preserve" name="the dimension of the mate was not found">
+    <value>找不到配合的尺寸</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is read-only">
+    <value>尺寸為唯讀</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is a driven (reference) dimension">
+    <value>尺寸為從動（參考）尺寸</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is controlled by a design table">
+    <value>尺寸由設計表控制</value>
+  </data>
+  <data xml:space="preserve" name="the dimension is controlled by an equation or a global variable">
+    <value>尺寸由方程式或全域變數控制</value>
+  </data>
+  <data xml:space="preserve" name="the value of the dimension cannot be read back">
+    <value>無法讀回尺寸的值</value>
+  </data>
 </root>

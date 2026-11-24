@@ -1538,6 +1538,7 @@ namespace SW2URDF.URDFExport
         public Boolean EstimateGlobalJointFromComponents(Link parent, Link child)
         {
             LimitsFromMate = false;
+            child.Joint.LimitInfo = null;
             //Create the ref objects
             int degreesOfFreedom;
 
@@ -1997,6 +1998,9 @@ namespace SW2URDF.URDFExport
         /// <summary>Whether the model was already marked modified when the last direction probe started (for the live checks).</summary>
         public static bool LastProbeStartedOnModifiedModel;
 
+        // Why the last direction probe did not measure (English text), or null when it measured.
+        private string lastProbeNotMeasured;
+
         /// <summary>
         /// Moves the dimension of a limit mate a little inside its limits, sees how the child moves
         /// relative to the axis and puts the model back. Returns +1 when the child moves along the axis
@@ -2007,6 +2011,7 @@ namespace SW2URDF.URDFExport
         /// </summary>
         private int ProbeVariationDirection(Mate2 swMate, bool prismatic, double[] axis, Component2 child)
         {
+            lastProbeNotMeasured = "the direction could not be measured";
             Dimension dimension = null;
             string mateName = null;
             double start = 0;
@@ -2031,6 +2036,7 @@ namespace SW2URDF.URDFExport
                 if (blocker != null)
                 {
                     logger.Info("The direction of limit mate " + mateName + " is not measured: " + blocker);
+                    lastProbeNotMeasured = blocker;
                     dimension = null;
                     return 0;
                 }
@@ -2090,6 +2096,7 @@ namespace SW2URDF.URDFExport
                         return 0;
                     }
                 }
+                lastProbeNotMeasured = null;
                 return moved * delta > 0 ? 1 : -1;
             }
             catch (Exception e)
@@ -2212,6 +2219,22 @@ namespace SW2URDF.URDFExport
                 upper = -minimum;
             }
         }
+        // Value of the dimension of a limit mate (metres or radians), NaN when it cannot be read.
+        // Only for the display of the joint form.
+        private double ReadMateReference(string mateName)
+        {
+            try
+            {
+                Dimension dimension = ActiveSWModel.Parameter("D1@" + mateName) as Dimension;
+                return dimension == null ? double.NaN : dimension.SystemValue;
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Reading the dimension of limit mate " + mateName + " failed: " + e.Message);
+                return double.NaN;
+            }
+        }
+
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
         private bool AddLimits(Joint Joint, List<Mate2> limitMates,
@@ -2278,6 +2301,19 @@ namespace SW2URDF.URDFExport
                         }
                         Joint.Limit.Lower = lower;
                         Joint.Limit.Upper = upper;
+                        string mateName = ((Feature)swMate).Name;
+                        Joint.LimitInfo = new LimitMateInfo
+                        {
+                            MateName = mateName,
+                            IsAngle = Joint.Type != "prismatic",
+                            Reference = ReadMateReference(mateName),
+                            MinimumVariation = swMate.MinimumVariation,
+                            MaximumVariation = swMate.MaximumVariation,
+                            Lower = lower,
+                            Upper = upper,
+                            DirectionMeasured = direction != 0,
+                            NotMeasuredReason = direction != 0 ? null : lastProbeNotMeasured
+                        };
                         limitsWritten = true;
                         if (Joint.Type == "continuous")
                         {

@@ -337,6 +337,7 @@
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
+    <Compile Include="Test\TestLimitMateInfo.cs" />
     <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
@@ -437,6 +438,7 @@
     <Compile Include="URDF\Inertial.cs" />
     <Compile Include="URDF\Joint.cs" />
     <Compile Include="URDF\Limit.cs" />
+    <Compile Include="URDF\LimitMateInfo.cs" />
     <Compile Include="URDF\Link.cs" />
     <Compile Include="URDF\LinkNode.cs" />
     <Compile Include="URDF\Mass.cs" />

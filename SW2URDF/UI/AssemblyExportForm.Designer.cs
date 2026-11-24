@@ -182,6 +182,7 @@
             this.label1 = new System.Windows.Forms.Label();
             this.AxisRequiredLabel = new System.Windows.Forms.Label();
             this.LimitRequiredLabel = new System.Windows.Forms.Label();
+            this.labelLimitSource = new System.Windows.Forms.Label();
             this.label27 = new System.Windows.Forms.Label();
             this.MimicCheckBox = new System.Windows.Forms.CheckBox();
             this.MimicJointComboBox = new System.Windows.Forms.ComboBox();
@@ -1598,6 +1599,16 @@
             this.AxisRequiredLabel.TabIndex = 232;
             this.AxisRequiredLabel.Text = "*";
             // 
+            // labelLimitSource
+            // 
+            // Read-only description of where the limits come from; the text is set when the joint is shown.
+            this.labelLimitSource.AutoSize = true;
+            this.labelLimitSource.Location = new System.Drawing.Point(494, 4);
+            this.labelLimitSource.MaximumSize = new System.Drawing.Size(560, 0);
+            this.labelLimitSource.Name = "labelLimitSource";
+            this.labelLimitSource.Size = new System.Drawing.Size(0, 12);
+            this.labelLimitSource.TabIndex = 234;
+            // 
             // LimitRequiredLabel
             // 
             this.LimitRequiredLabel.AutoSize = true;
@@ -1793,6 +1804,7 @@
             this.panelJointContent.Controls.Add(this.textBoxMimicMultiplier);
             this.panelJointContent.Controls.Add(this.MimicEquationLabel);
             this.panelJointContent.Controls.Add(this.LimitRequiredLabel);
+            this.panelJointContent.Controls.Add(this.labelLimitSource);
             this.panelJointContent.Controls.Add(this.AxisRequiredLabel);
             this.panelJointContent.Controls.Add(this.label1);
             this.panelJointContent.Controls.Add(this.label4);
@@ -2003,6 +2015,7 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label AxisRequiredLabel;
         private System.Windows.Forms.Label LimitRequiredLabel;
+        private System.Windows.Forms.Label labelLimitSource;
         private System.Windows.Forms.Label label27;
         private System.Windows.Forms.CheckBox MimicCheckBox;
         private System.Windows.Forms.ComboBox MimicJointComboBox;
