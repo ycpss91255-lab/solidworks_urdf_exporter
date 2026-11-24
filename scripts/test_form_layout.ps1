@@ -222,10 +222,39 @@ function Find-One([System.Windows.Forms.Control]$root, [string]$name) {
     return @($root.Controls.Find($name, $true)) | Select-Object -First 1
 }
 
-# A problem without the bounds it names, to compare problems before and after the unit is chosen.
-function Get-ProblemKey([string]$problem) { return ($problem -replace '{[^}]*}', '') }
+# Rectangle of a control in the form's client coordinates.
+function Get-FormRect([System.Windows.Forms.Form]$form, [System.Windows.Forms.Control]$c) {
+    return $form.RectangleToClient($c.Parent.RectangleToScreen($c.Bounds))
+}
+
+# A problem without the bounds and captions it names, to compare problems before and after the unit
+# is chosen (the unit changes the captions).
+function Get-ProblemKey([string]$problem) { return ($problem -replace '\{[^}]*\}', '' -replace "'[^']*'", '') }
 
 $fontScales = @(1.0, 1.25, 1.5, 1.75)
+
+# The limit source text shares the header of the joint page: a long one, as a limit mate shows.
+function Set-LongLimitText([System.Windows.Forms.Form]$target, $ui) {
+    $source = Find-One $target 'labelLimitSource'
+    if ($source) {
+        $source.Text = [string]::Format($ui.Get('Limit mate {0} ({1})'), 'LimitMate_shoulder_pitch', $ui.Get('angle limit mate')) + "`n" +
+            [string]::Format($ui.Get('SolidWorks range {0} to {1}, reference {2}'), ("-120.5" + [char]176), ("135.25" + [char]176), ("7.375" + [char]176)) + "`n" +
+            [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), ("-127.875" + [char]176), ("127.875" + [char]176), '-2.23183', '2.23183') + "`n" +
+            [string]::Format($ui.Get('Direction: taken from the mate type rule ({0})'), $ui.Get('the dimension is controlled by an equation or a global variable'))
+    }
+    # What the constructor does when the text changes size.
+    $align = $target.GetType().GetMethod('AlignFieldLabels', $flags)
+    if ($align) { [void]$align.Invoke($target, @()) }
+}
+
+# Pages are compared from the top of their content.
+function Reset-Scrolling([System.Windows.Forms.Control]$root) {
+    foreach ($c in $root.Controls) {
+        if (($c -is [System.Windows.Forms.ScrollableControl]) -and $c.AutoScroll) { $c.AutoScrollPosition = New-Object System.Drawing.Point(0, 0) }
+        if (-not ($c -is [System.Windows.Forms.UpDownBase])) { Reset-Scrolling $c }
+    }
+    [System.Windows.Forms.Application]::DoEvents()
+}
 
 # Problems of each page of a form, without bounds, keyed by page.
 function Get-PageProblems([System.Windows.Forms.Form]$form) {
@@ -238,6 +267,7 @@ function Get-PageProblems([System.Windows.Forms.Form]$form) {
         if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
         if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
         [System.Windows.Forms.Application]::DoEvents()
+        Reset-Scrolling $page[1]
         $pageProblems = New-Object System.Collections.ArrayList
         Test-Container $page[1] ($page[0]) $false $pageProblems
         Test-Touching $page[1] ($page[0]) $pageProblems
@@ -251,7 +281,7 @@ function Get-PageProblems([System.Windows.Forms.Form]$form) {
 # Chinese at 100-175 %: the angle captions name the unit (deg / deg/s, or rad / rad/s), the linear
 # captions keep theirs, and choosing the unit adds no overlap, clipping or touching captions to the
 # pages (what a page already has with the designer captions is left to the other checks, except
-# anything that involves the angle unit choice itself).
+# anything that involves the angle unit choice or the limit source text, which ends before it).
 $angleType = $assembly.GetType('SW2URDF.UI.AngleUnit')
 $angleCaptions = @{
     'Degrees' = @{ label6 = '(deg)'; labelLowerLimit = '(deg)'; labelLimitUpper = '(deg)'; labelVelocity = '(deg/s)'; labelSoftLower = '(deg)'; labelSoftUpper = '(deg)'; label36 = 'deg'; label23 = 'deg'; labelEffort = '(N'; label3 = '(m)' }
@@ -266,6 +296,7 @@ foreach ($language in @('en', 'chinese')) {
         foreach ($unit in @('Degrees', 'Radians')) {
             $script:baseFont = $null
             $font = Get-FormFont $ui $scale
+            $script:jointChoice = $null
             $form = New-Form $type $font ([single](96 * $scale)) $ui
             $label = "$($type.Name) [angle unit $unit $language x$scale]"
             $problems = New-Object System.Collections.ArrayList
@@ -273,6 +304,7 @@ foreach ($language in @('en', 'chinese')) {
                 $known = @{}
                 if ($setUnit) {
                     $probe = New-Form $type $font ([single](96 * $scale)) $ui
+                    Set-LongLimitText $probe $ui
                     try { $known = Get-PageProblems $probe } finally { $probe.Dispose() }
                 }
                 if (-not $angleType -or -not $setUnit -or -not $setCaptions) {
@@ -280,6 +312,7 @@ foreach ($language in @('en', 'chinese')) {
                 } else {
                     [void]$setUnit.Invoke($form, @([Enum]::Parse($angleType, $unit)))
                     [void]$setCaptions.Invoke($form, @('revolute'))
+                    Set-LongLimitText $form $ui
                     foreach ($name in $angleCaptions[$unit].Keys) {
                         $c = Find-One $form $name
                         if (-not $c) { [void]$problems.Add("missing caption $name"); continue }
@@ -299,11 +332,25 @@ foreach ($language in @('en', 'chinese')) {
                     if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
                     if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
                     [System.Windows.Forms.Application]::DoEvents()
+                    Reset-Scrolling $page[1]
                     $pageProblems = New-Object System.Collections.ArrayList
                     Test-Container $page[1] ($page[0]) $false $pageProblems
                     Test-Touching $page[1] ($page[0]) $pageProblems
+                    # The choice is a form-level setting in the page header: above the tree and the
+                    # properties, at the right end of the property area, at the same place on both pages.
+                    $which = if ($page[0] -eq 'joint page') { @('comboBoxAngleUnitJoint', 'labelAngleUnitJoint', 'treeViewJointTree', 'comboBoxOrigin') } else { @('comboBoxAngleUnitLink', 'labelAngleUnitLink', 'treeViewLinkProperties', 'groupBox5') }
+                    $choice = Find-One $form $which[0]; $caption = Find-One $form $which[1]; $tree = Find-One $form $which[2]; $edge = Find-One $form $which[3]
+                    if ($choice -and $caption -and $tree -and $edge) {
+                        $rc = Get-FormRect $form $choice; $rl = Get-FormRect $form $caption; $rt = Get-FormRect $form $tree; $re = Get-FormRect $form $edge
+                        if ($rc.Bottom -gt $rt.Top -or $rl.Bottom -gt $rt.Top) { [void]$pageProblems.Add("angle unit choice is not in the header band: $rc / $rl below the top of $($tree.Name) $($rt.Top)") }
+                        if ($rc.Right -lt $re.Right - 2) { [void]$pageProblems.Add("angle unit choice is not at the right: $rc ends left of $($edge.Name) $($re.Right)") }
+                        if ($rl.Right -gt $rc.Left) { [void]$pageProblems.Add("angle unit caption $rl is not left of its box $rc") }
+                        if ($page[0] -eq 'joint page') { $script:jointChoice = $rc } elseif ($script:jointChoice -and ([Math]::Abs($rc.X - $script:jointChoice.X) -gt 1 -or [Math]::Abs($rc.Y - $script:jointChoice.Y) -gt 1)) {
+                            [void]$pageProblems.Add("angle unit choice is at $rc on the link page but at $($script:jointChoice) on the joint page")
+                        }
+                    }
                     foreach ($p in $pageProblems) {
-                        if ($p -notmatch 'AngleUnit' -and $known["$($page[0]): $(Get-ProblemKey $p)"]) { continue }
+                        if ($p -notmatch 'AngleUnit|labelLimitSource' -and $known["$($page[0]): $(Get-ProblemKey $p)"]) { continue }
                         [void]$problems.Add("$($page[0]): $p")
                     }
                     if ($ScreenshotDirectory) {
