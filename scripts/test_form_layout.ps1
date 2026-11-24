@@ -23,7 +23,7 @@ $assembly = [Reflection.Assembly]::LoadFrom($AssemblyPath)
 
 $flags = [Reflection.BindingFlags]'Instance,NonPublic,Public'
 
-function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
+function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi, $ui = $null) {
     $form = [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject($type)
     [void][System.Windows.Forms.Form].GetConstructor($flags, $null, [Type[]]@(), $null).Invoke($form, @())
     if ($font) { $form.Font = $font }
@@ -31,6 +31,14 @@ function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
     $events = [System.ComponentModel.Component].GetProperty('Events', $flags).GetValue($form, @())
     $loadKey = [System.Windows.Forms.Form].GetField('EVENT_LOAD', [Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
     $events.RemoveHandler($loadKey, $events[$loadKey])
+    # Translated the way the constructors translate, before the layout is fitted below.
+    if ($ui) {
+        $field = $type.GetField('ui', $flags)
+        if ($field) { $field.SetValue($form, $ui) }
+        $ui.Apply($form)
+        $align = $type.GetMethod('AlignFieldLabels', $flags)
+        if ($align) { [void]$align.Invoke($form, @()) }
+    }
     # The constructors also grow too-short push buttons (UiLayout); check that state at the DPI being simulated.
     $layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
     $fit = if ($layoutType) { $layoutType.GetMethod('FitButtonHeights', [Reflection.BindingFlags]'Static,NonPublic,Public') }
@@ -177,6 +185,143 @@ foreach ($typeName in $formTypes) {
         }
     }
 }
+
+# Angle unit helpers. The checks build the assembly form the way its constructor does, translated, with
+# the font it uses for its UI language (UiText.CreateFormFont where the form chooses one, the default
+# font otherwise), scaled for 100-175 %.
+$uiType = $assembly.GetType('SW2URDF.UI.UiText', $true)
+$createFont = $uiType.GetMethod('CreateFormFont', $flags)
+
+function Get-FormFont($ui, [double]$scale) {
+    $base = if ($createFont) { $createFont.Invoke($ui, @()) } else { [System.Windows.Forms.Control]::DefaultFont }
+    return New-Object System.Drawing.Font($base.FontFamily, [single]($base.SizeInPoints * $scale), $base.Style, [System.Drawing.GraphicsUnit]::Point, $base.GdiCharSet)
+}
+
+# Captions stacked in a column (a group title and the caption under it) must not touch.
+function Test-Touching([System.Windows.Forms.Control]$parent, [string]$path, $problems) {
+    $labels = @($parent.Controls | Where-Object { ($_ -is [System.Windows.Forms.Label]) -and (Test-Shown $_) -and -not [string]::IsNullOrEmpty($_.Text) })
+    for ($i = 0; $i -lt $labels.Count; $i++) {
+        for ($j = 0; $j -lt $labels.Count; $j++) {
+            if ($i -eq $j) { continue }
+            $a = Get-Box $labels[$i]; $b = Get-Box $labels[$j]
+            $sideBySide = [Math]::Min($a.Right, $b.Right) - [Math]::Max($a.Left, $b.Left)
+            $gap = $b.Top - $a.Bottom
+            if ($a.Top -le $b.Top -and $sideBySide -gt 1 -and $gap -lt 1 -and $gap -gt -2) {
+                [void]$problems.Add("touching ${path}: $($labels[$i].Name) '$($labels[$i].Text)' $a above $($labels[$j].Name) '$($labels[$j].Text)' $b")
+            }
+        }
+    }
+    foreach ($c in $parent.Controls) {
+        if ($c.Controls.Count -gt 0 -and -not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox]) -and -not ($c -is [System.Windows.Forms.TreeView])) {
+            Test-Touching $c "$path/$($c.Name)" $problems
+        }
+    }
+}
+
+function Find-One([System.Windows.Forms.Control]$root, [string]$name) {
+    return @($root.Controls.Find($name, $true)) | Select-Object -First 1
+}
+
+# A problem without the bounds it names, to compare problems before and after the unit is chosen.
+function Get-ProblemKey([string]$problem) { return ($problem -replace '{[^}]*}', '') }
+
+$fontScales = @(1.0, 1.25, 1.5, 1.75)
+
+# Problems of each page of a form, without bounds, keyed by page.
+function Get-PageProblems([System.Windows.Forms.Form]$form) {
+    $found = @{}
+    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+    $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+    foreach ($page in (Get-Pages $form)) {
+        $panel = $page[2]
+        if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+        if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+        [System.Windows.Forms.Application]::DoEvents()
+        $pageProblems = New-Object System.Collections.ArrayList
+        Test-Container $page[1] ($page[0]) $false $pageProblems
+        Test-Touching $page[1] ($page[0]) $pageProblems
+        foreach ($p in $pageProblems) { $found["$($page[0]): $(Get-ProblemKey $p)"] = $true }
+    }
+    return $found
+}
+
+# Angle unit (issue #155). The assembly form has an angle unit choice on the joint page and on the
+# link page. With degrees chosen and the captions of a revolute joint, in English and Traditional
+# Chinese at 100-175 %: the angle captions name the unit (deg / deg/s, or rad / rad/s), the linear
+# captions keep theirs, and choosing the unit adds no overlap, clipping or touching captions to the
+# pages (what a page already has with the designer captions is left to the other checks, except
+# anything that involves the angle unit choice itself).
+$angleType = $assembly.GetType('SW2URDF.UI.AngleUnit')
+$angleCaptions = @{
+    'Degrees' = @{ label6 = '(deg)'; labelLowerLimit = '(deg)'; labelLimitUpper = '(deg)'; labelVelocity = '(deg/s)'; labelSoftLower = '(deg)'; labelSoftUpper = '(deg)'; label36 = 'deg'; label23 = 'deg'; labelEffort = '(N'; label3 = '(m)' }
+    'Radians' = @{ label6 = '(rad)'; labelLowerLimit = '(rad)'; labelLimitUpper = '(rad)'; labelVelocity = '(rad/s)'; labelSoftLower = '(rad)'; labelSoftUpper = '(rad)'; label36 = 'rad'; label23 = 'rad'; labelEffort = '(N'; label3 = '(m)' }
+}
+$type = $assembly.GetType('SW2URDF.UI.AssemblyExportForm', $true)
+$setUnit = $type.GetMethod('SetAngleUnit', $flags)
+$setCaptions = $type.GetMethod('SetJointCaptions', $flags)
+foreach ($language in @('en', 'chinese')) {
+    $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+    foreach ($scale in $fontScales) {
+        foreach ($unit in @('Degrees', 'Radians')) {
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $form = New-Form $type $font ([single](96 * $scale)) $ui
+            $label = "$($type.Name) [angle unit $unit $language x$scale]"
+            $problems = New-Object System.Collections.ArrayList
+            try {
+                $known = @{}
+                if ($setUnit) {
+                    $probe = New-Form $type $font ([single](96 * $scale)) $ui
+                    try { $known = Get-PageProblems $probe } finally { $probe.Dispose() }
+                }
+                if (-not $angleType -or -not $setUnit -or -not $setCaptions) {
+                    [void]$problems.Add('no angle unit choice: AngleUnit, SetAngleUnit or SetJointCaptions is missing')
+                } else {
+                    [void]$setUnit.Invoke($form, @([Enum]::Parse($angleType, $unit)))
+                    [void]$setCaptions.Invoke($form, @('revolute'))
+                    foreach ($name in $angleCaptions[$unit].Keys) {
+                        $c = Find-One $form $name
+                        if (-not $c) { [void]$problems.Add("missing caption $name"); continue }
+                        if (-not $c.Text.Contains($angleCaptions[$unit][$name])) { [void]$problems.Add("caption $name '$($c.Text)' does not show '$($angleCaptions[$unit][$name])'") }
+                    }
+                }
+                foreach ($name in @('comboBoxAngleUnitJoint', 'comboBoxAngleUnitLink')) {
+                    $c = Find-One $form $name
+                    if (-not $c) { [void]$problems.Add("missing angle unit choice $name") }
+                    elseif (-not ($c -is [System.Windows.Forms.ComboBox]) -or $c.Items.Count -ne 2) { [void]$problems.Add("$name does not offer two units") }
+                }
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                foreach ($page in (Get-Pages $form)) {
+                    $panel = $page[2]
+                    if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                    if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                    [System.Windows.Forms.Application]::DoEvents()
+                    $pageProblems = New-Object System.Collections.ArrayList
+                    Test-Container $page[1] ($page[0]) $false $pageProblems
+                    Test-Touching $page[1] ($page[0]) $pageProblems
+                    foreach ($p in $pageProblems) {
+                        if ($p -notmatch 'AngleUnit' -and $known["$($page[0]): $(Get-ProblemKey $p)"]) { continue }
+                        [void]$problems.Add("$($page[0]): $p")
+                    }
+                    if ($ScreenshotDirectory) {
+                        $bmp = New-Object System.Drawing.Bitmap($form.Width, $form.Height)
+                        $form.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+                        $name = ("{0}_angles_{1}_{2}_{3}_{4}" -f $type.Name, $unit, $language, $scale, ($page[0] -replace ' ', ''))
+                        $bmp.Save((Join-Path $ScreenshotDirectory "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+                        $bmp.Dispose()
+                    }
+                }
+            } finally { $form.Dispose(); $font.Dispose() }
+            foreach ($p in $problems) { [void]$report.Add("$label : $p") }
+            $total += $problems.Count
+        }
+    }
+}
+
+
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
