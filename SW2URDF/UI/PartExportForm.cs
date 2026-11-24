@@ -75,7 +75,7 @@ namespace SW2URDF.UI
             InitializeComponent();
             ui = UiText.FromSolidWorks(iSwApp);
             ui.Apply(this);
-            new ToolTip().SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro."));
+            new ToolTip().SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."));
             AlignFieldLabels();
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             Exporter = new ExportHelper(iSwApp);

@@ -123,7 +123,7 @@ namespace SW2URDF.UI
             meshFormatTips.SetToolTip(radioButtonStl, ui.Get("Geometry only, no colour."));
             meshFormatTips.SetToolTip(radioButton3dxml, ui.Get("Geometry with colour."));
             meshFormatTips.SetToolTip(radioButtonObj, ui.Get("Geometry with colour and materials, as .obj and .mtl files."));
-            meshFormatTips.SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro."));
+            meshFormatTips.SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."));
             // Items show the localized caption; the stored/compared value is mapped back by ui.ComboValue.
             comboBoxJointType.Items.Clear();
             foreach (string type in SW2URDF.URDF.Joint.AvailableTypes)
