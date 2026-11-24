@@ -109,15 +109,16 @@ namespace SW2URDF.UI
             Apply();
         }
 
-        // A scrolling panel moves only the child windows that exist. A control that is hidden until
-        // needed (the mimic row) has no window yet, stays where it was while the panel scrolls, and
-        // shows up out of place later. Create the windows of hidden controls in scrolling panels.
+        // A control that is hidden until needed (the mimic row, the page not on display) has no
+        // window yet. A scrolling panel moves only the child windows that exist, so such a control
+        // stays where it was while the panel scrolls and shows up out of place later; a combo box
+        // also takes its real height only when its window is made. Make the windows when the form is
+        // shown, so hidden controls are laid out like the visible ones.
         private static void CreateHiddenHandles(Control parent)
         {
             foreach (Control c in parent.Controls)
             {
-                ScrollableControl scrolling = parent as ScrollableControl;
-                if (scrolling != null && scrolling.AutoScroll && !c.IsHandleCreated && parent.IsHandleCreated)
+                if (!c.IsHandleCreated)
                 {
                     IntPtr handle = c.Handle;
                 }
@@ -170,7 +171,10 @@ namespace SW2URDF.UI
                     continue;
                 }
                 Control c = item.Control;
-                c.SetBounds(c.Left + dx - item.Dx, c.Top, c.Width + dw - item.Dw, c.Height + dh - item.Dh);
+                // Only what changes is set: a combo box set to its own height again may resize itself.
+                BoundsSpecified specified = BoundsSpecified.X | BoundsSpecified.Width |
+                    (item.GrowY ? BoundsSpecified.Height : BoundsSpecified.None);
+                c.SetBounds(c.Left + dx - item.Dx, c.Top, c.Width + dw - item.Dw, c.Height + dh - item.Dh, specified);
                 item.Dx = dx;
                 item.Dw = dw;
                 item.Dh = dh;
