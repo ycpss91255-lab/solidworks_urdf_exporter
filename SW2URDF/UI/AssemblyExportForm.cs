@@ -648,4 +648,4 @@ namespace SW2URDF.UI
             textBoxMimicOffset.Text = "0.0";
         }
     }
-}
+}

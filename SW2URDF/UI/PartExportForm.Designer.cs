@@ -1103,4 +1103,4 @@
         private System.Windows.Forms.Panel panelButtons;
         private System.Windows.Forms.CheckBox checkBox_rotate;
     }
-}
+}
