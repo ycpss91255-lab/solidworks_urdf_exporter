@@ -78,7 +78,7 @@ Renaming a SolidWorks configuration does not rename its attribute. When the expo
 configuration active, and it has no settings of its own, it asks whether to use the settings of the old name.
 *Yes* moves them to the new name (the old entry stays, empty). *No* changes nothing: the legacy fallback
 applies, else "new settings", the old attribute is reported in the log as an orphan, and the question comes
-again until settings are saved for the new name. The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
+again until the new name has settings (a copy of the legacy ones counts). The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
 
 ### 1. Unit tests (no SolidWorks needed)
 
@@ -147,7 +147,7 @@ data; they are saved to this configuration on the next save."* or *"... New sett
    and forth.
 1. Rename a configuration (`CFG_RED_ONLY` to `CFG_RENAMED`). Open the exporter with `CFG_RENAMED` active: expect
    the question whether to use the settings of `CFG_RED_ONLY`. Answer *No*: expect the legacy data or *new
-   settings*, no error dialog. Cancel, open again and answer *Yes*: expect the tree of `CFG_RED_ONLY` and
+   settings*, no error dialog. Without legacy data: cancel, open again and answer *Yes*: expect the tree of `CFG_RED_ONLY` and
    *Stored for this configuration*. Open again: expect no question. After the *No*, in the log expect a warning "URDF configuration
    attributes that match no SolidWorks configuration (a configuration may have been renamed): CFG_RED_ONLY".
 1. Suppressed part: with `CFG_RED_ONLY` active and a link that holds the blue box (saved under the shared
