@@ -335,7 +335,6 @@
     <Compile Include="Test\TestPackageXmlFile.cs" />
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
-    <Compile Include="Test\TestDuplicateNames.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
@@ -347,6 +346,7 @@
     <Compile Include="Test\TestTreeKeyActions.cs" />
     <Compile Include="Test\TestDocumentPersistence.cs" />
     <Compile Include="Test\TestFolderNameCollision.cs" />
+    <Compile Include="Test\TestDuplicateNames.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
     <Compile Include="Test\TestExporterRouting.cs" />
     <Compile Include="Test\TestOrphanAttributes.cs" />
