@@ -498,6 +498,7 @@ What it checks:
 * going between the two pages several times, with links and joints selected on the way: no value moves to another link;
 * Export Model File Only when mesh files are missing: the question and its three answers; none when they exist;
 * a mesh origin typed on the link page moves the visual and the collision mesh in the link frame (STL, OBJ, 3DXML);
+* an OBJ export that is refused because of a texture, and STL in the same form;
 * saved settings: a value of the link on display, another configuration activated while the form is open, a configuration
   that was renamed;
 * the part form (STL and OBJ) against SolidWorks;
