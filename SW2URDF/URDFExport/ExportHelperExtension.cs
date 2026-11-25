@@ -591,8 +591,8 @@ namespace SW2URDF.URDFExport
             if (parent != null && ComputeJointKinematics)
             {
                 logger.Info("Creating joint " + node.Link.Name);
-                bool error = CreateJoint(parent, node.Link);
-                if (error)
+                bool created = CreateJoint(parent, node.Link);
+                if (!created)
                 {
                     logger.Warn(
                         string.Format("Creating joint from parent {0} to child {1} failed", 
