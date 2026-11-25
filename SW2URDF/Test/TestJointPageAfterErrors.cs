@@ -18,23 +18,53 @@ namespace SW2URDF.Test
     /// <summary>
     /// Does not need SolidWorks. After the message about missing required fields, what is typed for the
     /// joint that is still shown is saved (issue #199). The handlers of the form are called as its buttons
-    /// and its tree call them; the message boxes are counted instead of shown.
+    /// and its tree call them. The message is counted and the configuration is not written, so that no
+    /// window is shown.
     /// </summary>
     public class TestJointPageAfterErrors
     {
         private const BindingFlags Members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+        private static FieldInfo Find(object target, string name)
+        {
+            return (target is AssemblyExportForm ? typeof(AssemblyExportForm) : target.GetType()).GetField(name, Members);
+        }
+
         private static T Field<T>(object target, string name)
         {
-            return (T)target.GetType().GetField(name, Members).GetValue(target);
+            return (T)Find(target, name).GetValue(target);
         }
 
         private static void SetField(object target, string name, object value)
         {
-            target.GetType().GetField(name, Members).SetValue(target, value);
+            Find(target, name).SetValue(target, value);
         }
 
-        // Keeps the dialogs of this thread from being created, and counts them.
+        private class SilentForm : AssemblyExportForm
+        {
+            // Never called, the form is made without a constructor.
+            private SilentForm() : base(null, null, null)
+            {
+            }
+
+            public int Messages;
+
+            // The limits of the first joint when the configuration was to be saved.
+            public double[] SavedLimits;
+
+            internal override void ShowJointErrors(string message)
+            {
+                Messages++;
+            }
+
+            public override void SaveConfigTree(ModelDoc2 model, LinkNode baseNode, bool warnUser)
+            {
+                Limit limit = ((LinkNode)baseNode.Nodes[0]).Link.Joint.Limit;
+                SavedLimits = new[] { limit.Effort, limit.Velocity };
+            }
+        }
+
+        // Only a safeguard: keeps the dialogs of this thread from being created, and counts them.
         private sealed class DialogCounter : IDisposable
         {
             private const int WH_CBT = 5;
@@ -88,7 +118,7 @@ namespace SW2URDF.Test
         // The joint page of a robot whose joints hang on the base link. No effort and velocity are set.
         private sealed class Page : IDisposable
         {
-            private readonly AssemblyExportForm form;
+            private readonly SilentForm form;
             private readonly LinkNode baseNode;
             private readonly DialogCounter dialogs = new DialogCounter();
             private readonly List<LinkNode> nodes = new List<LinkNode>();
@@ -106,7 +136,7 @@ namespace SW2URDF.Test
                 robot.SetBaseLink(baseLink);
                 exporter.URDFRobot = robot;
 
-                form = (AssemblyExportForm)FormatterServices.GetUninitializedObject(typeof(AssemblyExportForm));
+                form = (SilentForm)FormatterServices.GetUninitializedObject(typeof(SilentForm));
                 typeof(Form).GetConstructor(Type.EmptyTypes).Invoke(form, null);
                 SetField(form, "ui", new UiText("english"));
                 typeof(AssemblyExportForm).GetMethod("InitializeComponent", Members).Invoke(form, null);
@@ -128,9 +158,6 @@ namespace SW2URDF.Test
                 selection.Setup(manager => manager.CreateSelectData()).Returns(new Mock<SelectData>().Object);
                 var model = new Mock<ModelDoc2>();
                 model.Setup(document => document.SelectionManager).Returns(selection.Object);
-                var features = new Mock<FeatureManager>();
-                features.Setup(manager => manager.GetFeatures(It.IsAny<bool>())).Returns(new object[0]);
-                model.Setup(document => document.FeatureManager).Returns(features.Object);
                 SetField(form, "ActiveSWModel", model.Object);
 
                 baseLink.SWComponents = new List<Component2>();
@@ -181,15 +208,17 @@ namespace SW2URDF.Test
             // Whether the message about missing required fields came.
             public bool NextIsStopped()
             {
-                int before = dialogs.Count;
+                int before = form.Messages;
                 Call("ButtonJointNextClick", EventArgs.Empty);
-                Assert.Equal(LinkPageShown ? before : before + 1, dialogs.Count);
+                Assert.Equal(LinkPageShown ? before : before + 1, form.Messages);
                 return !LinkPageShown;
             }
 
-            public void Cancel()
+            // Returns what was saved of the first joint: effort and velocity.
+            public double[] Cancel()
             {
                 Call("Button_Joint_Cancel_Click", EventArgs.Empty);
+                return form.SavedLimits;
             }
 
             // Blank effort and velocity boxes are saved as 0 and not reported before issue #189 is fixed.
@@ -219,8 +248,9 @@ namespace SW2URDF.Test
 
             public void Dispose()
             {
-                dialogs.Dispose();
                 form.Dispose();
+                dialogs.Dispose();
+                Assert.Equal(0, dialogs.Count);
             }
         }
 
@@ -275,7 +305,7 @@ namespace SW2URDF.Test
                 Assert.True(page.NextIsStopped());
                 page.Fill("10", "2");
                 page.NothingMissing(0);
-                page.Cancel();
+                Assert.Equal(new double[] { 10, 2 }, page.Cancel());
                 AssertSaved(page[0], 10, 2);
             }
         }
