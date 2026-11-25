@@ -551,7 +551,7 @@
     <value>關節名稱為空，請填入唯一的關節名稱</value>
   </data>
   <data xml:space="preserve" name="{0}: its mimic leads back to itself">
-    <value>{0}：跟隨的關節最後又回到它自己</value>
+    <value>{0}: 跟隨的關節最後又回到它自己</value>
   </data>
   <data xml:space="preserve" name="please fix these errors before proceeding.">
     <value>請先修正這些錯誤再繼續。</value>
