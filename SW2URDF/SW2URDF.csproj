@@ -366,6 +366,7 @@
     <Compile Include="Test\TestURDFMerge.cs" />
     <Compile Include="Test\TestURDFPackage.cs" />
     <Compile Include="Test\TestVersioning.cs" />
+    <Compile Include="Test\TestWriterFailure.cs" />
     <Compile Include="URDF\Mimic.cs" />
     <Compile Include="Utilities\Logger.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
