@@ -103,9 +103,8 @@ namespace SW2URDF.UI
 
         private void ButtonSaveNameBrowseClick(object sender, EventArgs e)
         {
-            SaveFileDialog saveFileDialog1 = new SaveFileDialog
+            PackageDialog saveFileDialog1 = new PackageDialog
             {
-                RestoreDirectory = true,
                 InitialDirectory = Path.GetDirectoryName(textBox_save_as.Text),
                 FileName = Path.GetFileName(textBox_save_as.Text)
             };
