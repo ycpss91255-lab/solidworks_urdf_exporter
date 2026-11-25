@@ -102,13 +102,23 @@ namespace SW2URDF.UI
         {
             return unit == AngleUnit.Degrees
                 ? (radians * 180.0 / Math.PI).ToString("G12", Invariant)
-                : radians.ToString("R", Invariant);
+                : RoundTrip(radians);
         }
 
         // Radians for a value typed in the given unit.
         public static double ToRadians(double value, AngleUnit unit)
         {
             return unit == AngleUnit.Degrees ? value * Math.PI / 180.0 : value;
+        }
+
+        // Text that parses back to the same double. "R" does not always do that on .NET Framework.
+        private static string RoundTrip(double value)
+        {
+            string text = value.ToString("R", Invariant);
+            double parsed;
+            return double.TryParse(text, Style, Invariant, out parsed) && parsed.Equals(value)
+                ? text
+                : value.ToString("G17", Invariant);
         }
 
         /// <summary>
@@ -172,7 +182,7 @@ namespace SW2URDF.UI
             if (double.TryParse(text, Style, Invariant, out typed))
             {
                 entry.Exact = ToRadians(typed, Unit);
-                entry.Radians = Unit == AngleUnit.Degrees ? entry.Exact.Value.ToString("R", Invariant) : text;
+                entry.Radians = Unit == AngleUnit.Degrees ? RoundTrip(entry.Exact.Value) : text;
             }
             else
             {
