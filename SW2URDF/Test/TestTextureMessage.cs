@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Windows;
 using Moq;
@@ -12,7 +11,6 @@ using SW2URDF.UI;
 using SW2URDF.URDF;
 using SW2URDF.URDFExport;
 using SW2URDF.Utilities;
-using PrivateObject = Microsoft.VisualStudio.TestTools.UnitTesting.PrivateObject;
 using Xunit;
 
 namespace SW2URDF.Test
@@ -90,23 +88,22 @@ namespace SW2URDF.Test
                 Mock<ModelDoc2> document = new Mock<ModelDoc2>();
                 document.SetupGet(d => d.Extension).Returns(extension.Object);
                 document.SetupGet(d => d.SelectionManager).Returns(selection.Object);
+                document.SetupGet(d => d.FeatureManager).Returns(new Mock<FeatureManager>().Object);
+                document.Setup(d => d.GetTitle()).Returns("robot");
                 document.As<AssemblyDoc>().Setup(a => a.GetComponents(false)).Returns(new object[0]);
                 Mock<SldWorks> app = new Mock<SldWorks>();
                 UserProgressBar bar = new Mock<UserProgressBar>().Object;
                 app.Setup(a => a.GetUserProgressBar(out bar)).Returns(true);
                 app.Setup(a => a.GetCurrentLanguage()).Returns(language);
 
-                helper = (ExportHelper)FormatterServices.GetUninitializedObject(typeof(ExportHelper));
-                helper.ActiveSWModel = document.Object;
-                helper.URDFRobot = robot;
-                helper.PackageName = "package";
-                helper.SavePath = directory;
-                PrivateObject fields = new PrivateObject(helper);
-                fields.SetFieldOrProperty("iSwApp", app.Object);
-                fields.SetField("usedMeshFileNames", new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-                fields.SetField("usedTextureFileNames", new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-                fields.SetField("textureFileNames", new Dictionary<string, string>());
-                fields.SetField("failedMeshLinks", new List<string>());
+                app.SetupGet(a => a.ActiveDoc).Returns(document.Object);
+
+                helper = new ExportHelper(app.Object)
+                {
+                    URDFRobot = robot,
+                    PackageName = "package",
+                    SavePath = directory
+                };
             }
 
             private static Link NewLink(string name, Link parent)
