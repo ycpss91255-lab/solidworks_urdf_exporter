@@ -344,6 +344,7 @@
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />
     <Compile Include="Test\TestTreeKeyActions.cs" />
+    <Compile Include="Test\TestJointPageAfterPrevious.cs" />
     <Compile Include="Test\TestDocumentPersistence.cs" />
     <Compile Include="Test\TestFolderNameCollision.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
