@@ -40,7 +40,7 @@ namespace SW2URDF.UI
         private static readonly log4net.ILog logger = Logger.GetLogger();
 
         public ExportHelper Exporter;
-        private readonly UiText ui = new UiText(null);   // English until the language is read
+        private readonly UiText ui;
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
@@ -210,6 +210,7 @@ namespace SW2URDF.UI
         private void ExceptionHandler(object sender, ThreadExceptionEventArgs e)
         {
             logger.Error("Exception encountered in Assembly export form", e.Exception);
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
             MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), e.Exception.Message));
         }
 
@@ -217,6 +218,7 @@ namespace SW2URDF.UI
         {
             Exception ex = (Exception)e.ExceptionObject;
             logger.Error("Unhandled exception in Assembly Export form", ex);
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
             MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), ex.Message));
         }
 
