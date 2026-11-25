@@ -443,7 +443,7 @@ namespace SW2URDF.UI
             return builder.ToString();
         }
 
-        public void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
+        public virtual void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
         {
             CommonSwOperations.RetrieveSWComponentPIDs(model, BaseNode);
             ConfigurationSerialization.SaveConfigTreeXML(swApp, model, BaseNode, warnUser, ui);
