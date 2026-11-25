@@ -10,7 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Windows.Forms;
+using System.Windows;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -27,6 +27,9 @@ namespace SW2URDF.URDFExport
     public static class ConfigurationSerialization
     {
         private static readonly log4net.ILog logger = Logger.GetLogger();
+
+        /// <summary>Tests replace it, so they never show a window.</summary>
+        private static IMessageBox MessageBox { get { return URDFPackage.MessageBox; } }
 
         /// <summary>
         /// Current Serialization version
@@ -124,7 +127,7 @@ namespace SW2URDF.URDFExport
                 if (!warnUser ||
                     (warnUser &&
                     MessageBox.Show(ui.Get("The configuration has changed, would you like to save?"),
-                    ui.Get("Save Export Configuration"), MessageBoxButtons.YesNo) == DialogResult.Yes))
+                    ui.Get("Save Export Configuration"), MessageBoxButton.YesNo) == MessageBoxResult.Yes))
                 {
                     if (SaveDataToModelDoc(swApp, model, newData, ui))
                     {
@@ -1145,7 +1148,7 @@ namespace SW2URDF.URDFExport
             }
             if (action == PersistAction.WarnNotSaved || (action == PersistAction.Save && !saved))
             {
-                MessageBox.Show(DocumentPersistence.WarningText(ui), DocumentPersistence.WarningTitle(ui));
+                MessageBox.Show(DocumentPersistence.WarningText(ui), DocumentPersistence.WarningTitle(ui), MessageBoxButton.OK);
             }
             else if (action == PersistAction.Save)
             {
