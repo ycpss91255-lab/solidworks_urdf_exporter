@@ -550,6 +550,9 @@
   <data xml:space="preserve" name="joint name is empty. fill in a unique joint name">
     <value>Joint name is empty. Fill in a unique joint name</value>
   </data>
+  <data xml:space="preserve" name="{0}: its mimic leads back to itself">
+    <value>{0}: its mimic leads back to itself</value>
+  </data>
   <data xml:space="preserve" name="please fix these errors before proceeding.">
     <value>Please fix these errors before proceeding.</value>
   </data>

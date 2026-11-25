@@ -327,7 +327,30 @@ namespace SW2URDF.UI
             {
                 CheckJointsForErrors(child, builder);
             }
+            CheckMimicLoops(builder);
             return builder.ToString();
+        }
+
+        private void CheckMimicLoops(StringBuilder builder)
+        {
+            List<Joint> joints = new List<Joint>();
+            AddJoints(treeViewJointTree.Nodes, joints);
+            foreach (Joint joint in joints)
+            {
+                if (joint.MimicsItself(joints))
+                {
+                    builder.Append(string.Format(ui.Get("{0}: its mimic leads back to itself"), joint.Name)).Append("\r\n");
+                }
+            }
+        }
+
+        private static void AddJoints(TreeNodeCollection nodes, List<Joint> joints)
+        {
+            foreach (LinkNode node in nodes)
+            {
+                joints.Add(node.Link.Joint);
+                AddJoints(node.Nodes, joints);
+            }
         }
 
         private StringBuilder CheckJointsForErrors(LinkNode node, StringBuilder builder)
