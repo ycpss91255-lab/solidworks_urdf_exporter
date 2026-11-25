@@ -355,6 +355,7 @@
     <Compile Include="Test\TestPartTexture.cs" />
     <Compile Include="Test\TestPartSettings.cs" />
     <Compile Include="Test\TestPerConfiguration.cs" />
+    <Compile Include="Test\TestTreeScans.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />
     <Compile Include="Test\TestPropertyManager.cs" />
     <Compile Include="Test\TestROSFIles.cs" />
