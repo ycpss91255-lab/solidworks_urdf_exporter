@@ -5,6 +5,7 @@ using SW2URDF.URDF;
 using SW2URDF.UI;
 using SW2URDF.Utilities;
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -191,10 +192,10 @@ namespace SW2URDF.URDFExport
             return created || regrouped || removed;
         }
 
-        /// <summary>The "date" parameter of a URDF attribute: when its settings were written.</summary>
+        /// <summary>The "date" parameter of a URDF attribute: when its settings were written (ISO 8601, not read back).</summary>
         internal static string AttributeDate(DateTimeOffset time)
         {
-            return time.DateTime.ToString();
+            return time.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
         }
 
         /// <summary>
