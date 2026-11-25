@@ -141,6 +141,23 @@ namespace SW2URDF.UI
             Exporter.SavePath = Path.GetDirectoryName(textBox_save_as.Text);
             Exporter.URDFRobot.BaseLink.Name = Exporter.PackageName;
 
+            SavePropertyBoxes();
+
+            Exporter.URDFRobot.BaseLink.WriteXacro = checkBoxXacro.Checked;
+
+            // Remember these settings for the active SolidWorks configuration before the link is
+            // localized for the export
+            Exporter.SavePartSettings();
+
+            Exporter.ExportLink(checkBox_rotate.Checked, objExport.Checked ? MeshExportFormat.OBJ : MeshExportFormat.STL);
+            // The export may have added the coordinate system and reference sketch: keep them in the URDF folder
+            ConfigurationSerialization.GroupUrdfFeatures(Exporter.ActiveSWModel, ui);
+            Close();
+        }
+
+        // Reads the property boxes back into the link
+        public void SavePropertyBoxes()
+        {
             Exporter.URDFRobot.BaseLink.Inertial.Origin.Update(textBox_inertial_origin_x,
                                                             textBox_inertial_origin_y,
                                                             textBox_inertial_origin_z,
@@ -178,17 +195,6 @@ namespace SW2URDF.UI
                                                              textBox_collision_origin_roll,
                                                              textBox_collision_origin_pitch,
                                                              textBox_collision_origin_yaw);
-
-            Exporter.URDFRobot.BaseLink.WriteXacro = checkBoxXacro.Checked;
-
-            // Remember these settings for the active SolidWorks configuration before the link is
-            // localized for the export
-            Exporter.SavePartSettings();
-
-            Exporter.ExportLink(checkBox_rotate.Checked, objExport.Checked ? MeshExportFormat.OBJ : MeshExportFormat.STL);
-            // The export may have added the coordinate system and reference sketch: keep them in the URDF folder
-            ConfigurationSerialization.GroupUrdfFeatures(Exporter.ActiveSWModel, ui);
-            Close();
         }
 
         private void ObjExportCheckedChanged(object sender, EventArgs e)
@@ -263,7 +269,12 @@ namespace SW2URDF.UI
             }
             textBox_save_as.Text = Exporter.SavePath + "\\" + Exporter.PackageName;
             checkBoxXacro.Checked = Exporter.URDFRobot.BaseLink.WriteXacro;
+            FillPropertyBoxes();
+        }
 
+        // Shows the link in the property boxes
+        public void FillPropertyBoxes()
+        {
             Exporter.URDFRobot.BaseLink.Visual.Origin.FillBoxes(textBox_collision_origin_x,
                                                              textBox_collision_origin_y,
                                                              textBox_collision_origin_z,
