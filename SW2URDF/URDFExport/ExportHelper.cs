@@ -424,13 +424,7 @@ namespace SW2URDF.URDFExport
 
             MathTransform frame = GetCoordinateSystemTransform(coordsysName);
             if (frame == null) throw new InvalidOperationException("Missing OBJ link frame: " + coordsysName);
-            Matrix<double> inverse = MathOps.GetTransformation(frame).Inverse();
-            foreach (Origin origin in new[] { link.Visual.Origin, link.Collision.Origin })
-            {
-                Matrix<double> local = MathOps.GetTransformation(origin.GetXYZ(), origin.GetRPY()) * inverse;
-                origin.SetXYZ(MathOps.GetXYZ(local));
-                origin.SetRPY(MathOps.GetRPY(local));
-            }
+            PlaceGlobalMesh(link, frame);
 
             CommonSwOperations.ShowComponents(ActiveSWModel, link.SWComponents);
             try
@@ -439,6 +433,19 @@ namespace SW2URDF.URDFExport
                 SaveNative3dxml(ActiveSWModel, source);
             }
             finally { CommonSwOperations.HideComponents(ActiveSWModel, link.SWComponents); }
+        }
+
+        // For vertices in the frame of the assembly: first into the frame of the link, then moved there by the
+        // origin of the link page. STL vertices are written in the frame of the link, so both agree with it.
+        private static void PlaceGlobalMesh(Link link, MathTransform frame)
+        {
+            Matrix<double> inverse = MathOps.GetTransformation(frame).Inverse();
+            foreach (Origin origin in new[] { link.Visual.Origin, link.Collision.Origin })
+            {
+                Matrix<double> local = MathOps.GetTransformation(origin.GetXYZ(), origin.GetRPY()) * inverse;
+                origin.SetXYZ(MathOps.GetXYZ(local));
+                origin.SetRPY(MathOps.GetRPY(local));
+            }
         }
 
         private static void SaveNative3dxml(ModelDoc2 model, string source)
@@ -491,7 +498,7 @@ namespace SW2URDF.URDFExport
                 logger.Info("Localizing Link : " + coordsysName);
                 // Assembly inertial properties are already expressed in the link frame.
                 // Only the 3dxml geometry needs this placement correction.
-                LocalizeMeshOrigins(link, MathOps.GetTransformation(frame));
+                PlaceGlobalMesh(link, frame);
             }
             // === 3dxml Localize Link === //
 
