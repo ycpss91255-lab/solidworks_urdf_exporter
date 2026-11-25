@@ -56,6 +56,8 @@ namespace SW2URDF.Test
             joint.FillBoxes(Field<TextBox>(form, "textBoxJointName"), types);
             joint.Parent.FillBoxes(Field<Label>(form, "labelParent"));
             joint.Child.FillBoxes(Field<Label>(form, "labelChild"));
+            joint.Axis.FillBoxes(Field<TextBox>(form, "textBoxAxisX"), Field<TextBox>(form, "textBoxAxisY"),
+                Field<TextBox>(form, "textBoxAxisZ"), format);
             joint.Limit.FillBoxes(Box(form, 0), Box(form, 1), Box(form, 2), Box(form, 3), format);
             return form;
         }
