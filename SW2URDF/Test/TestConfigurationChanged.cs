@@ -132,6 +132,12 @@ namespace SW2URDF.Test
         }
 
         [Fact]
+        public void WithoutAKnownConfigurationTheDocumentIsNotAsked()
+        {
+            Assert.True(ConfigurationSerialization.CheckSameConfiguration(null, null, new UiText(null)));
+        }
+
+        [Fact]
         public void TheMessageIsTranslated()
         {
             FakeSettingsModel model = Switched();
