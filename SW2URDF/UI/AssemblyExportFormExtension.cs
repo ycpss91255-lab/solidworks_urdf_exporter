@@ -113,7 +113,8 @@ namespace SW2URDF.UI
                     joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, "R");
                 }
 
-                if (joint.Limit != null && joint.Type != "fixed")
+                // Also for a fixed joint, which keeps the limits without exporting them
+                if (joint.Limit != null)
                 {
                     joint.Limit.FillBoxes(textBoxLimitLower,
                                           textBoxLimitUpper,
@@ -304,6 +305,10 @@ namespace SW2URDF.UI
                                   textBoxLimitUpper,
                                   textBoxLimitEffort,
                                   textBoxLimitVelocity);
+            if (!Joint.Limit.IsRequired())
+            {
+                Joint.Limit.UnsetBlank(textBoxLimitLower, textBoxLimitUpper, textBoxLimitEffort, textBoxLimitVelocity);
+            }
 
             if (String.IsNullOrWhiteSpace(textBoxCalibrationRising.Text) &&
                 String.IsNullOrWhiteSpace(textBoxCalibrationFalling.Text))
