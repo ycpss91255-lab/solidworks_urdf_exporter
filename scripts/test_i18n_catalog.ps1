@@ -83,5 +83,25 @@ if ($english -and $chinese) {
     }
     foreach ($k in $chinese.Keys) { if (-not $used.Contains($k)) { Fail "resource '$k' is not used by any caption or ui.Get call" } }
 }
-if ($failures.Count) { $failures | ForEach-Object { Write-Output "FAIL: $_" }; exit 1 }
+# Text of message boxes and of the SOLIDWORKS progress bar goes through the catalog: in a statement that
+# shows it, no literal with words may stand outside Get("...").
+$shows = '(?:\bMessageBox\.Show|\bprogressBar\.Start|\bprogressBar\.UpdateTitle)\(|\bExportErrorWhy\s*=(?!=)|\bstring\s+message\s*='
+$part = '"(?:[^"\\]|\\.)*"'
+foreach ($file in Get-ChildItem -Path (Join-Path $Root 'SW2URDF') -Recurse -Filter *.cs) {
+    if ($file.FullName -match '[\\/](Test|obj|bin)[\\/]') { continue }
+    # The window of "Load from CSV..." is not translated yet.
+    if ($file.Name -eq 'TreeMergeWPF.xaml.cs') { continue }
+    # Builds a log message; diagnostic logs stay English.
+    if ($file.Name -eq 'OrphanAttributes.cs') { continue }
+    $code = (Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8) -replace '(?m)^\s*//.*$', ''
+    # COM (un)registration runs outside SOLIDWORKS, where there is no SOLIDWORKS language: it stays English.
+    if ($file.Name -eq 'SwAddin.cs') { $code = $code -replace '(?s)#region SolidWorks Registration.*?#endregion SolidWorks Registration', '' }
+    foreach ($m in [regex]::Matches($code, "(?:$shows)(?:[^`";]|$part)*;")) {
+        $left = $m.Value -replace "\bGet\(\s*$part(?:\s*\+\s*$part)*\s*\)", ''
+        foreach ($text in [regex]::Matches($left, $part)) {
+            if (($text.Value -replace '\\[rnt]', '') -match '[A-Za-z]{2}') { Fail "$($file.Name) shows text that is not in the catalog: $($text.Value)" }
+        }
+    }
+}
+if ($failures.Count) { $failures |ForEach-Object { Write-Output "FAIL: $_" }; exit 1 }
 Write-Output "PASS: catalogs match ($($english.Count) keys), no case-only duplicates, placeholders and form captions covered"
