@@ -677,13 +677,9 @@ namespace SW2URDF.URDFExport
             {
                 // We have to estimate the joint if the user specifies automatic for either the
                 // reference coordinate system, the reference axis or the joint type.
-                EstimateGlobalJointFromComponents(parent, child);
+                bool inferred = EstimateGlobalJointFromComponents(parent, child);
                 axisOfMateLimits = LimitsFromMate ? child.Joint.Axis.GetXYZ() : null;
-                bool autoGenerateError = (
-                    child.Joint.Origin.X == 0.0 && child.Joint.Origin.Y == 0.0 && child.Joint.Origin.Z == 0.0 &&
-                    child.Joint.Origin.Roll == 0.0 && child.Joint.Origin.Pitch == 0.0 && child.Joint.Origin.Yaw == 0.0);
-
-                if (autoGenerateError)
+                if (EstimateFailed(inferred, child.Joint.Origin))
                 {
                     ExportErrorWhy = string.Format("Inferring the joint geometry failed for the joint {0} " +
                         "from link {1} to {2} failed. Check that the mates have not fully defined the " +
@@ -745,6 +741,16 @@ namespace SW2URDF.URDFExport
             return true;
         }
 
+        // A joint that was inferred can be anywhere, also on the assembly origin. One that was not (the
+        // child is not free along exactly one axis, and not fully defined either) is a fixed joint at the
+        // frame of the child, unless that frame is the assembly origin.
+        private static bool EstimateFailed(bool inferred, Origin origin)
+        {
+            return !inferred &&
+                origin.X == 0.0 && origin.Y == 0.0 && origin.Z == 0.0 &&
+                origin.Roll == 0.0 && origin.Pitch == 0.0 && origin.Yaw == 0.0;
+        }
+
         // The saved settings name the coordinate system and axis of a joint. When an earlier export
         // generated them (they hang on the "URDF Reference" sketch) they are only right for the
         // geometry they were generated in: the position of the frame does not follow the
@@ -775,10 +781,9 @@ namespace SW2URDF.URDFExport
             probe.Joint.Name = child.Joint.Name;
             probe.SWComponents.AddRange(child.SWComponents);
             probe.SWMainComponent = child.SWMainComponent;
-            EstimateGlobalJointFromComponents(parent, probe);
+            bool inferred = EstimateGlobalJointFromComponents(parent, probe);
             Origin wanted = probe.Joint.Origin;
-            if (wanted.X == 0.0 && wanted.Y == 0.0 && wanted.Z == 0.0 &&
-                wanted.Roll == 0.0 && wanted.Pitch == 0.0 && wanted.Yaw == 0.0)
+            if (EstimateFailed(inferred, wanted))
             {
                 logger.Warn("The place of joint " + child.Joint.Name +
                     " could not be worked out, its saved coordinate system and axis are used as they are");
@@ -1535,7 +1540,8 @@ namespace SW2URDF.URDFExport
         }
 
         //Calculates the free degree of freedom (if exists), and then determines the location of the joint,
-        // the axis of rotation/translation, and the type of joint
+        // the axis of rotation/translation, and the type of joint. True when a joint was inferred: the
+        // child is free along exactly one axis, or it is fully defined (a fixed joint)
         public Boolean EstimateGlobalJointFromComponents(Link parent, Link child)
         {
             LimitsFromMate = false;
@@ -1594,6 +1600,7 @@ namespace SW2URDF.URDFExport
                 }
 
                 degreesOfFreedom = remainingDOFs;
+                success = degreesOfFreedom == 0 && R1Status == 0 && R2Status == 0 && L1Status == 0 && L2Status == 0;
 
                 // Convert the gotten degrees of freedom to a joint type, origin and axis
                 child.Joint.Type = "fixed";
@@ -1602,9 +1609,9 @@ namespace SW2URDF.URDFExport
 
                 if (degreesOfFreedom == 0 && (R1Status + L1Status > 0))
                 {
-                    success = true;
                     if (R1Status == 1)
                     {
+                        success = true;
                         child.Joint.Type = "continuous";
                         child.Joint.Axis.SetXYZ(RDir1.ArrayData);
                         child.Joint.Origin.SetXYZ(RPoint1.ArrayData);
@@ -1613,6 +1620,7 @@ namespace SW2URDF.URDFExport
                     }
                     else if (L1Status == 1)
                     {
+                        success = true;
                         child.Joint.Type = "prismatic";
                         child.Joint.Axis.SetXYZ(LDir1.ArrayData);
                         child.Joint.Origin.SetXYZ(MathOps.GetXYZ(child.SWMainComponent.Transform2));
