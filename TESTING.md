@@ -76,7 +76,8 @@ The same applies to assemblies and parts (the part exporter stores the inertial,
 this way). Details and versioning rules: `CONFIGURATION_FORMAT.md`.
 Renaming a SolidWorks configuration does not rename its attribute: the settings are then not found for the new
 name (the legacy fallback applies, else "new settings") and the old attribute is reported in the log as an
-orphan. Nothing is deleted or blocked. The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
+orphan. Nothing is deleted or blocked. The log is `sw2urdf_logs\sw2urdf.log` in your user folder; a process that
+starts while another one logs there uses `sw2urdf-2.log`, the next one `sw2urdf-3.log`, and so on.
 
 ### 1. Unit tests (no SolidWorks needed)
 

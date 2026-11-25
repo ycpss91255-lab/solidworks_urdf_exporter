@@ -369,6 +369,7 @@
     <Compile Include="Test\TestVersioning.cs" />
     <Compile Include="URDF\Mimic.cs" />
     <Compile Include="Utilities\Logger.cs" />
+    <Compile Include="Utilities\LogFile.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
