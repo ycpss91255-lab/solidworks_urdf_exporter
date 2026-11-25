@@ -445,6 +445,12 @@
   <data xml:space="preserve" name="the urdf configuration could not be saved to this model.">
     <value>The URDF configuration could not be saved to this model.</value>
   </data>
+  <data xml:space="preserve" name="the urdf settings stored in the feature tree entry &quot;{0}&quot; cannot be read. they are kept as they are and will not be overwritten.">
+    <value>The URDF settings stored in the feature tree entry "{0}" cannot be read. They are kept as they are and will not be overwritten.</value>
+  </data>
+  <data xml:space="preserve" name="the urdf settings were not saved: the feature tree entry &quot;{0}&quot; holds settings that this exporter cannot read, and they are not overwritten. delete that entry to store new settings.">
+    <value>The URDF settings were not saved: the feature tree entry "{0}" holds settings that this exporter cannot read, and they are not overwritten. Delete that entry to store new settings.</value>
+  </data>
   <data xml:space="preserve" name="converting mesh to obj">
     <value>Converting mesh to OBJ</value>
   </data>

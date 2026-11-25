@@ -107,6 +107,8 @@ When raising it:
   left in place (older exporters can still read it) and can be deleted by the user.
 - Data with a version **higher** than the exporter supports is refused with a message asking
   the user to update the exporter; it is never overwritten.
+- Data that cannot be read (damaged, or not of this format) is reported when it is loaded. It is kept: a save
+  that would overwrite it is refused with a message. Delete the entry to store new settings.
 
 ## Tests
 
