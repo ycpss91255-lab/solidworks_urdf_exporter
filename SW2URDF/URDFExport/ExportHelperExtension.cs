@@ -2236,64 +2236,6 @@ namespace SW2URDF.URDFExport
             }
         }
 
-        /// <summary>
-        /// True when a mate is between the parent and the child link. For each entity of the mate: its
-        /// component and the sub-assemblies it is in, from the inside out; the innermost one that belongs to
-        /// one of the links tells which link the entity is on. Free of SolidWorks calls so it can be tested.
-        /// </summary>
-        public static bool MateConnects<T>(IEnumerable<List<T>> entities, ICollection<T> parent, ICollection<T> child)
-        {
-            bool onParent = false;
-            bool onChild = false;
-            foreach (List<T> components in entities)
-            {
-                foreach (T component in components)
-                {
-                    bool inChild = child.Contains(component);
-                    bool inParent = !inChild && parent.Contains(component);
-                    onChild |= inChild;
-                    onParent |= inParent;
-                    if (inChild || inParent)
-                    {
-                        break;
-                    }
-                }
-            }
-            return onParent && onChild;
-        }
-
-        // For each entity of a mate: its component and the sub-assemblies it is in, from the inside out
-        private static List<List<Component2>> MateComponents(Mate2 swMate)
-        {
-            List<List<Component2>> entities = new List<List<Component2>>();
-            for (int i = 0; i < swMate.GetMateEntityCount(); i++)
-            {
-                MateEntity2 entity = swMate.MateEntity(i);
-
-                // Check if entity.ReferenceComponent is null and skip if so
-                if (entity.ReferenceComponent == null)
-                {
-                    logger.Warn("Mate entity has no reference component");
-                    continue;
-                }
-
-                List<Component2> components = new List<Component2>();
-                Component2 component = entity.ReferenceComponent;
-                while (component != null)
-                {
-                    components.Add(component);
-                    component = component.GetParent();
-                }
-                entities.Add(components);
-            }
-            return entities;
-        }
-
-        private static string ComponentNames(IEnumerable<Component2> components)
-        {
-            return string.Join(", ", components.Select(c => c.Name2));
-        }
-
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
         private bool AddLimits(Joint Joint, List<Mate2> limitMates, Link parent, Link child)
@@ -2444,6 +2386,64 @@ namespace SW2URDF.URDFExport
                 feat.SetSuppression2((int)swFeatureSuppressionAction_e.swUnSuppressFeature,
                     (int)swInConfigurationOpts_e.swThisConfiguration, null);
             }
+        }
+
+        /// <summary>
+        /// True when a mate is between the parent and the child link. For each entity of the mate: its
+        /// component and the sub-assemblies it is in, from the inside out; the innermost one that belongs to
+        /// one of the links tells which link the entity is on. Free of SolidWorks calls so it can be tested.
+        /// </summary>
+        public static bool MateConnects<T>(IEnumerable<List<T>> entities, ICollection<T> parent, ICollection<T> child)
+        {
+            bool onParent = false;
+            bool onChild = false;
+            foreach (List<T> components in entities)
+            {
+                foreach (T component in components)
+                {
+                    bool inChild = child.Contains(component);
+                    bool inParent = !inChild && parent.Contains(component);
+                    onChild |= inChild;
+                    onParent |= inParent;
+                    if (inChild || inParent)
+                    {
+                        break;
+                    }
+                }
+            }
+            return onParent && onChild;
+        }
+
+        // For each entity of a mate: its component and the sub-assemblies it is in, from the inside out
+        private static List<List<Component2>> MateComponents(Mate2 swMate)
+        {
+            List<List<Component2>> entities = new List<List<Component2>>();
+            for (int i = 0; i < swMate.GetMateEntityCount(); i++)
+            {
+                MateEntity2 entity = swMate.MateEntity(i);
+
+                // Check if entity.ReferenceComponent is null and skip if so
+                if (entity.ReferenceComponent == null)
+                {
+                    logger.Warn("Mate entity has no reference component");
+                    continue;
+                }
+
+                List<Component2> components = new List<Component2>();
+                Component2 component = entity.ReferenceComponent;
+                while (component != null)
+                {
+                    components.Add(component);
+                    component = component.GetParent();
+                }
+                entities.Add(components);
+            }
+            return entities;
+        }
+
+        private static string ComponentNames(IEnumerable<Component2> components)
+        {
+            return string.Join(", ", components.Select(c => c.Name2));
         }
 
         //Unfixes components that were fixed to find the free degree of freedom
