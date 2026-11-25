@@ -47,6 +47,16 @@ namespace SW2URDF.UI
             grow.Set(button_savename_browse, 1f, 0f, false);
             grow.Set(textBox_texture, 0f, 1f, false);
             grow.Set(button_texturebrowse, 1f, 0f, false);
+            // They give up what a vertical scroll bar covers when the window is too low for the page.
+            grow.SetShrink(groupBox1, 0f, 1f);
+            grow.SetShrink(groupBox2, 0f, 1f);
+            grow.SetShrink(groupBox3, 0f, 1f);
+            grow.SetShrink(textBox_save_as, 0f, 1f);
+            grow.SetShrink(button_savename_browse, 1f, 0f);
+            grow.SetShrink(textBox_texture, 0f, 1f);
+            grow.SetShrink(button_texturebrowse, 1f, 0f);
+            grow.MaxShrink = Math.Max(0, SystemInformation.VerticalScrollBarWidth -
+                (ClientSize.Width - UiLayout.ContentWidth(this)));
             grow.Capture();
         }
 

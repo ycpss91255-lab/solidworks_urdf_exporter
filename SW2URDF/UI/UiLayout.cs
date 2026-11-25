@@ -179,7 +179,10 @@ namespace SW2URDF.UI
                 return;
             }
             Size now = form.ClientSize;
-            Apply(Math.Max(-MaxShrink, now.Width - baseSize.Width), Math.Max(0, now.Height - baseSize.Height));
+            // A window lower than the layout shows a vertical scroll bar, which takes its width from the
+            // content: without this, a sideways scroll bar would appear with it.
+            int width = now.Width - (now.Height < baseSize.Height ? SystemInformation.VerticalScrollBarWidth : 0);
+            Apply(Math.Max(-MaxShrink, width - baseSize.Width), Math.Max(0, now.Height - baseSize.Height));
         }
 
         private void Apply(int extraWidth, int extraHeight)
