@@ -1703,6 +1703,10 @@ namespace SW2URDF.URDFExport
                     child.Joint.Axis.SetXYZ(chosenAxis);
                 }
             }
+            else if (jointNames != null)
+            {
+                jointNames.SetDetectedType(child.Joint, child.Joint.Type);
+            }
             return success;
         }
 
