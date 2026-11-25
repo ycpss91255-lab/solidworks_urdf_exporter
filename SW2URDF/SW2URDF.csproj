@@ -361,6 +361,7 @@
     <Compile Include="Test\TestSolidWorksBinding.cs" />
     <Compile Include="Test\TestTwoBoxesFixture.cs" />
     <Compile Include="Test\TwoBoxesModel.cs" />
+    <Compile Include="Test\TestMissingComponent.cs" />
     <Compile Include="Test\TestSerialization.cs" />
     <Compile Include="Test\TestSWAttached.cs" />
     <Compile Include="Test\TestURDFMerge.cs" />
