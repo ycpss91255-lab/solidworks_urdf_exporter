@@ -568,6 +568,9 @@
   <data xml:space="preserve" name="active configuration: {0}">
     <value>使用中的組態：{0}</value>
   </data>
+  <data xml:space="preserve" name="the exporter was opened for the configuration &quot;{0}&quot;, but now &quot;{1}&quot; is active. nothing was saved or exported, so that the settings of &quot;{1}&quot; are kept. activate &quot;{0}&quot; again, or open the exporter again for &quot;{1}&quot;.">
+    <value>匯出工具是為組態「{0}」開啟的，但目前使用中的是「{1}」。為了保留「{1}」的設定，未儲存也未匯出任何內容。請重新啟用「{0}」，或為「{1}」重新開啟匯出工具。</value>
+  </data>
   <data xml:space="preserve" name="stored for this configuration">
     <value>已儲存於此組態</value>
   </data>

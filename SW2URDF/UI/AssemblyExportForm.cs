@@ -52,6 +52,9 @@ namespace SW2URDF.UI
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
 
+        /// <summary>The configuration the form was opened for.</summary>
+        private readonly string loadedConfiguration;
+
         private void AlignFieldLabels()
         {
             label63.Left = textBoxJointName.Left;
@@ -145,6 +148,7 @@ namespace SW2URDF.UI
             BaseNode = node;
             checkBoxXacro.Checked = BaseNode.Link.WriteXacro;
             ActiveSWModel = swApp.ActiveDoc;
+            loadedConfiguration = ConfigurationSerialization.GetActiveConfigurationName(ActiveSWModel);
             RefreshConfigurationStatus();
             Exporter = exporter;
             AutoUpdatingForm = false;
@@ -401,6 +405,10 @@ namespace SW2URDF.UI
 
         private void FinishExport(bool exportSTL)
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(ActiveSWModel, loadedConfiguration, ui))
+            {
+                return;
+            }
             logger.Info("Completing URDF export");
             SaveConfigTree(ActiveSWModel, BaseNode, false);
 
