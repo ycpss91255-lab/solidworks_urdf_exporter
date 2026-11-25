@@ -200,6 +200,7 @@ namespace SW2URDF.UI
                 comboBoxOrigin.FindStringExact(joint.CoordinateSystemName);
 
             // Updating Mimic Element Fields
+            Mimic.FindTargets(Exporter.GetJoints());
             List<string> jointNames = Exporter.GetJointNames();
 
             // We'll be setting this automatically, so unsubscribe callback
