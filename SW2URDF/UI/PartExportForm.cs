@@ -34,6 +34,10 @@ namespace SW2URDF.UI
         private readonly UiText ui;
         private static readonly log4net.ILog logger = SW2URDF.Utilities.Logger.GetLogger();
         private string loadedConfiguration;
+        private bool exportCompleted;
+
+        // The direction of the last export that did not complete the package.
+        private bool? failedZIsUp;
 
         private void AlignFieldLabels()
         {
@@ -88,6 +92,16 @@ namespace SW2URDF.UI
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
             UiLayout.FitButtonHeightsToWindow(this);
+        }
+
+        // As in the assembly form: only a completed export keeps the generated features.
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+            if (!exportCompleted && Exporter != null)
+            {
+                Exporter.DiscardGeneratedFeatures();
+            }
         }
 
         protected override void WndProc(ref Message m)
@@ -190,7 +204,19 @@ namespace SW2URDF.UI
 
         private void ExportAndClose(bool zIsUp, MeshExportFormat meshFormat)
         {
-            Exporter.ExportLink(zIsUp, meshFormat);
+            if (failedZIsUp != null && failedZIsUp != zIsUp)
+            {
+                // The base frame of the failed export has the other direction and would be used again
+                Exporter.DiscardGeneratedFeatures();
+            }
+            if (!Exporter.ExportLink(zIsUp, meshFormat))
+            {
+                // Another format or name can be tried; closing the form discards the generated features
+                logger.Info("The package is not complete, the export form stays open");
+                failedZIsUp = zIsUp;
+                return;
+            }
+            exportCompleted = true;
             // The export may have added the coordinate system and reference sketch: keep them in the URDF folder
             ConfigurationSerialization.GroupUrdfFeatures(Exporter.ActiveSWModel, ui);
             Close();

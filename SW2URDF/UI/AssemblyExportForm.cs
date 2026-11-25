@@ -483,7 +483,12 @@ namespace SW2URDF.UI
 
         private void ExportAndClose(bool exportSTL, MeshExportFormat meshFormat)
         {
-            Exporter.ExportRobot(exportSTL, meshFormat);
+            if (!Exporter.ExportRobot(exportSTL, meshFormat))
+            {
+                // Another format or name can be tried; closing the form discards the generated features
+                logger.Info("The package is not complete, the export form stays open");
+                return;
+            }
             ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);
 
             // A completed export keeps the generated features
