@@ -691,6 +691,15 @@ namespace SW2URDF.URDFExport
                         child.Joint.Name, child.Name, parent.Name);
                     return false;
                 }
+
+                string problem = ChosenTypeProblem(jointType, estimatedType, axisName == "Automatically Generate",
+                    UiText.FromSolidWorks(iSwApp));
+                if (problem != null)
+                {
+                    ExportErrorWhy = string.Format(problem, child.Joint.Name,
+                        UiText.FromSolidWorks(iSwApp).ComboDisplay(jointType), child.Name, parent.Name);
+                    return false;
+                }
             }
 
             if (coordSysName == "Automatically Generate")
@@ -745,6 +754,47 @@ namespace SW2URDF.URDFExport
             return true;
         }
 
+        // The type the estimate found for the joint being built; the joint keeps a type the user chose
+        private string estimatedType;
+
+        private static bool IsChosenType(string jointType)
+        {
+            return !string.IsNullOrWhiteSpace(jointType) && jointType != "Automatically Detect";
+        }
+
+        // Whether the limits of a limit mate are for this joint. A chosen type takes none when it has no
+        // limits (continuous, fixed) or is not what the mates allow, which is reported.
+        private static bool TakesMateLimits(string chosen, string estimated)
+        {
+            return !IsChosenType(chosen) || (chosen == "revolute" && estimated == "continuous") ||
+                (chosen == "prismatic" && estimated == "prismatic");
+        }
+
+        /// <summary>
+        /// Why a chosen joint type cannot be built from the estimate ({0} joint, {1} type, {2} child,
+        /// {3} parent link), or null when it can. Free of SolidWorks calls.
+        /// </summary>
+        internal static string ChosenTypeProblem(string chosen, string estimated, bool generateAxis, UiText ui)
+        {
+            if (!IsChosenType(chosen) || !JointUsesAxis(chosen))
+            {
+                return null;
+            }
+            if (estimated == "fixed")
+            {
+                return generateAxis ? ui.Get("Joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. Select an existing axis, or change the joint type or the mates.") : null;
+            }
+            if (estimated == "prismatic" && (chosen == "revolute" || chosen == "continuous"))
+            {
+                return ui.Get("Joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. Change the joint type or the mates.");
+            }
+            if (estimated != "prismatic" && chosen == "prismatic")
+            {
+                return ui.Get("Joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. Change the joint type or the mates.");
+            }
+            return null;
+        }
+
         // The saved settings name the coordinate system and axis of a joint. When an earlier export
         // generated them (they hang on the "URDF Reference" sketch) they are only right for the
         // geometry they were generated in: the position of the frame does not follow the
@@ -773,6 +823,7 @@ namespace SW2URDF.URDFExport
 
             Link probe = new Link { Name = child.Name };
             probe.Joint.Name = child.Joint.Name;
+            probe.Joint.Type = child.Joint.Type;
             probe.SWComponents.AddRange(child.SWComponents);
             probe.SWMainComponent = child.SWMainComponent;
             EstimateGlobalJointFromComponents(parent, probe);
@@ -806,7 +857,7 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            if (axisGenerated && probe.Joint.Type != "fixed")
+            if (axisGenerated && estimatedType != "fixed")
             {
                 double[] wantedAxis = probe.Joint.Axis.GetXYZ();
                 string name = GeneratedFeatureLog.RefreshName(
@@ -1535,9 +1586,13 @@ namespace SW2URDF.URDFExport
         }
 
         //Calculates the free degree of freedom (if exists), and then determines the location of the joint,
-        // the axis of rotation/translation, and the type of joint
+        // the axis of rotation/translation, and the type of joint. A type the user chose stays on the joint;
+        // estimatedType holds the one that was found
         public Boolean EstimateGlobalJointFromComponents(Link parent, Link child)
         {
+            string chosenType = child.Joint.Type;
+            double[] chosenAxis = child.Joint.Axis.GetXYZ();
+            estimatedType = "fixed";
             LimitsFromMate = false;
             child.Joint.LimitInfo = null;
             //Create the ref objects
@@ -1593,6 +1648,11 @@ namespace SW2URDF.URDFExport
                     logger.Info("L2: " + L2Status);
                 }
 
+                if (chosenType == "prismatic" && L1Status == 1)
+                {
+                    // Free to turn and to slide: the user chose to slide
+                    R1Status = 0;
+                }
                 degreesOfFreedom = remainingDOFs;
 
                 // Convert the gotten degrees of freedom to a joint type, origin and axis
@@ -1623,13 +1683,26 @@ namespace SW2URDF.URDFExport
                 child.Joint.Origin.SetXYZ(MathOps.Threshold(child.Joint.Origin.GetXYZ(), 0.00001));
                 child.Joint.Origin.SetRPY(MathOps.Threshold(child.Joint.Origin.GetRPY(), 0.00001));
                 UnsuppressLimitMates(limitMates);
-                if (limitMates.Count > 0 && ComputeJointLimits)
+                estimatedType = child.Joint.Type;
+                if (limitMates.Count > 0 && ComputeJointLimits && TakesMateLimits(chosenType, estimatedType))
                 {
                     LimitsFromMate = AddLimits(child.Joint, limitMates, parent.SWMainComponent, child.SWMainComponent);
                 }
             }
 
             UnFixComponents(fixedComponents);
+            if (IsChosenType(chosenType))
+            {
+                if (estimatedType != chosenType)
+                {
+                    logger.Info("Joint " + child.Joint.Name + " keeps its type " + chosenType + ", the estimate is " + estimatedType);
+                }
+                child.Joint.Type = chosenType;
+                if (!JointUsesAxis(chosenType))
+                {
+                    child.Joint.Axis.SetXYZ(chosenAxis);
+                }
+            }
             return success;
         }
 

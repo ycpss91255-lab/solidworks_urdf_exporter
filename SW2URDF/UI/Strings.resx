@@ -601,6 +601,15 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>Select an existing reference coordinate system for empty link {0}</value>
   </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. select an existing axis, or change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. Select an existing axis, or change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. Change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. Change the joint type or the mates.</value>
+  </data>
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it.</value>
   </data>

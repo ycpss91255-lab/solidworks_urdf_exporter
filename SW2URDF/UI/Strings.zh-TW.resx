@@ -601,6 +601,15 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>空連桿 {0} 請選取既有的參考座標系統</value>
   </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. select an existing axis, or change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但找不到連桿 {2} 相對於 {3} 的單一自由方向，因此無法產生它的軸。請選取既有的軸，或變更關節類型或配合。</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但配合讓連桿 {2} 相對於 {3} 滑動而不是旋轉。請變更關節類型或配合。</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但配合讓連桿 {2} 相對於 {3} 旋轉而不是滑動。請變更關節類型或配合。</value>
+  </data>
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>匯出程式量測極限配合 {0} 的方向後，無法將它還原為 {2}，目前為 {1}。儲存模型前請先檢查這個配合。</value>
   </data>
