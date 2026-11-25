@@ -436,6 +436,9 @@
   <data xml:space="preserve" name="serializing this link failed. please email your maintainer with your sw assembly.">
     <value>Serializing this link failed. Please email your maintainer with your SW assembly.</value>
   </data>
+  <data xml:space="preserve" name="solidworks could not create the feature tree folder &quot;{0}&quot;. the urdf settings are kept in their entries in the feature tree. the exporter creates the folder the next time it is opened or the settings are saved.">
+    <value>SolidWorks could not create the feature tree folder "{0}". The URDF settings are kept in their entries in the feature tree. The exporter creates the folder the next time it is opened or the settings are saved.</value>
+  </data>
   <data xml:space="preserve" name="the configuration has changed, would you like to save?">
     <value>The configuration has changed, would you like to save?</value>
   </data>
