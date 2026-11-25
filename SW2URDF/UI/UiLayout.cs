@@ -197,6 +197,16 @@ namespace SW2URDF.UI
     /// <summary>Layout corrections applied once the designer layout is built.</summary>
     internal static class UiLayout
     {
+        // Set by tests: the work area the forms are laid out for, instead of that of the screen they are on.
+        internal static Rectangle? TestWorkingArea;
+
+        // Work area (the screen without the taskbar) of the screen a form is on.
+        internal static Rectangle WorkingArea(Control control)
+        {
+            Rectangle area = Screen.FromControl(control).WorkingArea;
+            return TestWorkingArea ?? area;
+        }
+
         // Screen DPI of the process: 144 at 150% scaling when the host is DPI aware.
         internal static float ScreenDpi()
         {
@@ -357,7 +367,7 @@ namespace SW2URDF.UI
             {
                 return;
             }
-            Rectangle area = Screen.FromControl(form).WorkingArea;
+            Rectangle area = WorkingArea(form);
             if (gained > 0)
             {
                 form.Height = Math.Min(form.Height + gained, area.Height);
@@ -629,7 +639,7 @@ namespace SW2URDF.UI
             if (banner.Dock == DockStyle.Top && form != null && form.WindowState == FormWindowState.Normal
                 && height != oldHeight)
             {
-                Rectangle area = Screen.FromControl(form).WorkingArea;
+                Rectangle area = WorkingArea(form);
                 form.Height = Math.Min(form.Height + (height - oldHeight), area.Height);
             }
         }
