@@ -342,6 +342,7 @@
     <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
+    <Compile Include="Test\TestFolderRegroup.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />
     <Compile Include="Test\TestTreeKeyActions.cs" />
