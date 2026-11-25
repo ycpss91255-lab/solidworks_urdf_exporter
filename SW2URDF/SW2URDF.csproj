@@ -412,6 +412,7 @@
     <Compile Include="URDFExport\TreeKeyActions.cs" />
     <Compile Include="URDFExport\DocumentPersistence.cs" />
     <Compile Include="URDFExport\GeneratedFeatureLog.cs" />
+    <Compile Include="URDFExport\LinkPlacement.cs" />
     <Compile Include="URDFExport\ExporterRouting.cs" />
     <Compile Include="URDFExport\OrphanAttributes.cs" />
     <Compile Include="URDFExport\SharedAttributeCleanup.cs" />
