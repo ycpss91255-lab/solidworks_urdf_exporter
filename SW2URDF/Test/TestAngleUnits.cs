@@ -42,10 +42,10 @@ namespace SW2URDF.Test
             return origin;
         }
 
-        // The exact value the model holds for a box it filled. AngleDisplay only gets the box so far.
+        // The exact value the model holds for a box it filled.
         private static void Show(AngleDisplay angles, TextBox box, double exact)
         {
-            angles.Show(box);
+            angles.Show(box, () => exact);
         }
 
         private static void ShowRpy(AngleDisplay angles, TextBox[] boxes, Origin origin)
