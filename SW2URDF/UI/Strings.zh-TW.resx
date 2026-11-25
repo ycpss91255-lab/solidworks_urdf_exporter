@@ -198,6 +198,36 @@
   <data xml:space="preserve" name="urdf errors">
     <value>URDF 錯誤</value>
   </data>
+  <data xml:space="preserve" name="building link: {0}">
+    <value>正在建立連桿: {0}</value>
+  </data>
+  <data xml:space="preserve" name="building links">
+    <value>正在建立連桿</value>
+  </data>
+  <data xml:space="preserve" name="creating package directories">
+    <value>正在建立套件資料夾</value>
+  </data>
+  <data xml:space="preserve" name="exporting mesh: {0}">
+    <value>正在匯出網格: {0}</value>
+  </data>
+  <data xml:space="preserve" name="inferring the geometry of joint {0} from link {1} to {2} failed. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+    <value>無法推算關節 {0} 的幾何 (由連桿 {1} 到 {2})。請確認配合沒有將連桿 {1} 的元件完全定義，而且剛好只有一個自由度。</value>
+  </data>
+  <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">
+    <value>下列關節缺少必要欄位，請先修正才能繼續</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained errors in either their link or joint properties. please address before continuing">
+    <value>下列連桿或其關節的屬性有錯誤，請先修正才能繼續</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained issues that may cause problems. do you wish to proceed?">
+    <value>下列連桿可能造成問題。是否仍要繼續？</value>
+  </data>
+  <data xml:space="preserve" name="the log file was expected to be located at {0}, but it was not found. please contact your maintainer with this error message.">
+    <value>預期記錄檔位於 {0}，但找不到該檔案。請將此錯誤訊息告知維護人員。</value>
+  </data>
+  <data xml:space="preserve" name="there was a problem with the export form:">
+    <value>匯出表單發生問題：</value>
+  </data>
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF 關節錯誤</value>
   </data>

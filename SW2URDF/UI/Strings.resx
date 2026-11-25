@@ -198,6 +198,36 @@
   <data xml:space="preserve" name="urdf errors">
     <value>URDF Errors</value>
   </data>
+  <data xml:space="preserve" name="building link: {0}">
+    <value>Building link: {0}</value>
+  </data>
+  <data xml:space="preserve" name="building links">
+    <value>Building links</value>
+  </data>
+  <data xml:space="preserve" name="creating package directories">
+    <value>Creating package directories</value>
+  </data>
+  <data xml:space="preserve" name="exporting mesh: {0}">
+    <value>Exporting mesh: {0}</value>
+  </data>
+  <data xml:space="preserve" name="inferring the geometry of joint {0} from link {1} to {2} failed. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+    <value>Inferring the geometry of joint {0} from link {1} to {2} failed. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.</value>
+  </data>
+  <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">
+    <value>The following joints are missing required fields, please address them before continuing</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained errors in either their link or joint properties. please address before continuing">
+    <value>The following links contained errors in either their link or joint properties. Please address before continuing</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained issues that may cause problems. do you wish to proceed?">
+    <value>The following links contained issues that may cause problems. Do you wish to proceed?</value>
+  </data>
+  <data xml:space="preserve" name="the log file was expected to be located at {0}, but it was not found. please contact your maintainer with this error message.">
+    <value>The log file was expected to be located at {0}, but it was not found. Please contact your maintainer with this error message.</value>
+  </data>
+  <data xml:space="preserve" name="there was a problem with the export form:">
+    <value>There was a problem with the export form:</value>
+  </data>
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF Joint Errors</value>
   </data>
