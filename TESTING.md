@@ -448,12 +448,17 @@ Parts:
 | `make_form_fixtures.py` | the parts and the assemblies without mates |
 | `FormE2eProbe.cs` | the host: adds and measures the mates (with `LimitLiveProbe.cs`), carries out the steps of a scenario in the form, reads the reference values from SolidWorks. Decides nothing |
 | `test_form_e2e.py` | scenarios, expectations, result. All expectations come from the typed inputs, the measured motion of the arm, and SolidWorks mass properties and transforms, never from the exporter |
-| `form_e2e_proofs.py` | one change per check that must make that check fail |
+| `form_e2e_joints.py` | more scenarios and checks of `test_form_e2e.py`: limit mates, joint types, blank boxes, Cancel, 3DXML, the part form |
+| `form_e2e_proofs.py` | one change per check that must make that check fail (those of `form_e2e_joints.py` are in that file) |
 
 The models: a hinge with an angle limit mate (60 to 180 degrees, value 90), a slide with a distance limit mate (0 to
 30 mm, value 10), the same slide without its limit mate, the hinge placed so that the arm lies on the assembly origin,
 and an assembly with both, a fixed post and an L shaped block that is turned in the assembly and has a link frame that
-is turned in another way. All of them are made in the folder of the run; only copies are exported.
+is turned in another way. Further models are a hinge whose arm is locked to a block that comes first in the link, a hinge
+whose arm is in a sub-assembly, an arm on the assembly origin that is fully defined, without a mate, or free in a plane,
+an arm that can turn and slide, with a reference axis that has a Chinese name, and two instances of a sub-assembly with a
+part that has an axis and a coordinate system of its own. All of them are made in the folder of
+the run; only copies are exported.
 
 Nothing appears on the user's desktop. The host runs on a Windows desktop of its own and refuses to run on another
 one; every dialog there is answered by a watcher, recorded, and reported as a failure unless it is the Save As dialog.
@@ -461,8 +466,11 @@ The host has a time limit per scenario, the script one for the whole run. `HKCU\
 to `angle_unit_before.json`, cleared before each scenario and put back at the end (also after a time limit). The
 exporter log goes to a scratch folder. `--exe-hook` runs a command on the host program after it is compiled.
 
-A run takes about 5 minutes and SolidWorks grows by about 1 GB in it; use a fresh instance for every run. The script
-stops when Windows has less than `--min-free-gb` (4) of memory left, so that other programs do not run out of it.
+A run takes about 25 minutes, and SolidWorks grows with every model; use a fresh instance for every run. The script
+stops when Windows has less than `--min-free-gb` (4) of memory left, so that other programs do not run out of it. With
+little memory, run a few scenarios at a time with `--scenario` (repeatable) into one folder per run, copy the scenario
+folders of all runs into the first one, and check them together with `--evaluate`. A new run builds the models again;
+the checks compare within one scenario or between scenarios of the same geometry, so that this gives the same result.
 
 A process on another desktop cannot see the Running Object Table of the user's desktop. The script binds to
 `SolidWorks_PID_<pid>` and hands the interface over marshalled in a file; the host checks the process id again.
@@ -480,14 +488,23 @@ What it checks:
 * slide: m stays m, only roll, pitch and yaw are converted;
 * the unit is remembered by the next form;
 * xacro: file name, content, launch files (the expansion only when the `xacro` tool is installed);
-* Export Model File Only writes no mesh; the full export one per link (STL; OBJ and MTL);
+* Export Model File Only writes no mesh; the full export one per link (STL; OBJ and MTL; 3DXML);
+* limit mates on the second component of the child link and inside a sub-assembly; a child on the assembly origin;
+* the joint type the user chose against what the mates allow: the URDF, or a message and no preview;
+* blank limit boxes and the axis 0 0 0: one message, and the page stays; what is typed after the message counts;
+* a joint made fixed, and made revolute again; Cancel on both pages and a new preview;
+* an axis with a Chinese name: page, URDF, settings of the document and of the saved file;
+* axis and coordinate system of a part inside a sub-assembly, for both instances of it (STL, OBJ, 3DXML);
+* going between the two pages several times, with links and joints selected on the way: no value moves to another link;
+* Export Model File Only when mesh files are missing: the question and its three answers; none when they exist;
+* the part form (STL and OBJ) against SolidWorks;
 * the URDF against SolidWorks, for every link: frame through the URDF joints, mass, center of mass, inertia tensor
   (put together from principal moments and axes, which have no sign convention), corners and bounding box of the
   visual and the collision mesh placed by the URDF; the joint axis against the boss it turns about.
 
 Not covered, still for a person: whether the form looks good, dragging it between real monitors with different scaling,
 the form inside the SolidWorks process (the PropertyManager page, its window as a child of SolidWorks), opening and
-saving of the model around the export, the part form, 3DXML, and real mouse input.
+saving of the model around the export, and real mouse input.
 
 ## Known limitations
 
