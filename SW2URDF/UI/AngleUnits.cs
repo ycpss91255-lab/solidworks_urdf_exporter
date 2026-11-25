@@ -72,7 +72,7 @@ namespace SW2URDF.UI
     /// made from the exact value the model stores, not from the text in the box, which may be rounded
     /// (-pi/2 as -1.57079632679 would read -89.9999999997 deg). A box the user did not edit gives back
     /// exactly the text it was filled with, so the model recognizes it as unedited and keeps its value.
-    /// A value typed in degrees is converted to radians when it is read.
+    /// A value typed in degrees is converted to radians when it is read, and stays as typed in its unit.
     /// </summary>
     public sealed class AngleDisplay
     {
@@ -83,6 +83,9 @@ namespace SW2URDF.UI
             // Exact value behind the box; null when the box holds no number.
             public double? Exact;
             public string Display;
+            // What the user typed, and the unit it was typed in; null when the box was not edited.
+            public string Typed;
+            public AngleUnit TypedUnit;
             public bool Restored;
         }
 
@@ -139,9 +142,16 @@ namespace SW2URDF.UI
 
         private void Display(TextBox box, Shown entry)
         {
-            entry.Display = Unit == AngleUnit.Degrees && entry.Exact.HasValue
-                ? Format(entry.Exact.Value, Unit)
-                : entry.Radians;
+            if (entry.Typed != null && entry.TypedUnit == Unit)
+            {
+                entry.Display = entry.Typed;
+            }
+            else
+            {
+                entry.Display = Unit == AngleUnit.Degrees && entry.Exact.HasValue
+                    ? Format(entry.Exact.Value, Unit)
+                    : entry.Radians;
+            }
             entry.Restored = false;
             box.Text = entry.Display;
         }
@@ -186,6 +196,9 @@ namespace SW2URDF.UI
         private void TakeTyped(string text, Shown entry)
         {
             double typed;
+            entry.Typed = text;
+            entry.TypedUnit = Unit;
+            entry.Display = text;
             if (double.TryParse(text, Style, Invariant, out typed))
             {
                 entry.Exact = ToRadians(typed, Unit);
