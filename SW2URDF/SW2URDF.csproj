@@ -337,6 +337,7 @@
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
+    <Compile Include="Test\TestLimitMateComponents.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
     <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
