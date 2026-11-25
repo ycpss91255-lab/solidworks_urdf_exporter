@@ -63,6 +63,10 @@ namespace SW2URDF.URDFExport
         private int mSTLUnits;
         private double mHideTransitionSpeed;
 
+        // The output coordinate system the document had before the export, by setting.
+        private Dictionary<int, string> outputCoordinateSystems;
+        private ModelDoc2 outputCoordinateSystemDocument;
+
         private UserProgressBar progressBar;
 
         // File names already used for meshes and textures in the current export. Two links or textures
@@ -885,26 +889,59 @@ namespace SW2URDF.URDFExport
             iSwApp.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swSTLPreview, mSTLPreview);
             iSwApp.SetUserPreferenceDoubleValue((int)swUserPreferenceDoubleValue_e.swViewTransitionHideShowComponent, mHideTransitionSpeed);
             iSwApp.SetUserPreferenceToggle((int)swUserPreferenceToggle_e.swSTLComponentsIntoOneFile, mSaveComponentsIntoOneFile);
+            ResetOutputCoordinateSystem();
         }
 
         //If the user selected something specific for a particular link, that is handled here.
         private void SetLinkSpecificSTLPreferences(string CoordinateSystemName, ModelDoc2 doc)
         {
-            int option = (int)swUserPreferenceOption_e.swDetailingNoOptionSpecified;
-            bool accepted = doc.Extension.SetUserPreferenceString(
-                (int)swUserPreferenceStringValue_e.swExportOutputCoordinateSystem, option, CoordinateSystemName);
+            bool accepted = SetOutputCoordinateSystem(
+                (int)swUserPreferenceStringValue_e.swExportOutputCoordinateSystem, CoordinateSystemName, doc);
             if (!accepted)
             {
                 // SolidWorks 2023 rejects the newer setting (it returns false and the mesh is saved in
                 // the global frame); the older "save as coordinate system" setting is the one it reads.
-                accepted = doc.Extension.SetUserPreferenceString(
-                    (int)swUserPreferenceStringValue_e.swFileSaveAsCoordinateSystem, option, CoordinateSystemName);
+                accepted = SetOutputCoordinateSystem(
+                    (int)swUserPreferenceStringValue_e.swFileSaveAsCoordinateSystem, CoordinateSystemName, doc);
             }
             if (!accepted && !string.IsNullOrEmpty(CoordinateSystemName))
             {
                 logger.Warn("SolidWorks did not accept the export coordinate system " + CoordinateSystemName +
                     "; the mesh is saved in the global frame");
             }
+        }
+
+        // Sets one of the two settings, and remembers what it was before the export.
+        private bool SetOutputCoordinateSystem(int setting, string name, ModelDoc2 doc)
+        {
+            int option = (int)swUserPreferenceOption_e.swDetailingNoOptionSpecified;
+            string previous = doc.Extension.GetUserPreferenceString(setting, option);
+            if (!doc.Extension.SetUserPreferenceString(setting, option, name)) return false;
+
+            outputCoordinateSystemDocument = doc;
+            outputCoordinateSystems = outputCoordinateSystems ?? new Dictionary<int, string>();
+            if (!outputCoordinateSystems.ContainsKey(setting))
+            {
+                outputCoordinateSystems[setting] = previous ?? "";
+            }
+            return true;
+        }
+
+        private void ResetOutputCoordinateSystem()
+        {
+            if (outputCoordinateSystems == null) return;
+
+            foreach (KeyValuePair<int, string> previous in outputCoordinateSystems)
+            {
+                bool accepted = outputCoordinateSystemDocument.Extension.SetUserPreferenceString(previous.Key,
+                    (int)swUserPreferenceOption_e.swDetailingNoOptionSpecified, previous.Value);
+                if (!accepted)
+                {
+                    logger.Warn("SolidWorks did not accept the previous output coordinate system " + previous.Value);
+                }
+            }
+            outputCoordinateSystems = null;
+            outputCoordinateSystemDocument = null;
         }
 
         #endregion STL Preference shuffling
