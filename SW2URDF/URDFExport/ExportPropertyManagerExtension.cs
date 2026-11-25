@@ -615,15 +615,16 @@ namespace SW2URDF.URDFExport
             }
         }
 
+        // The base link has no joint, a name left on it is not exported
         public void CheckIfJointNamesAreUnique(LinkNode node, string jointName, List<string> conflict)
         {
-            if (node.Link.Joint.Name == jointName)
+            if (node.Parent != null && node.Link.Joint.Name == jointName)
             {
                 conflict.Add(node.Link.Joint.Name);
             }
             foreach (LinkNode child in node.Nodes)
             {
-                CheckIfLinkNamesAreUnique(child, jointName, conflict);
+                CheckIfJointNamesAreUnique(child, jointName, conflict);
             }
         }
 
@@ -719,8 +720,12 @@ namespace SW2URDF.URDFExport
         {
             List<string> conflict = new List<string>();
 
-            //Finds the conflicts of the currentNode with all the other nodes
-            CheckIfJointNamesAreUnique(basenode, currentNode.Link.Joint.Name, conflict);
+            //Finds the conflicts of the currentNode with all the other nodes. A blank name is reported
+            // by CheckNodeComplete.
+            if (!string.IsNullOrWhiteSpace(currentNode.Link.Joint.Name))
+            {
+                CheckIfJointNamesAreUnique(basenode, currentNode.Link.Joint.Name, conflict);
+            }
             bool alreadyExists = false;
             foreach (List<string> existingConflict in conflicts)
             {
