@@ -1678,15 +1678,11 @@ namespace SW2URDF.URDFExport
                     string CoordinateSystemNameUnTrimmed = CoordinateSystemName.Substring(0, indexFirst);
                     CoordinateSystemName = CoordinateSystemNameUnTrimmed.Trim();
                 }
-                AssemblyDoc assy = (AssemblyDoc)ActiveSWModel;
-                object[] components = assy.GetComponents(false);
-                foreach (Component2 comp in components)
+                if (componentStr != "")
                 {
-                    if (comp.Name2 == componentStr)
-                    {
-                        ComponentModel = comp.GetModelDoc2();
-                        ComponentTransform = comp.Transform2;
-                    }
+                    Component2 component = FindComponent(componentStr);
+                    ComponentModel = component.GetModelDoc2();
+                    ComponentTransform = component.Transform2;
                 }
             }
             MathTransform LocalCoordsysTransform =
@@ -1694,6 +1690,23 @@ namespace SW2URDF.URDFExport
             MathTransform GlobalCoordsysTransform = (ComponentTransform == null) ?
                 LocalCoordsysTransform : LocalCoordsysTransform.Multiply(ComponentTransform);
             return GlobalCoordsysTransform;
+        }
+
+        // The component with this full name. The top level assembly can have a coordinate system or an axis of
+        // the same name somewhere else, so it does not stand in for a component that is missing.
+        private Component2 FindComponent(string name)
+        {
+            object[] components = ((AssemblyDoc)ActiveSWModel).GetComponents(false);
+            foreach (Component2 component in components ?? new object[0])
+            {
+                // A suppressed component has no document
+                if (component.Name2 == name && component.GetModelDoc2() != null)
+                {
+                    return component;
+                }
+            }
+            throw new InvalidOperationException("The component " + name +
+                " of a coordinate system or an axis is missing or suppressed");
         }
 
         private void MoveOrigin(Link parent, Link nonLocalizedChild)
@@ -1763,15 +1776,11 @@ namespace SW2URDF.URDFExport
                     string CoordinateSystemNameUnTrimmed = axisStr.Substring(0, indexFirst);
                     axisName = CoordinateSystemNameUnTrimmed.Trim();
                 }
-                AssemblyDoc assy = (AssemblyDoc)ActiveSWModel;
-                object[] components = assy.GetComponents(false);
-                foreach (Component2 comp in components)
+                if (componentStr != "")
                 {
-                    if (comp.Name2 == componentStr)
-                    {
-                        ComponentModel = comp.GetModelDoc2();
-                        ComponentTransform = comp.Transform2;
-                    }
+                    Component2 component = FindComponent(componentStr);
+                    ComponentModel = component.GetModelDoc2();
+                    ComponentTransform = component.Transform2;
                 }
             }
             //Calculate!
