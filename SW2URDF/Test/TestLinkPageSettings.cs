@@ -72,6 +72,12 @@ namespace SW2URDF.Test
                 SetField(form, "linkBoxes", new[] { "textBoxMass", "comboBoxMaterials", "textBoxTexture" }
                     .Select(name => Field<Control>(form, name)).ToArray());
                 SetField(form, "jointBoxes", new Control[0]);
+                // Only when the form can show angles in degrees or radians
+                MethodInfo setUnit = typeof(AssemblyExportForm).GetMethod("SetAngleUnit", Members);
+                if (setUnit != null)
+                {
+                    setUnit.Invoke(form, new[] { Enum.Parse(setUnit.GetParameters()[0].ParameterType, "Radians") });
+                }
                 var selection = new Mock<SelectionMgr>();
                 selection.Setup(m => m.CreateSelectData()).Returns(new Mock<SelectData>().Object);
                 var model = new Mock<ModelDoc2>();
