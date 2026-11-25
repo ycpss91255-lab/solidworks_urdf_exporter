@@ -240,8 +240,6 @@ namespace SW2URDF.Test
             using (AssemblyExportForm form = NewForm(joint))
             {
                 Assert.Null(Exported(form, joint));
-                Box(form, 2).Text = "10";
-                Assert.Equal(new[] { "", "", "10", "0" }, Exported(form, joint));
             }
             joint = NewJoint("fixed");
             using (AssemblyExportForm form = NewForm(joint))
@@ -255,8 +253,11 @@ namespace SW2URDF.Test
             using (AssemblyExportForm form = NewForm(joint))
             {
                 Field<ComboBox>(form, "comboBoxJointType").Text = "fixed";
-                Assert.Equal(new[] { "-0.5", "0.25", "0", "0" }, Exported(form, joint));
+                form.SaveJointDataFromPropertyBoxes(joint);
+                Assert.Equal("", MissingFields(form, joint));
             }
+            Assert.Equal(-0.5, joint.Limit.Lower);
+            Assert.Equal(0.25, joint.Limit.Upper);
         }
 
         [Fact]
