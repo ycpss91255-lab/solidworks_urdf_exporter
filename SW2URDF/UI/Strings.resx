@@ -451,6 +451,9 @@
   <data xml:space="preserve" name="converting 3dxml to obj + mtl...">
     <value>Converting 3DXML to OBJ + MTL...</value>
   </data>
+  <data xml:space="preserve" name="the obj export does not support textures, and these links have one: {0}. export as stl or 3dxml, or remove the texture.">
+    <value>The OBJ export does not support textures, and these links have one: {0}. Export as STL or 3DXML, or remove the texture.</value>
+  </data>
   <data xml:space="preserve" name="preview and export...">
     <value>Preview and Export...</value>
   </data>
