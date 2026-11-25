@@ -121,6 +121,7 @@ namespace SW2URDF.URDF
         public override bool AreRequiredFieldsSatisfied()
         {
             Limit.SetRequired((Type == "prismatic" || Type == "revolute"));
+            Limit.SetJointType(Type);
             return base.AreRequiredFieldsSatisfied();
         }
 
