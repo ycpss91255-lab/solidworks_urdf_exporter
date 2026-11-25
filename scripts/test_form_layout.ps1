@@ -177,6 +177,80 @@ foreach ($typeName in $formTypes) {
         }
     }
 }
+# The push buttons in the bottom row of a page share their top and height (issue #174): at every
+# scaling, with the captions of both languages, also after the window is resized and after a DPI
+# change. Page tops differ, so each page is checked on its own.
+function Test-ButtonRow($form, [string]$page, [string]$label, $problems) {
+    $rows = @{}
+    $stack = New-Object System.Collections.Stack; $stack.Push($form)
+    while ($stack.Count -gt 0) {
+        foreach ($c in $stack.Pop().Controls) {
+            if (-not $c.Visible) { continue }
+            if (($c -is [System.Windows.Forms.Button]) -and $c.Name -match 'Cancel|Finish|Next|Previous|ExportUrdfOnly') {
+                $rows[$c.Name] = $c.Parent.RectangleToScreen($c.Bounds)
+            }
+            $stack.Push($c)
+        }
+    }
+    $tops = @($rows.Values | ForEach-Object { $_.Top } | Sort-Object -Unique)
+    $heights = @($rows.Values | ForEach-Object { $_.Height } | Sort-Object -Unique)
+    if ($rows.Count -lt 2) { [void]$problems.Add("${label} : button row ${page}: only $($rows.Count) button(s) found") }
+    if ($tops.Count -gt 1 -or $heights.Count -gt 1) {
+        $text = ($rows.Keys | Sort-Object | ForEach-Object { "$_ top $($rows[$_].Top - $form.Top) height $($rows[$_].Height)" }) -join ', '
+        [void]$problems.Add("${label} : button row ${page}: $text")
+    }
+}
+
+$layout = $assembly.GetType('SW2URDF.UI.UiLayout')
+$uiTextType = $assembly.GetType('SW2URDF.UI.UiText', $true)
+$fitForm = $layout.GetMethod('FitForm', [Reflection.BindingFlags]'Static,NonPublic,Public')
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in 'english', 'chinese') {
+        foreach ($f in $fonts) {
+            foreach ($scale in @(1.0, 1.25, 1.5, 1.75)) {
+                $font = New-Object System.Drawing.Font($f[0], [single]($f[1] * $scale), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
+                $form = New-Form $type $font ([single](96 * $scale))
+                $fonts2 = @($font)
+                try {
+                    $ui = [Activator]::CreateInstance($uiTextType, @(, [string]$language))
+                    $ui.Apply($form)
+                    [void]$fitForm.Invoke($null, @($form, [single](96 * $scale)))
+                    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                    $panel = @($form.Controls.Find('panelLinkProperties', $false))
+                    $size = $form.Size
+                    foreach ($state in 'default', 'large', 'small', 'dpi') {
+                        switch ($state) {
+                            'large' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 1.3), [int]($size.Height * 1.2)) }
+                            'small' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 0.8), [int]($size.Height * 0.8)) }
+                            'dpi' {
+                                # The window moves to a monitor with the next larger scaling: the font, and with
+                                # it the layout, grows and the buttons are fitted again.
+                                $form.Size = $size
+                                $to = $scale + 0.25
+                                $fonts2 += New-Object System.Drawing.Font($f[0], [single]($f[1] * $to), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
+                                $form.Font = $fonts2[-1]
+                                [void]$fitForm.Invoke($null, @($form, [single](96 * $to)))
+                            }
+                        }
+                        foreach ($page in $(if ($panel.Count -eq 1) { 'joint page', 'link page' } else { 'form' })) {
+                            if ($panel.Count -eq 1) {
+                                $panel[0].Visible = $page -eq 'link page'
+                                foreach ($c in $form.Controls) { if ($c -ne $panel[0]) { $c.Visible = $page -eq 'joint page' } }
+                            }
+                            [System.Windows.Forms.Application]::DoEvents()
+                            $problems = New-Object System.Collections.ArrayList
+                            Test-ButtonRow $form $page "$($type.Name) [$language $($f[0]) $($f[1])pt x$scale $state]" $problems
+                            foreach ($p in $problems) { [void]$report.Add($p) }
+                            $total += $problems.Count
+                        }
+                    }
+                } finally { $form.Dispose(); foreach ($old in $fonts2) { $old.Dispose() } }
+            }
+        }
+    }
+}
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
