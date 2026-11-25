@@ -387,6 +387,15 @@ namespace SW2URDF.UI
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
             FillJointTree();
             panelLinkProperties.Visible = false;
+
+            // Moving the nodes can select one of the link page, so this is cleared after it. The boxes
+            // still show a joint, so one is selected; nothing typed could be saved otherwise.
+            previouslySelectedNode = null;
+            treeViewJointTree.SelectedNode = null;
+            if (treeViewJointTree.Nodes.Count > 0)
+            {
+                treeViewJointTree.SelectedNode = treeViewJointTree.Nodes[0];
+            }
         }
 
         private void ButtonLinksFinishClick(object sender, EventArgs e)
