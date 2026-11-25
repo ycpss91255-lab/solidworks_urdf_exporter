@@ -322,6 +322,7 @@
     <Compile Include="Legacy\SerialNode.cs" />
     <Compile Include="UI\IMessageBox.cs" />
     <Compile Include="UI\MessageBoxHelper.cs" />
+    <Compile Include="UI\NumberBoxDisplay.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
     <Compile Include="Test\SWTestFixture.cs" />
     <Compile Include="Test\TestBoxPrecision.cs" />

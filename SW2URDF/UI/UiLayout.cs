@@ -53,12 +53,9 @@ namespace SW2URDF.UI
             FitForm(root, WindowDpi(root));
         }
 
-        // The banner height was measured when its text was set, possibly at another DPI than the one
-        // the window is really drawn at: measure again.
         /// <summary>
-        /// The edit boxes show numbers with their full precision, which is wider than the box. Show the
-        /// whole text in a tool tip while the mouse is over the box or it has the focus and the text does
-        /// not fit; the box itself scrolls to the rest of the text.
+        /// A box is often narrower than its value. It shows a number with the digits that fit, exponent
+        /// included (NumberBoxDisplay), and a tool tip shows the whole text while the mouse is over the box.
         /// </summary>
         internal static void ShowFullValueTips(Control root)
         {
@@ -71,28 +68,45 @@ namespace SW2URDF.UI
         {
             foreach (Control c in parent.Controls)
             {
-                TextBox box = c as TextBox;
-                if ((box != null && !box.Multiline) || c is UpDownBase)
+                TextBox box = EditBox(c);
+                if (box == null)
                 {
-                    Control edit = c;
-                    EventHandler refresh = delegate { SetFullValueTip(edit, tip); };
-                    edit.TextChanged += refresh;
-                    edit.SizeChanged += refresh;
-                    SetFullValueTip(edit, tip);
+                    AttachFullValueTips(c, tip);
+                    continue;
                 }
-                AttachFullValueTips(c, tip);
+                NumberBoxDisplay.Attach(box);
+                Control edit = c;
+                EventHandler refresh = delegate { tip.SetToolTip(edit, FullValueTip(edit)); };
+                edit.TextChanged += refresh;
+                edit.SizeChanged += refresh;
+                edit.FontChanged += refresh;
+                refresh(edit, EventArgs.Empty);
             }
         }
 
-        private static void SetFullValueTip(Control edit, ToolTip tip)
+        // The box a single-line value is typed in: the control itself, or the one inside a spin box.
+        private static TextBox EditBox(Control control)
         {
-            string text = edit.Text;
-            bool tooWide = !string.IsNullOrEmpty(text) &&
-                TextRenderer.MeasureText(text, edit.Font, new Size(int.MaxValue, 0),
-                    TextFormatFlags.NoPadding).Width > edit.ClientSize.Width - 6;
-            tip.SetToolTip(edit, tooWide ? text : null);
+            TextBox box = control as TextBox;
+            if (control is UpDownBase)
+            {
+                foreach (Control child in control.Controls)
+                {
+                    box = box ?? child as TextBox;
+                }
+            }
+            return box == null || box.Multiline ? null : box;
         }
 
+        /// <summary>The whole text of a box that cannot show all of it, null when the text fits.</summary>
+        internal static string FullValueTip(Control edit)
+        {
+            TextBox box = EditBox(edit);
+            return box == null || NumberBoxDisplay.Fits(box, edit.Text) ? null : edit.Text;
+        }
+
+        // The banner height was measured when its text was set, possibly at another DPI than the one
+        // the window is really drawn at: measure again.
         internal static void RefitStatusBanner(Control root)
         {
             Control[] found = root.Controls.Find("labelConfigurationStatus", true);
