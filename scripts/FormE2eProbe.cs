@@ -177,30 +177,39 @@ public static class FormE2eProbe
         return File.ReadAllLines(file, Encoding.UTF8).Where(l => l.Trim().Length > 0).Select(l => l.Split('\t')).ToArray();
     }
 
-    // What the PropertyManager page hands over: the link tree, the base frame and the four "compute" choices.
+    static LinkNode root;      // the tree of the last build, also when it failed
+
     static void OpenForm(string[][] tree)
     {
+        if (!BuildRobot(tree)) throw new Exception("Robot build failed");
+        ShowForm();
+    }
+
+    // What the PropertyManager page hands over: the link tree, the base frame and the four "compute" choices.
+    static bool BuildRobot(string[][] tree)
+    {
         var links = new Dictionary<string, Link>();
-        Link root = null;
+        Link first = null;
         foreach (string[] t in tree)
         {
             var link = new Link { Name = t[0] };
             foreach (string name in t[2].Split(',')) LimitLiveProbe.ComponentList(link).Add(Component(name));
             link.Joint.CoordinateSystemName = t[3];
             link.Joint.AxisName = t[4];
-            if (t[1] == "-") root = link;
+            if (t[1] == "-") first = link;
             else
             {
                 link.Parent = links[t[1]];
                 links[t[1]].Children.Add(link);
                 link.Joint.Type = t[5];
                 link.Joint.Name = t[6];
-                link.Joint.Limit.Effort = 10; link.Joint.Limit.Velocity = 1;   // required; the page fills them
+                // required; the page fills them, unless the tree says that the user left them out
+                if (t.Length < 8 || t[7] != "unset") { link.Joint.Limit.Effort = 10; link.Joint.Limit.Velocity = 1; }
             }
             links[t[0]] = link;
         }
-        var node = new LinkNode(root);
-        node.UpdateLinkTree(null);
+        root = new LinkNode(first);
+        root.UpdateLinkTree(null);
         helper = new ExportHelper(app);
         MethodInfo create = typeof(ExportHelper).GetMethod("CreateBaseRefOrigin", BindingFlags.NonPublic | BindingFlags.Instance);
         create.Invoke(helper, new object[] { true });
@@ -209,8 +218,12 @@ public static class FormE2eProbe
         helper.SetComputeVisualCollision(true);
         helper.SetComputeJointKinematics(true);
         helper.SetComputeJointLimits(true);
-        if (!helper.CreateRobotFromTreeView(node)) throw new Exception("Robot build failed");
-        form = new AssemblyExportForm(app, node, helper);
+        return helper.CreateRobotFromTreeView(root);
+    }
+
+    static void ShowForm()
+    {
+        form = new AssemblyExportForm(app, root, helper);
         form.Exporter = helper;
         form.StartPosition = FormStartPosition.Manual;
         form.Location = new System.Drawing.Point(0, 0);
@@ -221,9 +234,41 @@ public static class FormE2eProbe
 
     static Component2 Component(string name)
     {
-        Component2 c = ((AssemblyDoc)doc).GetComponentByName(name);
-        if (c == null) throw new Exception("component not found: " + name);
-        return c;
+        return LimitLiveProbe.Find(name);
+    }
+
+    // What is kept for each joint of a link tree
+    static void State(string label, LinkNode tree)
+    {
+        Put("state." + label + ".found", tree != null);
+        if (tree == null) return;
+        foreach (LinkNode n in new[] { tree }.Concat(All(tree.Nodes).Cast<LinkNode>()))
+        {
+            string key = "state." + label + "." + n.Link.Name;
+            Put(key + ".type", n.Link.Joint.Type);
+            Put(key + ".frame", n.Link.Joint.CoordinateSystemName);
+            Put(key + ".axis", n.Link.Joint.AxisName);
+        }
+    }
+
+    // The settings the model holds, read by the code that fills the PropertyManager page
+    static void Saved(string label)
+    {
+        bool error;
+        LinkNode tree = ConfigurationSerialization.LoadBaseNodeFromModel(doc, out error, UiText.FromSolidWorks(app));
+        Put("state." + label + ".error", error);
+        State(label, tree);
+    }
+
+    // Chooses an entry of a list box by its English value, as a user does in any language
+    static void Choose(string box, string value)
+    {
+        ComboBox combo = Field<ComboBox>(box);
+        UiText ui = UiText.FromSolidWorks(app);
+        int index = combo.Items.Cast<object>().ToList().FindIndex(i => ui.ComboValue(Convert.ToString(i)) == value);
+        if (index < 0) throw new Exception(box + " has no " + value);
+        combo.SelectedIndex = index;
+        Pump(100);
     }
 
     static IEnumerable<TreeNode> All(TreeNodeCollection nodes)
@@ -294,11 +339,73 @@ public static class FormE2eProbe
         Put("export." + package + ".folder", Directory.Exists(Path.Combine(dir, package)));
     }
 
+    // --- the part form --------------------------------------------------------------------------------------
+
+    static PartExportForm partForm;
+
+    static T PartField<T>(string name) where T : class
+    {
+        FieldInfo field = typeof(PartExportForm).GetField(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        if (field == null) throw new Exception("The part form has no " + name);
+        return (T)field.GetValue(partForm);
+    }
+
+    static void OpenPartForm()
+    {
+        partForm = new PartExportForm(app);
+        partForm.StartPosition = FormStartPosition.Manual;
+        partForm.Location = new System.Drawing.Point(0, 0);
+        partForm.ShowInTaskbar = false;
+        partForm.Show();
+        Pump(400);
+        foreach (Control c in AllControls(partForm))
+            if (c is TextBox && c.Name.Length > 0) Put("dump.part." + c.Name, c.Text);
+    }
+
+    static void ExportPart(string format, string dir, string package)
+    {
+        Directory.CreateDirectory(dir);
+        PartField<CheckBox>("objExport").Checked = format == "obj";
+        PartField<TextBox>("textBox_save_as").Text = Path.Combine(dir, package);
+        PartExportForm current = partForm;
+        PartField<Button>("button_finish").PerformClick();
+        Pump(300);
+        Put("export." + package + ".closed", current.IsDisposed || !current.Visible);
+        Put("export." + package + ".folder", Directory.Exists(Path.Combine(dir, package)));
+        ReadPart("sw." + package);
+    }
+
     static void RunStep(string[] s, string[][] tree)
     {
         switch (s[0])
         {
             case "open": OpenForm(tree); break;
+            // a preview that may not open: what the user is told is recorded as a dialog
+            case "try":
+                {
+                    bool built = BuildRobot(tree);
+                    Put("built." + s[1], built);
+                    State(s[1], root);
+                    if (built) ShowForm();
+                    break;
+                }
+            // the answer to a question of the exporter (URDFPackage.MessageBox)
+            case "answer": LimitLiveProbe.Answer = (System.Windows.MessageBoxResult)Enum.Parse(typeof(System.Windows.MessageBoxResult), s[1]); break;
+            case "asked": Put("asked." + s[1], LimitLiveProbe.questions.Count); break;
+            case "choose": Choose(s[1], s[2]); break;
+            case "saved": Saved(s[1]); break;
+            case "page": Put("page." + s[1], Field<Panel>("panelLinkProperties").Visible ? "link" : "joint"); break;
+            case "click": Click(s[1]); break;
+            case "reopen":
+                {
+                    // what the file holds, not what the open document holds
+                    string path = doc.GetPathName();
+                    app.CloseDoc(doc.GetTitle());
+                    OpenModel(path);
+                    break;
+                }
+            case "part": OpenPartForm(); break;
+            case "export_part": ExportPart(s[1], Path.Combine(outDir, "export"), s[2]); break;
             case "unit":
                 {
                     // the box of the page on display
@@ -357,49 +464,100 @@ public static class FormE2eProbe
             mp.IncludeHiddenBodiesOrComponents = true;
             mp.SelectedItems = components;
             if (!mp.Recalculate()) throw new Exception("Mass properties failed for " + t[0]);
-            Put(key + ".mass", Num(mp.Mass));
-            Put(key + ".volume", Num(mp.Volume));
-            Put(key + ".com", Nums(((double[])mp.CenterOfMass).Take(3)));
-            double[] moments = ((double[])mp.PrincipalMomentsOfInertia).Take(3).ToArray();
-            var tensor = new double[9];
-            for (int k = 0; k < 3; k++)
-            {
-                double[] a = ((double[])mp.get_PrincipalAxesOfInertia(k)).Take(3).ToArray();
-                for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) tensor[3 * i + j] += moments[k] * a[i] * a[j];
-            }
-            Put(key + ".inertia", Nums(tensor));
+            PutMass(key, mp);
             Put(key + ".component", Nums(FrameOf(components[0].Transform2)));
-            var vertices = new List<double>();
-            double[] box = { double.MaxValue, double.MaxValue, double.MaxValue, double.MinValue, double.MinValue, double.MinValue };
+            var bodies = new List<KeyValuePair<Body2, MathTransform>>();
             foreach (Component2 c in components)
-            {
-                object info;
-                MathTransform back = (MathTransform)c.Transform2.Inverse();
-                foreach (object body in (object[])c.GetBodies3((int)swBodyType_e.swSolidBody, out info))
+                foreach (Component2 solid in Solids(c))
                 {
-                    for (int d = 0; d < 6; d++)
-                    {
-                        // the farthest point of the body (round faces included) along +-x, +-y, +-z of the world
-                        var world = new double[3]; world[d % 3] = d < 3 ? -1 : 1;
-                        double[] inPart = MapVector(back, world);
-                        double x, y, z;
-                        if (!((Body2)body).GetExtremePoint(inPart[0], inPart[1], inPart[2], out x, out y, out z)) throw new Exception("no extreme point");
-                        double value = MapPoint(c.Transform2, new[] { x, y, z })[d % 3];
-                        box[d] = d < 3 ? Math.Min(box[d], value) : Math.Max(box[d], value);
-                    }
-                    foreach (object v in (object[])(((Body2)body).GetVertices() ?? new object[0]))
-                        vertices.AddRange(MapPoint(c.Transform2, (double[])((Vertex)v).GetPoint()).Take(3));
+                    object info;
+                    foreach (object body in (object[])(solid.GetBodies3((int)swBodyType_e.swSolidBody, out info) ?? new object[0]))
+                        bodies.Add(new KeyValuePair<Body2, MathTransform>((Body2)body, solid.Transform2));
                 }
-            }
-            Put(key + ".vertices", Nums(vertices));
-            Put(key + ".box", Nums(box));
+            PutBodies(key, bodies);
             string frame = t[3] == "Automatically Generate" ? GeneratedFrame(t[0]) : t[3];
             if (frame == null) continue;
+            if (frame.Contains(" <"))
+            {
+                // of a component: "name <SUB-1/PART-1>"
+                Component2 owner = Component(frame.Substring(frame.IndexOf('<') + 1).TrimEnd('>'));
+                MathTransform local = ((ModelDoc2)owner.GetModelDoc2()).Extension.GetCoordinateSystemTransformByName(frame.Substring(0, frame.IndexOf(" <")));
+                double[] f = FrameOf(local);
+                Put(key + ".frame", Nums(MapPoint(owner.Transform2, f.Take(3).ToArray()).Take(3)
+                    .Concat(MapVector(owner.Transform2, f.Skip(3).Take(3).ToArray()).Take(3))
+                    .Concat(MapVector(owner.Transform2, f.Skip(6).Take(3).ToArray()).Take(3))
+                    .Concat(MapVector(owner.Transform2, f.Skip(9).Take(3).ToArray()).Take(3))));
+                continue;
+            }
             MathTransform transform = doc.Extension.GetCoordinateSystemTransformByName(frame);
             if (transform != null) Put(key + ".frame", Nums(FrameOf(transform)));
         }
         MathTransform global = doc.Extension.GetCoordinateSystemTransformByName("Origin_global");
         if (global != null) Put(label + ".Origin_global", Nums(FrameOf(global)));
+    }
+
+    static void PutMass(string key, IMassProperty2 mp)
+    {
+        Put(key + ".mass", Num(mp.Mass));
+        Put(key + ".volume", Num(mp.Volume));
+        Put(key + ".com", Nums(((double[])mp.CenterOfMass).Take(3)));
+        double[] moments = ((double[])mp.PrincipalMomentsOfInertia).Take(3).ToArray();
+        var tensor = new double[9];
+        for (int k = 0; k < 3; k++)
+        {
+            double[] a = ((double[])mp.get_PrincipalAxesOfInertia(k)).Take(3).ToArray();
+            for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) tensor[3 * i + j] += moments[k] * a[i] * a[j];
+        }
+        Put(key + ".inertia", Nums(tensor));
+    }
+
+    // Vertices and bounding box of the bodies in the world
+    static void PutBodies(string key, List<KeyValuePair<Body2, MathTransform>> bodies)
+    {
+        var vertices = new List<double>();
+        double[] box = { double.MaxValue, double.MaxValue, double.MaxValue, double.MinValue, double.MinValue, double.MinValue };
+        foreach (var pair in bodies)
+        {
+            MathTransform back = (MathTransform)pair.Value.Inverse();
+            for (int d = 0; d < 6; d++)
+            {
+                // the farthest point of the body (round faces included) along +-x, +-y, +-z of the world
+                var world = new double[3]; world[d % 3] = d < 3 ? -1 : 1;
+                double[] inPart = MapVector(back, world);
+                double x, y, z;
+                if (!pair.Key.GetExtremePoint(inPart[0], inPart[1], inPart[2], out x, out y, out z)) throw new Exception("no extreme point");
+                double value = MapPoint(pair.Value, new[] { x, y, z })[d % 3];
+                box[d] = d < 3 ? Math.Min(box[d], value) : Math.Max(box[d], value);
+            }
+            foreach (object v in (object[])(pair.Key.GetVertices() ?? new object[0]))
+                vertices.AddRange(MapPoint(pair.Value, (double[])((Vertex)v).GetPoint()).Take(3));
+        }
+        Put(key + ".vertices", Nums(vertices));
+        Put(key + ".box", Nums(box));
+    }
+
+    // The component itself, and those inside it when it is a sub-assembly
+    static IEnumerable<Component2> Solids(Component2 c)
+    {
+        yield return c;
+        foreach (object child in (object[])(c.GetChildren() ?? new object[0]))
+            foreach (Component2 inner in Solids((Component2)child)) yield return inner;
+    }
+
+    // The same reference values for the open part, read after the export (which adds Origin_global)
+    static void ReadPart(string key)
+    {
+        IMassProperty2 mp = (IMassProperty2)doc.Extension.CreateMassProperty2();
+        mp.UseSystemUnits = true;
+        if (!mp.Recalculate()) throw new Exception("Mass properties failed");
+        PutMass(key, mp);
+        MathTransform identity = (MathTransform)math.CreateTransform(new double[] { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 });
+        PutBodies(key, ((object[])((PartDoc)doc).GetBodies2((int)swBodyType_e.swSolidBody, false))
+            .Select(b => new KeyValuePair<Body2, MathTransform>((Body2)b, identity)).ToList());
+        MathTransform global = doc.Extension.GetCoordinateSystemTransformByName("Origin_global");
+        if (global == null) throw new Exception("the export made no Origin_global");
+        Put("sw.Origin_global", Nums(FrameOf(global)));
+        Put(key + ".frame", Nums(FrameOf(global)));
     }
 
     // Name of the coordinate system the exporter made for a link (its place is then read from SolidWorks)
@@ -449,6 +607,19 @@ public static class FormE2eProbe
         doc.ClearSelection2(true);
     }
 
+    const string ChineseAxis = "\u65cb\u8f49\u8ef8";
+
+    // Two components that move as one
+    static void Lock(string one, string two)
+    {
+        doc.ClearSelection2(true);
+        foreach (string name in new[] { one, two })
+            if (!doc.Extension.SelectByID2(name + "@" + Path.GetFileNameWithoutExtension(doc.GetPathName()), "COMPONENT", 0, 0, 0, name == two, 1, null, 0))
+                throw new Exception("component not found: " + name);
+        LimitLiveProbe.AddMate(swMateType_e.swMateLOCK, swMateAlign_e.swMateAlignCLOSEST, false, 0, 0, 0, 0, 0, 0, "lock " + one + " " + two);
+        doc.ForceRebuild3(false);
+    }
+
     static double[] Rotation(double roll, double pitch, double yaw)
     {
         double cr = Math.Cos(roll), sr = Math.Sin(roll), cp = Math.Cos(pitch), sp = Math.Sin(pitch), cy = Math.Cos(yaw), sy = Math.Sin(yaw);
@@ -457,7 +628,7 @@ public static class FormE2eProbe
 
     static void OpenModel(string file)
     {
-        doc = ObjRegressProbe.Open(file, false);
+        doc = ObjRegressProbe.Open(file, file.EndsWith(".SLDPRT", StringComparison.OrdinalIgnoreCase));
         LimitLiveProbe.doc = doc;
     }
 
@@ -465,7 +636,7 @@ public static class FormE2eProbe
     {
         var hinge = new LimitLiveProbe.Variant { Name = "hinge", Reference = 90, Lower = 60, Upper = 180 };
         var slide = new LimitLiveProbe.Variant { Name = "slide", Slide = true, Reference = 10, Lower = 0, Upper = 30 };
-        foreach (string name in new[] { "LIM_HINGE", "LIM_ORIGIN", "LIM_SLIDE", "LIM_FREE", "FORM_MULTI" })
+        foreach (string name in new[] { "LIM_HINGE", "LIM_ORIGIN", "LIM_SLIDE", "LIM_FREE", "FORM_MULTI", "FORM_CHILD2", "FORM_SUB", "FORM_FULL", "FORM_LOOSE", "FORM_PLANE", "FORM_CYL", "FORM_NEST" })
         {
             doing = "model " + name;
             OpenModel(Path.Combine(folder, name + ".SLDASM"));
@@ -481,6 +652,50 @@ public static class FormE2eProbe
                     MateAndMeasure("free", "LIM_BASE-1", "LIM_ARM-1", slide);
                     doc.ClearSelection2(true);
                     if (!LastMate.Select2(false, 0) || !doc.Extension.DeleteSelection2(0)) throw new Exception("could not delete the limit mate");
+                }
+                else if (name == "FORM_CHILD2")
+                {
+                    // the first component of the child link is a block that is locked to the arm; the mates are on the arm
+                    MateAndMeasure("child2", "LIM_BASE-1", "LIM_ARM-1", hinge);
+                    Lock("LIM_ARM-1", "FORM_BLOCK-1");
+                }
+                else if (name == "FORM_SUB") MateAndMeasure("sub", "LIM_BASE-1", "FORM_ARM_SUB-1/LIM_ARM-1", hinge);
+                else if (name == "FORM_FULL" || name == "FORM_LOOSE" || name == "FORM_PLANE")
+                {
+                    // the arm exactly on the assembly origin, not turned: fully defined, without a mate, or free in a plane
+                    double[] identity = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
+                    Fix("LIM_BASE-1", new[] { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.02, 1, 0, 0, 0 });
+                    Component("LIM_ARM-1").Transform2 = (MathTransform)math.CreateTransform(identity);
+                    if (name == "FORM_FULL") Lock("LIM_BASE-1", "LIM_ARM-1");
+                    if (name == "FORM_PLANE") LimitLiveProbe.Coincident("LIM_BASE-1", "LIM_ARM-1");
+                    Put(name.Substring(5).ToLowerInvariant() + ".arm", Nums(FrameOf(Component("LIM_ARM-1").Transform2)));
+                }
+                else if (name == "FORM_NEST")
+                {
+                    // two instances of a sub-assembly; the axis and the coordinate system are in the part inside it
+                    Fix("LIM_BASE-1", null);
+                    Fix("LIM_BASE-2", null);
+                    for (int i = 1; i <= 2; i++)
+                    {
+                        LimitLiveProbe.Concentric("LIM_BASE-" + i, "FORM_WHEEL_SUB-" + i + "/FORM_WHEEL-1");
+                        MathTransform boss = Component("LIM_BASE-" + i).Transform2;
+                        Put("nest" + i + ".axis", Nums(MapPoint(boss, new double[] { 0, 0, 0 }).Take(3).Concat(MapVector(boss, new double[] { 0, 0, 1 }).Take(3))));
+                    }
+                }
+                else if (name == "FORM_CYL")
+                {
+                    // free to turn and to slide, with an axis that has a Chinese name
+                    Fix("LIM_BASE-1", null);
+                    LimitLiveProbe.Concentric("LIM_BASE-1", "LIM_ARM-1");
+                    LimitLiveProbe.SelectCylinder("LIM_BASE-1");
+                    if (!doc.InsertAxis2(true)) throw new Exception("could not create the axis");
+                    Feature axis = null;
+                    for (Feature f = (Feature)doc.FirstFeature(); f != null; f = (Feature)f.GetNextFeature())
+                        if (f.GetTypeName2() == "RefAxis") axis = f;
+                    axis.Name = ChineseAxis;
+                    Put("cyl.axis.name", axis.Name);
+                    MathTransform boss = Component("LIM_BASE-1").Transform2;
+                    Put("cyl.axis", Nums(MapPoint(boss, new double[] { 0, 0, 0 }).Take(3).Concat(MapVector(boss, new double[] { 0, 0, 1 }).Take(3))));
                 }
                 else
                 {
@@ -541,6 +756,7 @@ public static class FormE2eProbe
         {
             doing = "closing";
             if (form != null && !form.IsDisposed) form.Close();
+            if (partForm != null && !partForm.IsDisposed) partForm.Close();
             app.CloseDoc(title);
         }
     }
@@ -595,6 +811,7 @@ public static class FormE2eProbe
             if (args[0] == "models") Models(Path.GetFullPath(args[5]));
             else if (args[0] == "run") Scenario(Path.GetFullPath(args[5]), Path.GetFullPath(args[6]), Path.GetFullPath(args[7]));
             else throw new Exception("unknown mode " + args[0]);
+            Put("questions", string.Join(" | ", LimitLiveProbe.questions.ToArray()));
             Put("messages", string.Join(" | ", LimitLiveProbe.messages.ToArray()));
             Put("status", "ok");
             return 0;

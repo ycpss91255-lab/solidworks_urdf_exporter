@@ -11,6 +11,13 @@ Assemblies, not mated yet (FormE2eProbe.cs "models" adds the mates):
   LIM_SLIDE.SLDASM  base, arm
   LIM_FREE.SLDASM   base, arm (a slide without a limit mate)
   FORM_MULTI.SLDASM base, arm (hinge), second base, second arm (slide), block that is turned in the assembly
+  FORM_CHILD2.SLDASM base, arm (hinge), block that is locked to the arm
+  FORM_SUB.SLDASM   base, FORM_ARM_SUB.SLDASM with the arm in it (hinge)
+  FORM_FULL.SLDASM  base, arm; once mated, the arm is fully defined on the origin of the assembly
+  FORM_LOOSE.SLDASM base, arm without a mate on the origin of the assembly
+  FORM_PLANE.SLDASM base, arm; once mated, the arm on the origin of the assembly moves in a plane
+  FORM_CYL.SLDASM   base, arm that can turn and slide, an axis with a Chinese name
+  FORM_NEST.SLDASM  two bases, two FORM_WHEEL_SUB.SLDASM with FORM_WHEEL.SLDPRT (the arm with an axis and a frame)
 
 The script binds to ONE SolidWorks process that you name with --pid (through the Running Object Table entry
 SolidWorks_PID_<pid>) and never starts or closes SolidWorks. Existing files with these names in the output folder
@@ -75,6 +82,33 @@ def arm(app):
     return part(app, f.BLUE, [(12, draw)])
 
 
+def wheel(app):
+    """The arm with an axis and a coordinate system of its own, with names in Chinese."""
+    model = arm(app)
+    planes, feature = [], model.FirstFeature
+    while feature is not None and len(planes) < 3:
+        if feature.GetTypeName2 == "RefPlane":
+            planes.append(feature)
+        feature = feature.GetNextFeature
+    model.ClearSelection2(True)
+    planes[1].Select2(False, 0)
+    planes[2].Select2(True, 0)
+    if not model.InsertAxis2(True):
+        raise RuntimeError("could not create the axis")
+    feature, axis = model.FirstFeature, None
+    while feature is not None:
+        axis = feature if feature.GetTypeName2 == "RefAxis" else axis
+        feature = feature.GetNextFeature
+    axis.Name = "\u65cb\u8f49\u8ef8"
+    model.ClearSelection2(True)
+    frame = model.FeatureManager.CreateCoordinateSystemUsingNumericalValues(True, 0, 0, 0.005, True, 0.3, -0.2, 0.5)
+    if frame is None:
+        raise RuntimeError("could not create the coordinate system")
+    frame.Name = "\u5ea7\u6a19_1"
+    model.ClearSelection2(True)
+    return model
+
+
 def block(app):
     return part(app, (0.0, 1.0, 0.0), [(10, rectangle(0, 0, 60, 20)), (35, rectangle(0, 20, 15, 50)),
                                        (25, rectangle(45, -12, 60, 0))])
@@ -95,7 +129,8 @@ def build(app, folder):
     os.makedirs(folder, exist_ok=True)
     titles = []   # closed in reverse order: assemblies before their parts
     try:
-        for name, make in (("LIM_BASE.SLDPRT", base), ("LIM_ARM.SLDPRT", arm), ("FORM_BLOCK.SLDPRT", block)):
+        for name, make in (("LIM_BASE.SLDPRT", base), ("LIM_ARM.SLDPRT", arm), ("FORM_BLOCK.SLDPRT", block),
+                           ("FORM_WHEEL.SLDPRT", wheel)):
             model = make(app)
             f.save(model, os.path.join(folder, name))
             titles.append(model.GetTitle)
@@ -107,6 +142,14 @@ def build(app, folder):
         titles.append(assembly(app, folder, "LIM_FREE.SLDASM", pair))
         titles.append(assembly(app, folder, "FORM_MULTI.SLDASM", pair + [
             ("LIM_BASE.SLDPRT", 330, -20, 45), ("LIM_ARM.SLDPRT", 370, 10, 90), ("FORM_BLOCK.SLDPRT", 150, 130, 90)]))
+        titles.append(assembly(app, folder, "FORM_CHILD2.SLDASM", pair + [("FORM_BLOCK.SLDPRT", 250, 60, 120)]))
+        titles.append(assembly(app, folder, "FORM_ARM_SUB.SLDASM", [("LIM_ARM.SLDPRT", 0, 0, 0)]))
+        titles.append(assembly(app, folder, "FORM_SUB.SLDASM", [("LIM_BASE.SLDPRT", 30, -20, 45), ("FORM_ARM_SUB.SLDASM", 70, 10, 90)]))
+        titles.append(assembly(app, folder, "FORM_WHEEL_SUB.SLDASM", [("FORM_WHEEL.SLDPRT", 15, -8, 4)]))
+        titles.append(assembly(app, folder, "FORM_NEST.SLDASM", [("LIM_BASE.SLDPRT", 30, -20, 45), ("LIM_BASE.SLDPRT", 330, -20, 45),
+                                                                 ("FORM_WHEEL_SUB.SLDASM", 70, 10, 90), ("FORM_WHEEL_SUB.SLDASM", 370, 10, 90)]))
+        for name in ("FORM_FULL.SLDASM", "FORM_LOOSE.SLDASM", "FORM_PLANE.SLDASM", "FORM_CYL.SLDASM"):
+            titles.append(assembly(app, folder, name, pair))
     finally:
         for title in reversed(titles):
             app.CloseDoc(title)
