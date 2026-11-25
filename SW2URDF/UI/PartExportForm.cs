@@ -185,7 +185,12 @@ namespace SW2URDF.UI
             // localized for the export
             Exporter.SavePartSettings();
 
-            Exporter.ExportLink(checkBox_rotate.Checked, objExport.Checked ? MeshExportFormat.OBJ : MeshExportFormat.STL);
+            ExportAndClose(checkBox_rotate.Checked, objExport.Checked ? MeshExportFormat.OBJ : MeshExportFormat.STL);
+        }
+
+        private void ExportAndClose(bool zIsUp, MeshExportFormat meshFormat)
+        {
+            Exporter.ExportLink(zIsUp, meshFormat);
             // The export may have added the coordinate system and reference sketch: keep them in the URDF folder
             ConfigurationSerialization.GroupUrdfFeatures(Exporter.ActiveSWModel, ui);
             Close();
