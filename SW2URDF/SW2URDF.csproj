@@ -346,6 +346,7 @@
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />
     <Compile Include="Test\TestTreeKeyActions.cs" />
     <Compile Include="Test\TestDocumentPersistence.cs" />
+    <Compile Include="Test\TestExportRestoresState.cs" />
     <Compile Include="Test\TestFolderNameCollision.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
     <Compile Include="Test\TestExporterRouting.cs" />
