@@ -177,6 +177,132 @@ foreach ($typeName in $formTypes) {
         }
     }
 }
+
+# Boxes that show a number: every single-line text box and spin box except those holding a name or a path.
+$textBoxNames = 'textBoxJointName', 'textBoxTexture', 'textBox_texture', 'textBox_save_as'
+function Get-NumberBoxes([System.Windows.Forms.Control]$parent) {
+    foreach ($c in $parent.Controls) {
+        if ($c -is [System.Windows.Forms.UpDownBase]) { $c }
+        elseif ($c -is [System.Windows.Forms.TextBox]) { if (-not $c.Multiline -and $textBoxNames -notcontains $c.Name) { $c } }
+        else { Get-NumberBoxes $c }
+    }
+}
+
+# What a box draws, as the pixels inside its border, from column left on.
+function Get-BoxPixels([System.Windows.Forms.TextBox]$edit, [int]$left = 3) {
+    $bmp = New-Object System.Drawing.Bitmap($edit.Width, $edit.Height)
+    $edit.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+    $part = [System.Drawing.Rectangle]::FromLTRB($left, 3, $bmp.Width - 3, $bmp.Height - 3)
+    $data = $bmp.LockBits($part, [System.Drawing.Imaging.ImageLockMode]::ReadOnly, [System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+    $row = 3 * $data.Width
+    $bytes = New-Object byte[] ($row * $data.Height)
+    for ($y = 0; $y -lt $data.Height; $y++) {
+        [Runtime.InteropServices.Marshal]::Copy([IntPtr]::Add($data.Scan0, $y * $data.Stride), $bytes, $y * $row, $row)
+    }
+    $bmp.UnlockBits($data); $bmp.Dispose()
+    return [Convert]::ToBase64String($bytes)
+}
+
+# A value with an exponent shows its exponent in every number box (issue #173). The box may show fewer
+# digits, but its text stays the whole value, a tool tip has the whole value, and what is drawn is the
+# shown text in full.
+function Test-NumberBox([System.Windows.Forms.Control]$box, [string]$value, [string]$label, $problems) {
+    $edit = $box
+    if ($box -is [System.Windows.Forms.UpDownBase]) { $edit = @($box.Controls | Where-Object { $_ -is [System.Windows.Forms.TextBox] })[0] }
+    $name = "${label} : number box $($box.Name):"
+    $old = $box.Text
+    $box.Text = $value
+    $shown = if ($shownText) { [string]$shownText.Invoke($null, @([System.Windows.Forms.TextBox]$edit)) } else { $value }
+    # The shown text fits: in the wide box it does not go on past the width of this one.
+    $wideBox.Font = $edit.Font
+    $end = 2 + $edit.ClientSize.Width
+    $wideBox.Text = $shown; $past = Get-BoxPixels $wideBox $end
+    $wideBox.Text = ''; $blank = Get-BoxPixels $wideBox $end
+    if ($past -cne $blank) { [void]$problems.Add("$name '$shown' does not fit in $($edit.ClientSize.Width) px") }
+    $exponent = [regex]::Match($value, 'E[-+]\d+$').Value
+    if ($exponent -and -not $shown.EndsWith($exponent)) { [void]$problems.Add("$name '$shown' lacks the exponent of $value") }
+    if ($shown -cne $value) {
+        # Shown with fewer digits: still the same number, rounded to the digits shown.
+        $digits = [regex]::Match($shown, '^-?0*\.?0*([\d.]*)').Groups[1].Value.Replace('.', '').Length
+        $number = [double]::Parse($value, [Globalization.CultureInfo]::InvariantCulture)
+        $rounded = [double]::Parse($shown, [Globalization.CultureInfo]::InvariantCulture)
+        if ([Math]::Abs($rounded - $number) -gt [Math]::Abs($number) * 5.01 * [Math]::Pow(10, -[Math]::Max(1, $digits))) { [void]$problems.Add("$name '$shown' is not $value rounded") }
+        $tip = if ($fullValueTip) { $fullValueTip.Invoke($null, @([System.Windows.Forms.Control]$box)) } else { $null }
+        if ($tip -cne $value) { [void]$problems.Add("$name tool tip '$tip' is not the value $value") }
+        # Drawn like a box that holds just the shown text, also while disabled.
+        foreach ($enabled in $true, $false) {
+            $box.Enabled = $enabled
+            $drawn = Get-BoxPixels $edit
+            $box.Text = $shown; $expected = Get-BoxPixels $edit
+            $box.Text = $value
+            if ($drawn -cne $expected) { [void]$problems.Add("$name does not draw '$shown' for $value (enabled: $enabled)") }
+        }
+        $box.Enabled = $true
+    }
+    if ($box.Text -cne $value) { [void]$problems.Add("$name its text became '$($box.Text)' instead of $value") }
+    $box.Text = $old
+}
+
+$static = [Reflection.BindingFlags]'Static,NonPublic,Public'
+$layout = $assembly.GetType('SW2URDF.UI.UiLayout', $true)
+$uiTextType = $assembly.GetType('SW2URDF.UI.UiText', $true)
+$fitForm = $layout.GetMethod('FitForm', $static)
+$fullValueTip = $layout.GetMethod('FullValueTip', $static)
+$display = $assembly.GetType('SW2URDF.UI.NumberBoxDisplay')
+$shownText = if ($display) { $display.GetMethod('ShownText', $static) }
+# A plain box, wide enough for every value, to see how wide a text is drawn.
+$wideForm = New-Object System.Windows.Forms.Form
+$wideForm.StartPosition = 'Manual'; $wideForm.Location = New-Object System.Drawing.Point(-32000, -32000)
+$wideForm.ShowInTaskbar = $false; $wideForm.Width = 800
+$wideBox = New-Object System.Windows.Forms.TextBox; $wideBox.Width = 600
+$wideForm.Controls.Add($wideBox); $wideForm.Show(); $wideForm.ActiveControl = $null
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in 'english', 'chinese') {
+        foreach ($f in @($fonts) + ,@('Segoe UI', 8.5)) {
+            foreach ($scale in @(1.0, 1.25, 1.5, 1.75)) {
+                $font = New-Object System.Drawing.Font($f[0], [single]($f[1] * $scale), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
+                $form = New-Form $type $font ([single](96 * $scale))
+                try {
+                    $ui = [Activator]::CreateInstance($uiTextType, @(, [string]$language))
+                    $ui.Apply($form)
+                    [void]$fitForm.Invoke($null, @($form, [single](96 * $scale)))
+                    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                    $panel = @($form.Controls.Find('panelLinkProperties', $false))
+                    $pages = if ($panel.Count -eq 1) { 'joint page', 'link page' } else { 'form' }
+                    foreach ($page in $pages) {
+                        $root = $form
+                        if ($panel.Count -eq 1) {
+                            $panel[0].Visible = $page -eq 'link page'
+                            foreach ($c in $form.Controls) { if ($c -ne $panel[0]) { $c.Visible = $page -eq 'joint page' } }
+                            $root = if ($page -eq 'link page') { $panel[0] } else { @($form.Controls.Find('panelJointPage', $false))[0] }
+                        }
+                        # A box being edited shows its whole text: keep the focus out of the boxes.
+                        $form.ActiveControl = $null
+                        [System.Windows.Forms.Application]::DoEvents()
+                        $problems = New-Object System.Collections.ArrayList
+                        $label = "$($type.Name) [$language $($f[0]) $($f[1])pt x$scale] $page"
+                        $boxes = @(Get-NumberBoxes $root)
+                        if ($boxes.Count -lt 20) { [void]$problems.Add("${label} : only $($boxes.Count) number boxes found") }
+                        foreach ($box in $boxes) {
+                            $box.Visible = $true  # the mimic boxes are hidden until needed; a hidden box draws nothing
+                            Test-NumberBox $box '2.56527281012E-05' $label $problems
+                            if ($box -isnot [System.Windows.Forms.UpDownBase]) {
+                                Test-NumberBox $box '-2.56527281097123E-05' $label $problems
+                                Test-NumberBox $box '-0.019999999999999997' $label $problems
+                            }
+                        }
+                        foreach ($p in $problems) { [void]$report.Add($p) }
+                        $total += $problems.Count
+                    }
+                } finally { $form.Dispose(); $font.Dispose() }
+            }
+        }
+    }
+}
+$wideForm.Dispose()
+
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
