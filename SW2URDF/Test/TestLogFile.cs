@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using SW2URDF.Utilities;
 using Xunit;
 
@@ -156,6 +157,65 @@ namespace SW2URDF.Test
                 Assert.Equal("kept", File.ReadAllText(documented));
                 AssertOtherPath(documented, process.LogFile);
                 Assert.Contains("message", File.ReadAllText(process.LogFile));
+            });
+        }
+
+        // Such as a scanner that reads the files of a process that has just ended.
+        [Fact]
+        public void FilesThatAreReadForAMomentAreTaken()
+        {
+            Run(() =>
+            {
+                string directory = InLogDirectory("");
+                Directory.CreateDirectory(directory);
+                List<FileStream> readers = new List<FileStream>();
+                foreach (string name in new[] { "sw2urdf.log", "sw2urdf.lock" })
+                {
+                    File.WriteAllText(InLogDirectory(name), "");
+                    readers.Add(new FileStream(InLogDirectory(name), FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete));
+                }
+                Task closing = Task.Delay(150).ContinueWith(t => readers.ForEach(reader => reader.Dispose()));
+                using (LogFile taken = LogFile.Take(directory))
+                {
+                    AssertSamePath(InLogDirectory("sw2urdf.log"), taken.FileName);
+                }
+                closing.Wait();
+            });
+        }
+
+        [Fact]
+        public void TakenFileIsNotTakenAgainUntilItIsReleased()
+        {
+            Run(() =>
+            {
+                string directory = InLogDirectory("");
+                using (LogFile first = LogFile.Take(directory))
+                using (LogFile second = LogFile.Take(directory))
+                using (LogFile third = LogFile.Take(directory))
+                {
+                    AssertSamePath(InLogDirectory("sw2urdf.log"), first.FileName);
+                    AssertSamePath(InLogDirectory("sw2urdf-2.log"), second.FileName);
+                    AssertSamePath(InLogDirectory("sw2urdf-3.log"), third.FileName);
+                }
+                using (LogFile next = LogFile.Take(directory))
+                {
+                    AssertSamePath(InLogDirectory("sw2urdf.log"), next.FileName);
+                }
+            });
+        }
+
+        [Fact]
+        public void DirectoryThatCannotBeWrittenKeepsTheDocumentedName()
+        {
+            Run(() =>
+            {
+                // A file where the directory belongs
+                File.WriteAllText(Path.Combine(home, "sw2urdf_logs"), "");
+                using (LogFile taken = LogFile.Take(Path.Combine(home, "sw2urdf_logs")))
+                {
+                    AssertSamePath(InLogDirectory("sw2urdf.log"), taken.FileName);
+                }
             });
         }
 
