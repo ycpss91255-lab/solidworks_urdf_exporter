@@ -179,7 +179,7 @@ namespace SW2URDF.URDFExport
                     int options = (int)swInConfigurationOpts_e.swThisConfiguration;
                     att.GetParameter("data").SetStringValue2(init == AttributeInit.CopyShared ? sharedData : "", options, "");
                     att.GetParameter("name").SetStringValue2("config1", options, "");
-                    att.GetParameter("date").SetStringValue2(DateTime.Now.ToString(), options, "");
+                    att.GetParameter("date").SetStringValue2(AttributeDate(DateTimeOffset.Now), options, "");
                     att.GetParameter("exporterVersion").SetDoubleValue2(
                         init == AttributeInit.CopyShared ? sharedVersion : SerializationVersion, options, "");
                     created = true;
@@ -189,6 +189,12 @@ namespace SW2URDF.URDFExport
             bool removed = RemoveMigratedSharedAttributes(model);
             bool regrouped = RegroupFolder(model, active);
             return created || regrouped || removed;
+        }
+
+        /// <summary>The "date" parameter of a URDF attribute: when its settings were written.</summary>
+        internal static string AttributeDate(DateTimeOffset time)
+        {
+            return time.DateTime.ToString();
         }
 
         /// <summary>
@@ -1111,7 +1117,7 @@ namespace SW2URDF.URDFExport
             param = saveExporterAttribute.GetParameter("name");
             param.SetStringValue2("config1", ConfigurationOptions, "");
             param = saveExporterAttribute.GetParameter("date");
-            param.SetStringValue2(DateTime.Now.ToString(), ConfigurationOptions, "");
+            param.SetStringValue2(AttributeDate(DateTimeOffset.Now), ConfigurationOptions, "");
             param = saveExporterAttribute.GetParameter("exporterVersion");
             param.SetDoubleValue2(SerializationVersion, ConfigurationOptions, "");
 
