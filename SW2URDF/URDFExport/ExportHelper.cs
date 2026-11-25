@@ -276,6 +276,15 @@ namespace SW2URDF.URDFExport
             progressBar.End();
         }
 
+        /// <summary>
+        /// Names of the links whose mesh file the URDF would refer to but that does not exist in the package.
+        /// </summary>
+        public List<string> GetLinksWithoutMeshFile(MeshExportFormat meshFormat)
+        {
+            return MeshFiles.LinksWithoutFile(
+                URDFRobot.BaseLink, new URDFPackage(PackageName, SavePath), meshFormat);
+        }
+
         public List<string> GetJointNames()
         {
             List<string> jointNames = new List<string>();
