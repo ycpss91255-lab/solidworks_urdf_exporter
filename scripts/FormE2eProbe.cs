@@ -248,7 +248,22 @@ public static class FormE2eProbe
             Put(key + ".type", n.Link.Joint.Type);
             Put(key + ".frame", n.Link.Joint.CoordinateSystemName);
             Put(key + ".axis", n.Link.Joint.AxisName);
+            Put(key + ".mass", MassOf(n.Link));
         }
+    }
+
+    static string MassOf(Link link)
+    {
+        try { return Num(link.Inertial.Mass.Value); }
+        catch (NullReferenceException) { return ""; }      // not set
+    }
+
+    // What the add-in does with a document before it opens the exporter
+    static void Ensure()
+    {
+        MethodInfo ensure = typeof(ConfigurationSerialization).GetMethod("EnsureConfigurationAttributes");
+        object[] arguments = { app, doc, UiText.FromSolidWorks(app) };
+        ensure.Invoke(null, arguments.Take(ensure.GetParameters().Length).ToArray());
     }
 
     // The settings the model holds, read by the code that fills the PropertyManager page
@@ -394,6 +409,12 @@ public static class FormE2eProbe
             case "asked": Put("asked." + s[1], LimitLiveProbe.questions.Count); break;
             case "choose": Choose(s[1], s[2]); break;
             case "saved": Saved(s[1]); break;
+            case "ensure": Ensure(); break;
+            case "add_configuration":
+                if (doc.AddConfiguration3(s[1], "", "", 0) == null || ((Configuration)doc.GetActiveConfiguration()).Name != s[1])
+                    throw new Exception("the configuration was not added and activated");
+                break;
+            case "rename_configuration": ((Configuration)doc.GetActiveConfiguration()).Name = s[1]; break;
             case "page": Put("page." + s[1], Field<Panel>("panelLinkProperties").Visible ? "link" : "joint"); break;
             case "click": Click(s[1]); break;
             case "reopen":
@@ -811,6 +832,7 @@ public static class FormE2eProbe
             if (args[0] == "models") Models(Path.GetFullPath(args[5]));
             else if (args[0] == "run") Scenario(Path.GetFullPath(args[5]), Path.GetFullPath(args[6]), Path.GetFullPath(args[7]));
             else throw new Exception("unknown mode " + args[0]);
+            for (int i = 0; i < LimitLiveProbe.confirmations.Count; i++) Put("dialog.message.confirm" + i, LimitLiveProbe.confirmations[i]);
             Put("questions", string.Join(" | ", LimitLiveProbe.questions.ToArray()));
             Put("messages", string.Join(" | ", LimitLiveProbe.messages.ToArray()));
             Put("status", "ok");

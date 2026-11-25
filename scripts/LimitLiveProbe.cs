@@ -104,6 +104,7 @@ public static class LimitLiveProbe
     }
 
     internal static readonly List<string> questions = new List<string>();
+    internal static readonly List<string> confirmations = new List<string>();
     internal static System.Windows.MessageBoxResult Answer = System.Windows.MessageBoxResult.No;
 
     internal sealed class RecordingMessages : IMessageBox
@@ -113,6 +114,12 @@ public static class LimitLiveProbe
         {
             Show(message);
             if (buttons == System.Windows.MessageBoxButton.OK) return System.Windows.MessageBoxResult.OK;
+            if (buttons == System.Windows.MessageBoxButton.YesNo)
+            {
+                // like the dialogs of the form: answered with Yes
+                confirmations.Add("[" + caption + "] " + message);
+                return System.Windows.MessageBoxResult.Yes;
+            }
             questions.Add(message);
             return Answer;
         }
