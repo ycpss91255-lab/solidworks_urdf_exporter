@@ -274,9 +274,9 @@ Checks per exported package (`PASS` or `FAIL` each):
 * repeat: the second export into the same folder is the same (OBJ, MTL and the rest byte for byte, URDF and CSV
   equal to 1e-9 relative, because SolidWorks' mass properties carry noise near 1e-19);
 * cancel: a cancelled export keeps the previous output byte for byte and leaves no temporary file;
-* texture: no exception, a message in the SolidWorks language that names the link, no URDF, OBJ, MTL or CSV
-  written into a fresh folder, the failure marker written, an existing OBJ, MTL and URDF kept byte for byte, and
-  the converter's own message for the left-over 3DXML says that image textures are not supported.
+* texture: no exception, a message in the SolidWorks language that names the link, the texture as the reason and
+  what can be done (STL, 3DXML or no texture), no URDF, OBJ, MTL or CSV written into a fresh folder, the failure
+  marker written, an existing OBJ, MTL and URDF kept byte for byte, and the converter's own message for the left-over 3DXML says that image textures are not supported.
 
 How the host drives the export: it makes the same calls as the add-in (`ConfigurationSerialization`,
 `ExportHelper`, `ObjConverter`, the progress dialog class). Two things the property page does before exporting have
@@ -322,8 +322,8 @@ Observations (`INFO`, not failures):
 * Every export shows the "Creating URDF Package ... at ..." message box of the exporter (the host records it).
 * A cancelled assembly export shows the generic "Exporting the URDF failed unexpectedly" message, not one that
   says it was cancelled; the previous output is kept as required.
-* The failed texture export tells the user that the mesh could not be exported and points to the log; the reason
-  (image textures are not supported) is only in the converter's message and the log.
+* In this run the failed texture export told the user only that the mesh could not be exported; the reason was in
+  the converter's message and the log. Since issue 206 the message names the texture.
 * A host that does not generate the base frame before building the robot gets the base link's inertia in the
   global frame while the mesh is in the link frame (the `TWO_BOXES` centre of mass then differs from SolidWorks'
   by a 90 degree turn). The add-in's property page generates the frame first, so the add-in itself is not
