@@ -336,11 +336,11 @@
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
+    <Compile Include="Test\TestObjProgressDialog.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
     <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
-    <Compile Include="Test\TestObjProgressDialog.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />
