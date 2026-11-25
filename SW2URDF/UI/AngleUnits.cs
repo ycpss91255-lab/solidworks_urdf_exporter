@@ -126,22 +126,6 @@ namespace SW2URDF.UI
             Display(box, entry);
         }
 
-        /// <summary>Takes the value from the text in the boxes.</summary>
-        public void Show(params TextBox[] boxes)
-        {
-            foreach (TextBox box in boxes)
-            {
-                Shown entry = new Shown { Radians = box.Text };
-                double radians;
-                if (double.TryParse(box.Text, Style, Invariant, out radians))
-                {
-                    entry.Exact = radians;
-                }
-                shown[box] = entry;
-                Display(box, entry);
-            }
-        }
-
         private void Display(TextBox box, Shown entry)
         {
             entry.Display = Unit == AngleUnit.Degrees && entry.Exact.HasValue
