@@ -356,6 +356,7 @@
     <Compile Include="Test\TestPerConfiguration.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />
     <Compile Include="Test\TestPropertyManager.cs" />
+    <Compile Include="Test\TestLimitsByJointType.cs" />
     <Compile Include="Test\TestROSFIles.cs" />
     <Compile Include="Test\SolidWorksBinding.cs" />
     <Compile Include="Test\TestSolidWorksBinding.cs" />
