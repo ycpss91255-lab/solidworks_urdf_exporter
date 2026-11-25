@@ -313,6 +313,8 @@ namespace SW2URDF.UI
                 treeViewJointTree.Nodes.Remove(node);
                 BaseNode.Nodes.Add(node);
             }
+            // Moving the nodes selects a remaining joint; the link page would save its boxes into the link of it.
+            previouslySelectedNode = null;
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
 
             FillLinkTree();
