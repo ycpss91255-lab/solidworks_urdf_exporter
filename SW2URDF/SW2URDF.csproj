@@ -335,6 +335,7 @@
     <Compile Include="Test\TestFileNames.cs" />
     <Compile Include="Test\TestPackageXmlFile.cs" />
     <Compile Include="Test\TestLogger.cs" />
+    <Compile Include="Test\TestConfigurationChanged.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
@@ -364,7 +365,6 @@
     <Compile Include="Test\TwoBoxesModel.cs" />
     <Compile Include="Test\TestSerialization.cs" />
     <Compile Include="Test\TestSWAttached.cs" />
-    <Compile Include="Test\TestConfigurationChanged.cs" />
     <Compile Include="Test\TestURDFMerge.cs" />
     <Compile Include="Test\TestURDFPackage.cs" />
     <Compile Include="Test\TestVersioning.cs" />

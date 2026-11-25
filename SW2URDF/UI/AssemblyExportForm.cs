@@ -44,6 +44,7 @@ namespace SW2URDF.UI
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
+        private readonly string loadedConfiguration;
 
         private readonly SldWorks swApp;
         private readonly ModelDoc2 ActiveSWModel;
@@ -51,9 +52,6 @@ namespace SW2URDF.UI
         private readonly Control[] jointBoxes;
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
-
-        /// <summary>The configuration the form was opened for.</summary>
-        private readonly string loadedConfiguration;
 
         private void AlignFieldLabels()
         {
