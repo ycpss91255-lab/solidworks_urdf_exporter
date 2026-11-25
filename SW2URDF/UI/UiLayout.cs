@@ -109,12 +109,30 @@ namespace SW2URDF.UI
             return this;
         }
 
+        // Size of the layout inside the form; the window is smaller when the screen is.
+        internal Size BaseSize
+        {
+            get { return baseSize; }
+        }
+
         // Call once the default layout is complete, with the form at its default size.
         internal void Capture()
         {
             baseSize = form.ClientSize;
+            AddHiddenContent();
             captured = true;
             Apply();
+        }
+
+        // Windows does not make a window larger than about the screen, so the default window can be
+        // smaller than its content. The layout was made for the content: the controls that give up
+        // width then give up what is missing, and those that grow do so once the window is larger
+        // than the content. Every control must be at its default bounds.
+        private void AddHiddenContent()
+        {
+            Size client = form.ClientSize;
+            baseSize = new Size(Math.Max(baseSize.Width, UiLayout.ContentWidth(form)),
+                Math.Max(baseSize.Height, client.Height + Math.Max(0, UiLayout.ScrollOverflow(form))));
         }
 
         // A control that is hidden until needed (the mimic row, the page not on display) has no
@@ -146,8 +164,10 @@ namespace SW2URDF.UI
         internal void Resume(float factor, int gainedHeight)
         {
             suspended = Math.Max(0, suspended - 1);
+            // A form that got lower to fit its screen has not lost content.
             baseSize = new Size((int)Math.Round(baseSize.Width * factor),
-                (int)Math.Round(baseSize.Height * factor) + gainedHeight);
+                (int)Math.Round(baseSize.Height * factor) + Math.Max(0, gainedHeight));
+            AddHiddenContent();
             MaxShrink = (int)Math.Round(MaxShrink * factor);
             Apply();
         }
@@ -328,8 +348,33 @@ namespace SW2URDF.UI
             return GetState == null ? c.Visible : (bool)GetState.Invoke(c, new object[] { 2 });
         }
 
+        // Width the content of all scrolling panels needs; they are as wide as the form.
+        internal static int ContentWidth(Control parent)
+        {
+            int width = 0;
+            foreach (Control c in parent.Controls)
+            {
+                ScrollableControl scrolling = c as ScrollableControl;
+                if (scrolling != null && scrolling.AutoScroll && !(c is Form))
+                {
+                    foreach (Control child in c.Controls)
+                    {
+                        if (IsSetVisible(child))
+                        {
+                            width = Math.Max(width, child.Right + child.Margin.Right - scrolling.AutoScrollPosition.X);
+                        }
+                    }
+                }
+                else if (!(c is UpDownBase) && !(c is ComboBox))
+                {
+                    width = Math.Max(width, ContentWidth(c));
+                }
+            }
+            return width;
+        }
+
         // Pixels the content of the scrolling panels on display needs beyond their height.
-        private static int ScrollOverflow(Control parent)
+        internal static int ScrollOverflow(Control parent)
         {
             int over = 0;
             foreach (Control c in parent.Controls)
@@ -346,7 +391,7 @@ namespace SW2URDF.UI
                     {
                         if (IsSetVisible(child))
                         {
-                            bottom = Math.Max(bottom, child.Bottom + child.Margin.Bottom);
+                            bottom = Math.Max(bottom, child.Bottom + child.Margin.Bottom - scrolling.AutoScrollPosition.Y);
                         }
                     }
                     over = Math.Max(over, bottom - c.ClientSize.Height);
