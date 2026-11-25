@@ -296,7 +296,6 @@ namespace SW2URDF.UI
             {
                 SaveJointDataFromPropertyBoxes(previouslySelectedNode.Link.Joint);
             }
-            previouslySelectedNode = null; // Need to clear this for the link properties page
 
             string errors = CheckJointsForErrors();
             if (!string.IsNullOrWhiteSpace(errors))
@@ -306,6 +305,8 @@ namespace SW2URDF.UI
                 MessageBox.Show(message, ui.Get("URDF Joint Errors"));
                 return;
             }
+            // Only when the joint page is left: the joint it shows can still be corrected after the message.
+            previouslySelectedNode = null;
 
             while (treeViewJointTree.Nodes.Count > 0)
             {
