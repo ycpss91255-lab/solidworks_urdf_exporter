@@ -424,6 +424,71 @@ Not covered: limit mates on advanced hinge/slider mates, joints whose parent is 
 inside sub-assemblies (the dimension is looked up in the top-level document), several limit mates on one joint.
 
 
+## Export form, end to end (`scripts/test_form_e2e.py`)
+
+One command that runs the manual export form checks without a person: it builds small models, opens the real
+`AssemblyExportForm` with the real `ExportHelper`, switches units, types, changes pages and joints, exports through
+the form's buttons and the Save As dialog, and checks the written files. Needs Windows, SolidWorks, Python 3 with
+`pywin32`, the .NET Framework `csc.exe` and a folder with a built `SW2URDF.dll`.
+
+    python scripts/test_form_e2e.py --dll <folder> --launcher <launch_solidworks.py> --out <new folder>
+    python scripts/test_form_e2e.py --dll <folder> --pid <pid of your own empty SolidWorks> --out <new folder>
+    python scripts/test_form_e2e.py --evaluate <folder of a run>     # check the recorded files again, no SolidWorks
+    python scripts/test_form_e2e.py --prove <folder of a run>        # prove that the checks can fail, no SolidWorks
+
+Output: a table on the console, `result.md` / `result.json` (check, expected, actual, result, proof file), and the
+recorded files of every scenario (`probe.tsv`, `steps.txt`, the exported package). Exit code `0` nothing failed, `1` at
+least one check failed, `3` the time limit was reached. A check that needs a feature the build does not have (angle
+unit, `.xacro` name, 12 digit boxes; found by reflection) or a tool that is not installed (`xacro`) is `SKIPPED`.
+
+Parts:
+
+| File | Role |
+|------|------|
+| `make_form_fixtures.py` | the parts and the assemblies without mates |
+| `FormE2eProbe.cs` | the host: adds and measures the mates (with `LimitLiveProbe.cs`), carries out the steps of a scenario in the form, reads the reference values from SolidWorks. Decides nothing |
+| `test_form_e2e.py` | scenarios, expectations, result. All expectations come from the typed inputs, the measured motion of the arm, and SolidWorks mass properties and transforms, never from the exporter |
+| `form_e2e_proofs.py` | one change per check that must make exactly that check fail |
+
+The models: a hinge with an angle limit mate (60 to 180 degrees, value 90), a slide with a distance limit mate (0 to
+30 mm, value 10), the same slide without its limit mate, the hinge placed so that the arm lies on the assembly origin,
+and an assembly with both, a fixed post and an L shaped block that is turned in the assembly and has a link frame that
+is turned in another way. All of them are made in the folder of the run; only copies are exported.
+
+Nothing appears on the user's desktop. The host runs on a Windows desktop of its own and refuses to run on another
+one; every dialog there is answered by a watcher, recorded, and reported as a failure unless it is the Save As dialog.
+The host has a time limit per scenario, the script one for the whole run. `HKCU\Software\SW2URDF\AngleUnit` is written
+to `angle_unit_before.json`, cleared before each scenario and put back at the end (also after a time limit). The
+exporter log goes to a scratch folder. `--exe-hook` runs a command on the host program after it is compiled.
+
+A run takes about 5 minutes and SolidWorks grows by about 1 GB in it; use a fresh instance for every run. The script
+stops when Windows has less than `--min-free-gb` (4) of memory left, so that other programs do not run out of it.
+
+A process on another desktop cannot see the Running Object Table of the user's desktop. The script binds to
+`SolidWorks_PID_<pid>` and hands the interface over marshalled in a file; the host checks the process id again.
+
+What it checks:
+
+* hinge and slide: exact limit text in the URDF with the form untouched and left in degrees; the page texts in both
+  units; the direction of the limits against the measured motion;
+* no edit: untouched twice, pages and joints visited and the unit switched, form left in degrees: the same package.
+  Joint elements are compared as text; masses and inertias within 2e-15 relative or 1e-18, because SolidWorks itself
+  returns different last digits for two opened copies (a 12 digit rounding would be 1000 times larger);
+* edits: typed with key presses, in degrees and radians; exact radian text in the URDF, and the page after unit switches
+  and after the link page;
+* several joints: boxes kept while switching, an edit of one joint changes only that joint in the URDF;
+* slide: m stays m, only roll, pitch and yaw are converted;
+* the unit is remembered by the next form;
+* xacro: file name, content, launch files (the expansion only when the `xacro` tool is installed);
+* Export Model File Only writes no mesh; the full export one per link (STL; OBJ and MTL);
+* the URDF against SolidWorks, for every link: frame through the URDF joints, mass, center of mass, inertia tensor
+  (put together from principal moments and axes, which have no sign convention), corners and bounding box of the
+  visual and the collision mesh placed by the URDF; the joint axis against the boss it turns about.
+
+Not covered, still for a person: whether the form looks good, dragging it between real monitors with different scaling,
+the form inside the SolidWorks process (the PropertyManager page, its window as a child of SolidWorks), opening and
+saving of the model around the export, the part form, 3DXML, and real mouse input.
+
 ## Known limitations
 
 - Existing export tests (`TestExportHelper`) still write into the home folder and the example folders;
