@@ -302,7 +302,7 @@ namespace SW2URDF.UI
             {
                 string message = "The following joints are missing required fields, please " +
                     "address them before continuing\r\n\r\n" + errors;
-                MessageBox.Show(message, ui.Get("URDF Joint Errors"));
+                ShowJointErrors(message);
                 return;
             }
             // Only when the joint page is left: the joint it shows can still be corrected after the message.
@@ -319,6 +319,12 @@ namespace SW2URDF.UI
             FillLinkTree();
             panelLinkProperties.Visible = true;
             Focus();
+        }
+
+        // Overridden by tests, which must not show a window.
+        internal virtual void ShowJointErrors(string message)
+        {
+            MessageBox.Show(message, ui.Get("URDF Joint Errors"));
         }
 
         private string CheckJointsForErrors()
