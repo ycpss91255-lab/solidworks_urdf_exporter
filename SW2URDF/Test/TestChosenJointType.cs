@@ -339,6 +339,42 @@ namespace SW2URDF.Test
             }
         }
 
+        // A preview that is cancelled must not turn the type it found into one the user chose.
+        private static FakeAssembly Preview(Freedom freedom, string type)
+        {
+            FakeAssembly a = new FakeAssembly(freedom, type);
+            a.Helper.SetField("jointNames", JointNameSnapshot.Take(new LinkNode { Link = a.Child }));
+            a.CreateJoint();
+            return a;
+        }
+
+        [Fact]
+        public void CancelledPreviewPutsAutomaticallyDetectBack()
+        {
+            foreach (Freedom freedom in new[] { Hinge, Slide, new Freedom() })
+            {
+                FakeAssembly a = Preview(freedom, Detect);
+                Assert.NotEqual(Detect, a.Child.Joint.Type);
+                a.Exporter.DiscardGeneratedFeatures();
+                Assert.Equal(Detect, a.Child.Joint.Type);
+                Assert.Equal(Auto, a.Child.Joint.CoordinateSystemName);
+            }
+        }
+
+        [Fact]
+        public void CancelledPreviewKeepsATypeTheUserChose()
+        {
+            FakeAssembly a = Preview(Hinge, "revolute");
+            a.Exporter.DiscardGeneratedFeatures();
+            Assert.Equal("revolute", a.Child.Joint.Type);
+
+            // Chosen on the joint page of the preview.
+            a = Preview(Hinge, Detect);
+            a.Child.Joint.Type = "fixed";
+            a.Exporter.DiscardGeneratedFeatures();
+            Assert.Equal("fixed", a.Child.Joint.Type);
+        }
+
         [Fact]
         public void GeneratedFrameStillFollowsTheGeometry()
         {
