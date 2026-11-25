@@ -415,6 +415,7 @@ public static class FormE2eProbe
                     throw new Exception("the configuration was not added and activated");
                 break;
             case "rename_configuration": ((Configuration)doc.GetActiveConfiguration()).Name = s[1]; break;
+            case "form": Put("form." + s[1], !form.IsDisposed && form.Visible ? "open" : "closed"); break;
             case "page": Put("page." + s[1], Field<Panel>("panelLinkProperties").Visible ? "link" : "joint"); break;
             case "click": Click(s[1]); break;
             case "reopen":
@@ -657,7 +658,7 @@ public static class FormE2eProbe
     {
         var hinge = new LimitLiveProbe.Variant { Name = "hinge", Reference = 90, Lower = 60, Upper = 180 };
         var slide = new LimitLiveProbe.Variant { Name = "slide", Slide = true, Reference = 10, Lower = 0, Upper = 30 };
-        foreach (string name in new[] { "LIM_HINGE", "LIM_ORIGIN", "LIM_SLIDE", "LIM_FREE", "FORM_MULTI", "FORM_CHILD2", "FORM_SUB", "FORM_FULL", "FORM_LOOSE", "FORM_PLANE", "FORM_CYL", "FORM_NEST" })
+        foreach (string name in new[] { "LIM_HINGE", "LIM_ORIGIN", "LIM_SLIDE", "LIM_FREE", "FORM_MULTI", "FORM_CHILD2", "FORM_SUB", "FORM_FULL", "FORM_LOOSE", "FORM_PLANE", "FORM_CYL", "FORM_NEST", "FORM_TEXTURE" })
         {
             doing = "model " + name;
             OpenModel(Path.Combine(folder, name + ".SLDASM"));
@@ -680,6 +681,7 @@ public static class FormE2eProbe
                     MateAndMeasure("child2", "LIM_BASE-1", "LIM_ARM-1", hinge);
                     Lock("LIM_ARM-1", "FORM_BLOCK-1");
                 }
+                else if (name == "FORM_TEXTURE") MateAndMeasure("texture", "LIM_BASE-1", "FORM_TEX-1", hinge);
                 else if (name == "FORM_SUB") MateAndMeasure("sub", "LIM_BASE-1", "FORM_ARM_SUB-1/LIM_ARM-1", hinge);
                 else if (name == "FORM_FULL" || name == "FORM_LOOSE" || name == "FORM_PLANE")
                 {

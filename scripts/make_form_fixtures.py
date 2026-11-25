@@ -17,6 +17,7 @@ Assemblies, not mated yet (FormE2eProbe.cs "models" adds the mates):
   FORM_LOOSE.SLDASM base, arm without a mate on the origin of the assembly
   FORM_PLANE.SLDASM base, arm; once mated, the arm on the origin of the assembly moves in a plane
   FORM_CYL.SLDASM   base, arm that can turn and slide, an axis with a Chinese name
+  FORM_TEXTURE.SLDASM base, FORM_TEX.SLDPRT (the arm with an image texture), hinge
   FORM_NEST.SLDASM  two bases, two FORM_WHEEL_SUB.SLDASM with FORM_WHEEL.SLDPRT (the arm with an axis and a frame)
 
 The script binds to ONE SolidWorks process that you name with --pid (through the Running Object Table entry
@@ -109,6 +110,21 @@ def wheel(app):
     return model
 
 
+def textured(app):
+    """The arm with an appearance that has an image texture, which the OBJ export refuses."""
+    import pythoncom
+    from win32com.client import VARIANT
+    model = arm(app)
+    carpet = os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "SOLIDWORKS Corp", "SOLIDWORKS",
+                          "data", "graphics", "Materials", "fabric", "carpet", "carpet color1 2d.p2m")
+    if not os.path.isfile(carpet):
+        raise RuntimeError("texture appearance not found in this SolidWorks installation: " + carpet)
+    material = model.Extension.CreateRenderMaterial(carpet)
+    if not material.AddEntity(model) or not model.Extension.AddRenderMaterial(material, VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)):
+        raise RuntimeError("could not apply the texture appearance")
+    return model
+
+
 def block(app):
     return part(app, (0.0, 1.0, 0.0), [(10, rectangle(0, 0, 60, 20)), (35, rectangle(0, 20, 15, 50)),
                                        (25, rectangle(45, -12, 60, 0))])
@@ -130,7 +146,7 @@ def build(app, folder):
     titles = []   # closed in reverse order: assemblies before their parts
     try:
         for name, make in (("LIM_BASE.SLDPRT", base), ("LIM_ARM.SLDPRT", arm), ("FORM_BLOCK.SLDPRT", block),
-                           ("FORM_WHEEL.SLDPRT", wheel)):
+                           ("FORM_WHEEL.SLDPRT", wheel), ("FORM_TEX.SLDPRT", textured)):
             model = make(app)
             f.save(model, os.path.join(folder, name))
             titles.append(model.GetTitle)
@@ -142,6 +158,7 @@ def build(app, folder):
         titles.append(assembly(app, folder, "LIM_FREE.SLDASM", pair))
         titles.append(assembly(app, folder, "FORM_MULTI.SLDASM", pair + [
             ("LIM_BASE.SLDPRT", 330, -20, 45), ("LIM_ARM.SLDPRT", 370, 10, 90), ("FORM_BLOCK.SLDPRT", 150, 130, 90)]))
+        titles.append(assembly(app, folder, "FORM_TEXTURE.SLDASM", [("LIM_BASE.SLDPRT", 30, -20, 45), ("FORM_TEX.SLDPRT", 70, 10, 90)]))
         titles.append(assembly(app, folder, "FORM_CHILD2.SLDASM", pair + [("FORM_BLOCK.SLDPRT", 250, 60, 120)]))
         titles.append(assembly(app, folder, "FORM_ARM_SUB.SLDASM", [("LIM_ARM.SLDPRT", 0, 0, 0)]))
         titles.append(assembly(app, folder, "FORM_SUB.SLDASM", [("LIM_BASE.SLDPRT", 30, -20, 45), ("FORM_ARM_SUB.SLDASM", 70, 10, 90)]))

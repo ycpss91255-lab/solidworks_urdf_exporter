@@ -101,6 +101,9 @@ SCENARIOS = {
     "settings_switch": ("LIM_HINGE", tree(), None, opened(("next",), ("add_configuration", "Second")) + FULL[:1] + [("saved", "second")]),
     # the configuration is renamed after an export: its settings are offered again
     "settings_rename": ("LIM_HINGE", tree(), None, PLAIN + [("rename_configuration", "Renamed"), ("ensure",), ("saved", "renamed")]),
+    # an export that fails (OBJ, a link with a texture) and one that works, in the same form
+    "failed_export": ("FORM_TEXTURE", tree("FORM_TEX-1"), None, opened(
+        ("next",), ("radio", "radioButtonObj"), FULL[0], ("form", "failed"), ("radio", "radioButtonStl")) + FULL + [("form", "done")]),
     # between the two pages, forwards and backwards, with links selected on the way: no value moves to another link
     "pages": ("FORM_MULTI", form.MULTI_TREE, None, opened(
         ("joint", "block_joint"), ("next",), ("link", "base_link"), ("link", "block"), ("previous",), ("joint", "post_joint"), ("next",), ("link", "slider"),
@@ -368,6 +371,17 @@ def evaluate(check, cases, measured, guard):
         v = cases["settings_rename"].values
         check.equal(ident, title, ["True", "revolute"], [v.get("state.renamed.found"), v.get("state.renamed.arm.type")], cases["settings_rename"].proof)
 
+    # ---- an export that fails
+    @add("failed_export.kept", "OBJ export of a link with a texture: told why, the form stays open; STL in the same form closes it and writes the package")
+    def failed_export(ident, title):
+        case = cases["failed_export"]
+        message = case.values.get("messages", "")
+        check.equal(ident, title, "names the link and STL: True, form open then closed, meshes ['arm.STL', 'base_link.STL'], robot file: True",
+                    "names the link and STL: %s, form %s then %s, meshes %s, robot file: %s" % (
+                        "arm" in message and "STL" in message, case.values.get("form.failed"), case.values.get("form.done"),
+                        [m for m in case.files("meshes") if m.endswith(".STL")], case.robot_file() is not None), case.proof)
+    guard("sw.failed_export.arm", "failed_export: link arm against SolidWorks", lambda: form.against_solidworks(check, cases["failed_export"], SCENARIOS["failed_export"][1][1]))
+
     # ---- between the pages
     @add("pages.urdf", "several visits of both pages without an edit: the joints of the URDF are those of multi_stl")
     def pages(ident, title):
@@ -466,6 +480,7 @@ def changes(proofs):
         "settings_link.mass": lambda c: c.tsv("settings_link", state__file__arm__mass="0.5"),
         "settings_switch.kept": lambda c: c.tsv("settings_switch", state__second__found="True"),
         "settings_rename.kept": lambda c: c.tsv("settings_rename", state__renamed__found="False"),
+        "failed_export.kept": lambda c: c.tsv("failed_export", form__failed="closed"),
         "nested.names": lambda c: c.tsv("nested_stl", state__file__wheel2__axis="???"),
         "pages.urdf": limit("pages", "arm_joint", "upper"),
         "previous.typed": limit("previous_typed", "arm_joint", "effort", lambda v: "10"),
