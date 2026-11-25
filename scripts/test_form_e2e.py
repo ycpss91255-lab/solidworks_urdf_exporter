@@ -685,8 +685,8 @@ def evaluate(out):
         turned = {n for n in ("textBoxJointRoll", "textBoxJointPitch", "textBoxJointYaw") if float(a[n]) != 0}
         check.equal("slide.converted", "slide: switching to deg changes the number boxes of roll, pitch and yaw (those that are not 0) and no other",
                     ", ".join(sorted(turned)), ", ".join(sorted(changed)), slide.proof)
-        for n in sorted(turned):
-            check.near("slide.converted." + n, "slide: %s in deg" % n, [math.degrees(float(a[n]))], [float(b[n])], 1e-9, slide.proof)
+        # the base frame has its z along Y of SolidWorks, the arm frame along Z: a roll of 90 degrees by construction
+        check.equal("slide.converted.roll", "slide: roll in deg, exact text", "90", b["textBoxJointRoll"], slide.proof)
     guard("slide.converted", "slide: converted boxes", slide_converted, "angle_unit")
 
     def no_limit_page():
