@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 
 namespace SW2URDF.Utilities
 {
@@ -7,12 +8,14 @@ namespace SW2URDF.Utilities
     /// The log file of this process. RollingFileAppender needs a file for itself, but several processes can
     /// log at the same time (SolidWorks instances, test runners, command line hosts). The first one takes
     /// sw2urdf.log, the next one sw2urdf-2.log and so on; a number is free again when its process ends, so
-    /// the files do not pile up. A lock file next to the log says that it is taken.
+    /// the files do not pile up. A lock file next to the log is held open by the process that has it.
     /// </summary>
     public sealed class LogFile : IDisposable
     {
         private const string BaseName = "sw2urdf";
         private const int MaxFiles = 100;
+        private const int MaxAttempts = 10;
+        private const int RetryDelayMilliseconds = 50;
 
         private FileStream lockStream;
 
@@ -49,22 +52,34 @@ namespace SW2URDF.Utilities
             FileStream taken = null;
             try
             {
-                // The system removes the lock with the process, also when it crashes.
+                // The system closes the handle with the process, also when it crashes. The file stays: whether it
+                // can be opened for writing counts, not whether it exists. Readers, as a scanner, do not matter.
                 taken = new FileStream(Path.ChangeExtension(fileName, ".lock"), FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
-
-                // A build without the lock, or a program that shows the log, can have it open. It can
-                // neither be renamed nor written then.
-                if (File.Exists(fileName))
-                {
-                    using (new FileStream(fileName, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
-                }
-                return new LogFile(fileName, taken);
+                    FileAccess.ReadWrite, FileShare.Read);
+                if (WaitUntilFree(fileName)) return new LogFile(fileName, taken);
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
             if (taken != null) taken.Dispose();
             return null;
+        }
+
+        // A build without the lock, or a program that shows the log, can have it open. It can neither be renamed
+        // nor written then. A scanner has it only for a moment.
+        private static bool WaitUntilFree(string fileName)
+        {
+            for (int attempt = 1; File.Exists(fileName); attempt++)
+            {
+                try
+                {
+                    using (new FileStream(fileName, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+                    return true;
+                }
+                catch (IOException) { }
+                if (attempt == MaxAttempts) return false;
+                Thread.Sleep(RetryDelayMilliseconds);
+            }
+            return true;
         }
 
         public void Dispose()
