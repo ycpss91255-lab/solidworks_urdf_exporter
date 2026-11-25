@@ -467,6 +467,14 @@ namespace SW2URDF.URDFExport
 
             logger.Info(link.Name + ": Reference geometry name " + names["component"]);
 
+            // The vertices are in the frame of the assembly, also for a coordinate system in a component.
+            MathTransform frame = null;
+            if (!string.IsNullOrWhiteSpace(coordsysName))
+            {
+                frame = GetCoordinateSystemTransform(coordsysName);
+                if (frame == null) throw new InvalidOperationException("Missing 3DXML link frame: " + coordsysName);
+            }
+
             CommonSwOperations.ShowComponents(ActiveSWModel, link.SWComponents);
 
             int saveOptions = (int)swSaveAsOptions_e.swSaveAsOptions_Silent |
@@ -477,58 +485,13 @@ namespace SW2URDF.URDFExport
 
             // === 3dxml Localize Link === //
 
-            // Remove suffix from coordinate-system name.
-            // ex. "Joint Origin <Arm_link-1>" -> "Joint Origin"
-            // Suffix is included when coordinate is inside sub-assembly.
-            string linkModelName = names["component"];
-            string linkModelSuffix = " <" + linkModelName + ">";
-            if(coordsysName.Contains(linkModelSuffix))
+            // A link without a coordinate system keeps the frame of the assembly.
+            if (frame != null)
             {
-                coordsysName = coordsysName.Replace(linkModelSuffix, "");
-                logger.Info($"Suffix of {linkModelName} was removed from coordsysName : {coordsysName}");
-            }
-
-            // Get the model document of the link.
-            ModelDoc2 linkModel;
-            bool isBaseLink = linkModelName == "";
-            if (isBaseLink)
-            {
-                linkModel = ActiveDoc;
-            }
-            else
-            {
-                if (link.SWMainComponent != null)
-                {
-                    linkModel = link.SWMainComponent.GetModelDoc2();
-                }
-                else
-                {
-                    logger.Warn("Could not get linkModel because SWMainComponent was null");
-                    linkModel = null;
-                }
-            }
-
-            // Localize the link to the certain place.
-            if (linkModel != null)
-            {
-                MathTransform coordSysTransform =
-                    linkModel.Extension.GetCoordinateSystemTransformByName(coordsysName);
-                if (coordSysTransform != null)
-                {
-                    logger.Info("Localizing Link : " + coordsysName);
-                    Matrix<double> GlobalTransform = MathOps.GetTransformation(coordSysTransform);
-                    // Assembly inertial properties are already expressed in the link frame.
-                    // Only the 3dxml geometry needs this placement correction.
-                    LocalizeMeshOrigins(link, GlobalTransform);
-                }
-                else
-                {
-                    logger.Warn("coordSysTransform was null : " + coordsysName);
-                }
-            }
-            else
-            { 
-                logger.Warn("Link model was null.");
+                logger.Info("Localizing Link : " + coordsysName);
+                // Assembly inertial properties are already expressed in the link frame.
+                // Only the 3dxml geometry needs this placement correction.
+                LocalizeMeshOrigins(link, MathOps.GetTransformation(frame));
             }
             // === 3dxml Localize Link === //
 
