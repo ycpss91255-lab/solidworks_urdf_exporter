@@ -332,7 +332,7 @@ namespace SW2URDF.UI
 
         private StringBuilder CheckJointsForErrors(LinkNode node, StringBuilder builder)
         {
-            if (!node.Link.Joint.AreRequiredFieldsSatisfied())
+            if (!node.Link.Joint.AreRequiredFieldsSatisfied() || node.Link.Joint.IsAxisMissing())
             {
                 builder.Append(node.Link.Joint.Name).Append("\r\n");
             }

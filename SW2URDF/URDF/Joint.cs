@@ -118,6 +118,13 @@ namespace SW2URDF.URDF
             return !string.IsNullOrWhiteSpace(Name) && !string.IsNullOrWhiteSpace(Type);
         }
 
+        /// <summary>True for a joint that needs an axis and has none (0 0 0).</summary>
+        public bool IsAxisMissing()
+        {
+            return (Type == "revolute" || Type == "continuous" || Type == "prismatic" || Type == "planar") &&
+                Axis.X == 0.0 && Axis.Y == 0.0 && Axis.Z == 0.0;
+        }
+
         public override bool AreRequiredFieldsSatisfied()
         {
             Limit.SetRequired((Type == "prismatic" || Type == "revolute"));
