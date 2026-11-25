@@ -251,6 +251,9 @@ namespace SW2URDF.URDFExport
             ExportErrorWhy = "";
             URDFRobot = new Robot();
 
+            // Components that were lightweight when the exporter was made have been resolved since
+            UpdateReferenceGeometries();
+
             // A new run: forget the previous one and remember the joint names it starts with
             GeneratedFeatures.Clear();
             jointNames = JointNameSnapshot.Take(baseNode);
