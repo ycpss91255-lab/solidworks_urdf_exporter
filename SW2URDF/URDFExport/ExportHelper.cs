@@ -828,14 +828,18 @@ namespace SW2URDF.URDFExport
 
         private static void CopyLogFile(URDFPackage package)
         {
-            string destination = package.WindowsPackageDirectory + "export.log";
-            string log_filename = Logger.GetFileName();
+            CopyLogFile(Logger.GetFileName(), package.WindowsPackageDirectory);
+        }
+
+        internal static void CopyLogFile(string log_filename, string packageDirectory)
+        {
+            string destination = packageDirectory + "export.log";
 
             if (log_filename != null)
             {
                 if (!File.Exists(log_filename))
                 {
-                    System.Windows.Forms.MessageBox.Show("The log file was expected to be located at " + log_filename +
+                    URDFPackage.MessageBox.Show("The log file was expected to be located at " + log_filename +
                         ", but it was not found. Please contact your maintainer with this error message.");
                 }
                 else
