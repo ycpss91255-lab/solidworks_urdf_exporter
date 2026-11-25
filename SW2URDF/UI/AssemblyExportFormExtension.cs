@@ -79,8 +79,8 @@ namespace SW2URDF.UI
                                                      "R");
 
                 // Display only: the boxes hold radians, shown in the chosen unit.
-                angles.Show(textBoxVisualOriginRoll, textBoxVisualOriginPitch, textBoxVisualOriginYaw,
-                            textBoxInertialOriginRoll, textBoxInertialOriginPitch, textBoxInertialOriginYaw);
+                ShowRpy(Link.Visual.Origin, textBoxVisualOriginRoll, textBoxVisualOriginPitch, textBoxVisualOriginYaw);
+                ShowRpy(Link.Inertial.Origin, textBoxInertialOriginRoll, textBoxInertialOriginPitch, textBoxInertialOriginYaw);
 
             }
         }
@@ -160,11 +160,14 @@ namespace SW2URDF.UI
             if (joint != null)
             {
                 // Display only: the boxes hold radians, shown in the chosen unit.
-                angles.Show(textBoxJointRoll, textBoxJointPitch, textBoxJointYaw);
+                ShowRpy(joint.Origin, textBoxJointRoll, textBoxJointPitch, textBoxJointYaw);
                 if (joint.Type == "revolute" || joint.Type == "continuous")
                 {
-                    angles.Show(textBoxLimitLower, textBoxLimitUpper, textBoxLimitVelocity,
-                                textBoxSoftLower, textBoxSoftUpper);
+                    angles.Show(textBoxLimitLower, () => joint.Limit.Lower);
+                    angles.Show(textBoxLimitUpper, () => joint.Limit.Upper);
+                    angles.Show(textBoxLimitVelocity, () => joint.Limit.Velocity);
+                    angles.Show(textBoxSoftLower, () => joint.Safety.SoftLower);
+                    angles.Show(textBoxSoftUpper, () => joint.Safety.SoftUpper);
                 }
             }
             SetJointCaptions(joint == null ? "" : joint.Type);
@@ -206,6 +209,14 @@ namespace SW2URDF.UI
                 comboBoxAxis.SelectedIndex = comboBoxAxis.FindStringExact(joint.AxisName);
             }
             AutoUpdatingForm = false;
+        }
+
+        // Shows the angle boxes of an origin in the chosen unit, from the exact values it holds.
+        private void ShowRpy(Origin origin, TextBox roll, TextBox pitch, TextBox yaw)
+        {
+            angles.Show(roll, () => origin.Roll);
+            angles.Show(pitch, () => origin.Pitch);
+            angles.Show(yaw, () => origin.Yaw);
         }
 
         public static void FillBlank(Control[] boxes)

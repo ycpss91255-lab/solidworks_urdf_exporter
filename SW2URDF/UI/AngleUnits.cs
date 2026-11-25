@@ -67,17 +67,21 @@ namespace SW2URDF.UI
     }
 
     /// <summary>
-    /// Shows angle text boxes in degrees or radians. The model fills the boxes with radians (full
-    /// precision) and reads them back as radians; this class only changes what the box shows in
-    /// between. A box the user did not edit gives back exactly the radian text it was filled with,
-    /// so switching units or saving never changes a stored value. A value typed in degrees is
-    /// converted to radians when it is read.
+    /// Shows angle text boxes in degrees or radians. The model fills the boxes with radian text and
+    /// reads them back as radians; this class only changes what the box shows in between. Degrees are
+    /// made from the exact value the model stores, not from the text in the box, which may be rounded
+    /// (-pi/2 as -1.57079632679 would read -89.9999999997 deg). A box the user did not edit gives back
+    /// exactly the text it was filled with, so the model recognizes it as unedited and keeps its value.
+    /// A value typed in degrees is converted to radians when it is read.
     /// </summary>
     public sealed class AngleDisplay
     {
         private sealed class Shown
         {
+            // Text the model put in the box, or that stands for the typed value.
             public string Radians;
+            // Exact value behind the box; null when the box holds no number.
+            public double? Exact;
             public string Display;
         }
 
@@ -92,8 +96,8 @@ namespace SW2URDF.UI
 
         public AngleUnit Unit { get; private set; }
 
-        // Text for a radian value in the given unit. Degrees are shown with 12 significant digits,
-        // so 0.523598775598299 rad reads 30; the exact radian value stays behind the box.
+        // Text for a radian value in the given unit. Degrees are rounded here only, to 12 significant
+        // digits, so 0.523598775598299 rad reads 30; the exact radian value stays behind the box.
         public static string Format(double radians, AngleUnit unit)
         {
             return unit == AngleUnit.Degrees
@@ -107,20 +111,43 @@ namespace SW2URDF.UI
             return unit == AngleUnit.Degrees ? value * Math.PI / 180.0 : value;
         }
 
-        /// <summary>Call after the model filled the boxes with radian text.</summary>
+        /// <summary>
+        /// Call after the model filled the box with radian text. stored gives the exact value the model
+        /// holds for it; it is not asked when the box is blank, which is how the model shows no value.
+        /// </summary>
+        public void Show(TextBox box, Func<double> stored)
+        {
+            Shown entry = new Shown { Radians = box.Text };
+            if (!string.IsNullOrWhiteSpace(box.Text))
+            {
+                entry.Exact = stored();
+            }
+            shown[box] = entry;
+            Display(box, entry);
+        }
+
+        /// <summary>Takes the value from the text in the boxes.</summary>
         public void Show(params TextBox[] boxes)
         {
             foreach (TextBox box in boxes)
             {
-                Shown entry = new Shown { Radians = box.Text, Display = box.Text };
+                Shown entry = new Shown { Radians = box.Text };
                 double radians;
-                if (Unit == AngleUnit.Degrees && double.TryParse(box.Text, Style, Invariant, out radians))
+                if (double.TryParse(box.Text, Style, Invariant, out radians))
                 {
-                    entry.Display = Format(radians, Unit);
+                    entry.Exact = radians;
                 }
                 shown[box] = entry;
-                box.Text = entry.Display;
+                Display(box, entry);
             }
+        }
+
+        private void Display(TextBox box, Shown entry)
+        {
+            entry.Display = Unit == AngleUnit.Degrees && entry.Exact.HasValue
+                ? Format(entry.Exact.Value, Unit)
+                : entry.Radians;
+            box.Text = entry.Display;
         }
 
         /// <summary>Boxes that no longer show angles (blanked or refilled for another joint).</summary>
@@ -146,25 +173,37 @@ namespace SW2URDF.UI
             foreach (KeyValuePair<TextBox, Shown> pair in shown)
             {
                 TextBox box = pair.Key;
-                if (box.Text == pair.Value.Display)
+                Shown entry = pair.Value;
+                if (box.Text != entry.Display)
                 {
-                    box.Text = pair.Value.Radians;
+                    TakeTyped(box.Text, entry);
                 }
-                else
-                {
-                    double typed;
-                    if (Unit == AngleUnit.Degrees && double.TryParse(box.Text, Style, Invariant, out typed))
-                    {
-                        box.Text = ToRadians(typed, Unit).ToString("R", Invariant);
-                    }
-                }
+                box.Text = entry.Radians;
             }
         }
 
-        /// <summary>Shows the boxes in the display unit again after Restore.</summary>
+        private void TakeTyped(string text, Shown entry)
+        {
+            double typed;
+            if (double.TryParse(text, Style, Invariant, out typed))
+            {
+                entry.Exact = ToRadians(typed, Unit);
+                entry.Radians = Unit == AngleUnit.Degrees ? entry.Exact.Value.ToString("R", Invariant) : text;
+            }
+            else
+            {
+                entry.Exact = null;
+                entry.Radians = text;
+            }
+        }
+
+        /// <summary>Shows the boxes in the display unit again after Restore, from the exact values.</summary>
         public void ShowAgain()
         {
-            Show(new List<TextBox>(shown.Keys).ToArray());
+            foreach (KeyValuePair<TextBox, Shown> pair in shown)
+            {
+                Display(pair.Key, pair.Value);
+            }
         }
 
         /// <summary>Changes the unit of the boxes on display, keeping edits and exact values.</summary>
