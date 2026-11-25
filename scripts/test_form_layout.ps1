@@ -332,6 +332,48 @@ foreach ($typeName in $formTypes) {
     }
 }
 
+# The property area moves as one piece (issue #267). A longer limit source text moves it down and a
+# shorter one back up: each move keeps the distance of every control to the parent link caption, so
+# that the parent and child link names stay on the lines of their captions.
+$assemblyForm = $assembly.GetType('SW2URDF.UI.AssemblyExportForm', $true)
+$makeRoom = $assemblyForm.GetMethod('MakeJointHeaderRoom', $flags)
+if ($makeRoom) {
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($scale in $fontScales) {
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $form = New-Form $assemblyForm $font ([single](96 * $scale)) $ui
+            try {
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                $form.ShowInTaskbar = $false; $form.Show()
+                @($form.Controls.Find('panelLinkProperties', $false))[0].Visible = $false
+                [System.Windows.Forms.Application]::DoEvents()
+                $content = @($form.Controls.Find('panelJointContent', $true))[0]
+                $caption = @($form.Controls.Find('label64', $true))[0]
+                $tree = @($form.Controls.Find('treeViewJointTree', $true))[0]
+                $source = @($form.Controls.Find('labelLimitSource', $true))[0]
+                $area = @($content.Controls | Where-Object { $_.Left -ge $tree.Right -and $_.Top -ge $caption.Top -and $_ -ne $source -and (Test-Shown $_) })
+                $start = $caption.Top
+                $distance = @{}; foreach ($c in $area) { $distance[$c.Name] = $c.Top - $caption.Top }
+                $problems = New-Object System.Collections.ArrayList
+                foreach ($lines in 8, 12, 1, 9, 1) {
+                    $source.Text = (1..$lines | ForEach-Object { "limit source line $_" }) -join "`n"
+                    [void]$makeRoom.Invoke($form, @())
+                    [System.Windows.Forms.Application]::DoEvents()
+                    if ($lines -gt 5 -and $caption.Top -le $start) { [void]$problems.Add("$lines lines: the parent link row does not move down") }
+                    if ($lines -eq 1 -and $caption.Top -ne $start) { [void]$problems.Add("$lines lines: the parent link row moves from $start to $($caption.Top)") }
+                    foreach ($c in $area) {
+                        if ($c.Top - $caption.Top -ne $distance[$c.Name]) { [void]$problems.Add("$lines lines: $($c.Name) is $($c.Top - $caption.Top) px below the parent link caption instead of $($distance[$c.Name])") }
+                    }
+                }
+                foreach ($p in $problems) { [void]$report.Add("AssemblyExportForm [header room $language x$scale] joint page : $p") }
+                $total += $problems.Count
+            } finally { $form.Dispose(); $font.Dispose() }
+        }
+    }
+}
+
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
