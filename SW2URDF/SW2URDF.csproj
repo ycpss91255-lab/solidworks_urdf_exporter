@@ -349,6 +349,7 @@
     <Compile Include="Test\TestFolderNameCollision.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
     <Compile Include="Test\TestExporterRouting.cs" />
+    <Compile Include="Test\TestRenamedConfiguration.cs" />
     <Compile Include="Test\TestOrphanAttributes.cs" />
     <Compile Include="Test\TestSharedAttributeCleanup.cs" />
     <Compile Include="Test\TestPartPerConfiguration.cs" />

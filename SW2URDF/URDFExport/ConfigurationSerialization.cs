@@ -146,7 +146,7 @@ namespace SW2URDF.URDFExport
         /// around the attributes that exist. Returns true when anything was created or rebuilt
         /// (the document then needs saving).
         /// </summary>
-        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model)
+        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model, UiText ui = null)
         {
             string[] names = model.GetConfigurationNames() as string[];
             string active = GetActiveConfigurationName(model);
