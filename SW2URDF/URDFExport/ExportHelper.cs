@@ -114,8 +114,9 @@ namespace SW2URDF.URDFExport
             SavePath = System.Environment.ExpandEnvironmentVariables("%HOMEDRIVE%%HOMEPATH%");
             PackageName = ActiveSWModel.GetTitle();
 
-            ReferenceCoordinateSystemNames = FindRefGeoNames("CoordSys");
-            ReferenceAxesNames = FindRefGeoNames("RefAxis");
+            ReferenceCoordinateSystemNames = new List<string>();
+            ReferenceAxesNames = new List<string>();
+            UpdateReferenceGeometries();
 
             ComputeInertialValues = true;
             ComputeVisualCollision = true;
