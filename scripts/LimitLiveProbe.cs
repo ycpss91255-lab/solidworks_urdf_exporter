@@ -103,10 +103,19 @@ public static class LimitLiveProbe
         throw new Exception("SolidWorks_PID_" + pid + " is not in the Running Object Table");
     }
 
+    internal static readonly List<string> questions = new List<string>();
+    internal static System.Windows.MessageBoxResult Answer = System.Windows.MessageBoxResult.No;
+
     internal sealed class RecordingMessages : IMessageBox
     {
         public System.Windows.MessageBoxResult Show(string message) { messages.Add(message); return System.Windows.MessageBoxResult.OK; }
-        public System.Windows.MessageBoxResult Show(string message, string caption, System.Windows.MessageBoxButton buttons) { return Show(message); }
+        public System.Windows.MessageBoxResult Show(string message, string caption, System.Windows.MessageBoxButton buttons)
+        {
+            Show(message);
+            if (buttons == System.Windows.MessageBoxButton.OK) return System.Windows.MessageBoxResult.OK;
+            questions.Add(message);
+            return Answer;
+        }
     }
 
     internal static System.Collections.IList ComponentList(Link link)
@@ -116,10 +125,19 @@ public static class LimitLiveProbe
 
     // --- mates --------------------------------------------------------------------------------------------
 
-    static void SelectFace(string component, bool append, Func<Face2, double[], Surface, bool> test, string what)
+    // A component of the assembly, or of one of its sub-assemblies (then the name is a path, SUB-1/PART-1)
+    internal static Component2 Find(string component)
     {
         Component2 c = ((AssemblyDoc)doc).GetComponentByName(component);
+        if (c == null)
+            c = ((object[])((AssemblyDoc)doc).GetComponents(false)).Cast<Component2>().FirstOrDefault(x => x.Name2 == component);
         if (c == null) throw new Exception("component not found: " + component);
+        return c;
+    }
+
+    static void SelectFace(string component, bool append, Func<Face2, double[], Surface, bool> test, string what)
+    {
+        Component2 c = Find(component);
         object info;
         object[] bodies = (object[])c.GetBodies3((int)swBodyType_e.swSolidBody, out info);
         foreach (object bo in bodies)
@@ -144,7 +162,7 @@ public static class LimitLiveProbe
 
     static bool Near(double a, double b) { return Math.Abs(a - b) < 1e-6; }
 
-    static Mate2 AddMate(swMateType_e type, swMateAlign_e align, bool flip, double distance, double distUp, double distLow,
+    internal static Mate2 AddMate(swMateType_e type, swMateAlign_e align, bool flip, double distance, double distUp, double distLow,
         double angle, double angUp, double angLow, string what)
     {
         int error;
@@ -173,6 +191,31 @@ public static class LimitLiveProbe
             if (n.IndexOf("ARM", StringComparison.OrdinalIgnoreCase) >= 0) ArmName = n;
         }
         return MatePair(v);
+    }
+
+    internal static void SelectCylinder(string component)
+    {
+        doc.ClearSelection2(true);
+        SelectFace(component, false, (f, b, s) => s.IsCylinder(), "cylinder of " + component);
+    }
+
+    // The arm on the boss of the base, free to turn and to slide
+    internal static void Concentric(string baseName, string armName)
+    {
+        SelectCylinder(baseName);
+        SelectFace(armName, true, (f, b, s) => s.IsCylinder(), "arm hole cylinder");
+        AddMate(swMateType_e.swMateCONCENTRIC, swMateAlign_e.swMateAlignALIGNED, false, 0, 0, 0, 0, 0, 0, "concentric boss/hole");
+        doc.ForceRebuild3(false);
+    }
+
+    // The arm on the top of the base, free to slide in two directions and to turn
+    internal static void Coincident(string baseName, string armName)
+    {
+        doc.ClearSelection2(true);
+        SelectFace(baseName, false, (f, b, s) => s.IsPlane() && Near(b[2], 0.02) && Near(b[5], 0.02) && b[3] - b[0] > 0.09, "base top plane");
+        SelectFace(armName, true, (f, b, s) => s.IsPlane() && Near(b[2], 0) && Near(b[5], 0), "arm bottom plane");
+        AddMate(swMateType_e.swMateCOINCIDENT, swMateAlign_e.swMateAlignCLOSEST, false, 0, 0, 0, 0, 0, 0, "coincident faces");
+        doc.ForceRebuild3(false);
     }
 
     // The mates of one base (BaseName) and one arm (ArmName), in a model that may hold more components
@@ -272,7 +315,7 @@ public static class LimitLiveProbe
     {
         Dimension dim = doc.Parameter("D1@" + mateName) as Dimension;
         if (dim == null) throw new Exception("dimension D1@" + mateName + " not found");
-        Component2 arm = ((AssemblyDoc)doc).GetComponentByName(ArmName);
+        Component2 arm = Find(ArmName);
         double unit = v.Slide ? 1000.0 : 1.0 / Deg;   // SystemValue (m or rad) -> mm or deg
         double startValue = dim.SystemValue * unit;
         double a0, z0; ArmState(arm, out a0, out z0);
