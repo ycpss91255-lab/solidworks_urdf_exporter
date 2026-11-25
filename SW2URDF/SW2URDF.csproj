@@ -398,6 +398,7 @@
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
     <Compile Include="URDFExport\MeshFiles.cs" />
+    <Compile Include="URDFExport\MissingMeshPrompt.cs" />
     <Compile Include="URDFExport\ObjConversionRunner.cs" />
     <Compile Include="URDFExport\ObjConverter.cs" />
     <Compile Include="URDFExport\ThreeDxmlReader.cs" />

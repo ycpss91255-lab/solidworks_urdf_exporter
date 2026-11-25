@@ -595,6 +595,15 @@
   <data xml:space="preserve" name="exporting the urdf failed unexpectedly.">
     <value>匯出 URDF 時發生未預期的錯誤。</value>
   </data>
+  <data xml:space="preserve" name="the model file (urdf or xacro) refers to mesh files that do not exist in the package folder, so rviz and gazebo cannot show these links:">
+    <value>模型檔 (URDF 或 xacro) 參照的網格檔不在套件資料夾中，因此 RViz 與 Gazebo 無法顯示下列連桿:</value>
+  </data>
+  <data xml:space="preserve" name="export the meshes as well? choose no to export only the model file anyway, or cancel to go back.">
+    <value>要一併匯出網格嗎？選擇「否」仍只匯出模型檔，選擇「取消」則返回。</value>
+  </data>
+  <data xml:space="preserve" name="mesh files are missing">
+    <value>缺少網格檔</value>
+  </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
     <value>下列連桿的網格無法匯出：{0}。URDF 未寫入，套件不完整（請見 {1}）。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
   </data>
