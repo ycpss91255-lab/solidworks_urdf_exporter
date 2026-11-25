@@ -250,12 +250,14 @@ namespace SW2URDF.UI
                                             textBoxInertialOriginPitch,
                                             textBoxInertialOriginYaw);
 
+                // The boxes stand for both meshes: a value the user edited moves the collision mesh too
                 Link.Visual.Origin.Update(textBoxVisualOriginX,
                                           textBoxVisualOriginY,
                                           textBoxVisualOriginZ,
                                           textBoxVisualOriginRoll,
                                           textBoxVisualOriginPitch,
-                                          textBoxVisualOriginYaw);
+                                          textBoxVisualOriginYaw,
+                                          Link.Collision.Origin);
 
                 Link.Inertial.Mass.Update(textBoxMass);
 
