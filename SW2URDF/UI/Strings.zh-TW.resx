@@ -532,17 +532,8 @@
   <data xml:space="preserve" name="the following nodes are incomplete. you need to fix them before continuing.">
     <value>下列節點尚未完成，請先修正才能繼續。</value>
   </data>
-  <data xml:space="preserve" name="links with children cannot be empty. select its associated components">
-    <value>含有子連桿的連桿不可為空，請選取其對應的元件</value>
-  </data>
   <data xml:space="preserve" name="the origin reference coordinate system cannot be automatically generated without components. either select an origin or at least one component.">
     <value>未選取元件時無法自動產生原點參考座標系統，請選取原點或至少一個元件。</value>
-  </data>
-  <data xml:space="preserve" name="the reference axis cannot be automatically generated without components. either select an axis or at least one component.">
-    <value>未選取元件時無法自動產生參考軸，請選取軸或至少一個元件。</value>
-  </data>
-  <data xml:space="preserve" name="the joint type cannot be automatically detected without components. either select a joint type or at least one component.">
-    <value>未選取元件時無法自動偵測關節類型，請選取關節類型或至少一個元件。</value>
   </data>
   <data xml:space="preserve" name="link name is empty. fill in a unique link name">
     <value>連桿名稱為空，請填入唯一的連桿名稱</value>
