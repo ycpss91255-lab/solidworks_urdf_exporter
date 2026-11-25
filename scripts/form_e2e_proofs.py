@@ -122,7 +122,7 @@ def turn(c):
     c.tsv("multi_stl", sw__block__frame=c.old("multi_stl", "sw.block.component"))
 
 
-MESH_JOINT = {"arm": "arm_joint", "block": "block_joint", "post": "post_joint", "slider": "slide_joint"}
+MESH_JOINT = {"arm": "arm_joint", "block": "block_joint", "post": "post_joint", "slider": "slide_joint", "wheel1": "wheel1_joint", "wheel2": "wheel2_joint"}
 
 CHANGES = {
     "hinge.motion": lambda c: c.tsv("measured", hinge__motion="-30 90"),
@@ -178,6 +178,11 @@ CHANGES = {
 def change_for(ident):
     if ident in CHANGES:
         return CHANGES[ident]
+    import sys
+    import form_e2e_joints
+    more = form_e2e_joints.changes(sys.modules[__name__])
+    if ident in more:
+        return more[ident]
     parts = ident.split(".")
     if parts[0] == "run":
         # a message box that a user would have had to answer

@@ -96,6 +96,13 @@ SCENARIOS = {
         ("open",), ("joint", "arm_joint"), ("dump", "rad"), ("close",)]),
 }
 
+
+def all_scenarios():
+    """The scenarios of this file and those of form_e2e_joints.py."""
+    import form_e2e_joints
+    return dict(SCENARIOS, **form_e2e_joints.SCENARIOS)
+
+
 # ---------------------------------------------------------------------------------------- running them
 
 class AngleSetting:
@@ -265,9 +272,11 @@ def run(args):
         measured = obj.tsv(os.path.join(out, "measured", "probe.tsv"))
         if code != 0 or measured.get("status") != "ok":
             raise RuntimeError("the models could not be built: %s %s" % (code, measured.get("error")))
-        wanted = args.scenario or list(SCENARIOS)
+        import form_e2e_joints
+        scenarios = all_scenarios()
+        wanted = args.scenario or list(scenarios)
         for name in wanted:
-            model, tree, needs, steps = SCENARIOS[name]
+            model, tree, needs, steps = scenarios[name]
             folder = os.path.join(out, name)
             if needs and features.get(needs) != "True":
                 print("SKIP  scenario %s: this build has no %s" % (name, needs), flush=True)
@@ -286,7 +295,7 @@ def run(args):
                 with open(os.path.join(folder, file), "w", encoding="utf-8") as stream:
                     stream.write("".join("\t".join(line) + "\n" for line in lines))
             started = time.time()
-            code = live.host("run", folder, live.pid, live.handover(app), os.path.join(scratch, model + ".SLDASM"),
+            code = live.host("run", folder, live.pid, live.handover(app), os.path.join(scratch, form_e2e_joints.model_file(model)),
                              os.path.join(folder, "tree.txt"), os.path.join(folder, "steps.txt"), timeout=args.case_timeout)
             values = obj.tsv(os.path.join(folder, "probe.tsv"))
             with open(os.path.join(folder, "registry.txt"), "w", encoding="utf-8") as stream:
@@ -514,7 +523,7 @@ def evaluate(out):
     features = obj.tsv(os.path.join(out, "features", "probe.tsv"))
     measured = obj.tsv(os.path.join(out, "measured", "probe.tsv"))
     check = Check(features.get("version", "?"))
-    cases = {name: Case(out, name) for name in SCENARIOS}
+    cases = {name: Case(out, name) for name in all_scenarios()}
 
     def guard(ident, title, function, needs=None, proof=""):
         if needs and features.get(needs) != "True":
@@ -849,6 +858,9 @@ def evaluate(out):
                     too_long.append("%s %s=%s" % (case.name, key, value))
         check.equal("digits", "no number box shows more than 12 significant digits", "0 boxes", "%d boxes%s" % (len(too_long), " " + "; ".join(too_long[:4]) if too_long else ""), browse.proof)
     guard("digits", "12 digit boxes", twelve, "digits12")
+
+    import form_e2e_joints
+    form_e2e_joints.evaluate(check, cases, measured, guard)
     return check
 
 
@@ -912,7 +924,11 @@ def against_solidworks(check, case, line):
     for kind in ("visual", "collision"):
         uri, origin = robot.mesh(link, kind)
         path = obj.resolve_mesh(case.package, uri)
-        data = obj.read_obj(path)["vertices"] if path.lower().endswith(".obj") else obj.read_stl(path)
+        if path.lower().endswith(".3dxml"):
+            import form_e2e_joints
+            data = form_e2e_joints.read_3dxml(path)
+        else:
+            data = obj.read_obj(path)["vertices"] if path.lower().endswith(".obj") else obj.read_stl(path)
         place = compose(placed, origin)
         points = [[a + b for a, b in zip(apply(place[0], p), place[1])] for p in set(tuple(p) for p in data)]
         far = max(min(math.dist(c, p) for p in points) for c in corners)
@@ -962,6 +978,7 @@ def report(check, out, quiet=False):
 
 
 def main():
+    sys.modules.setdefault("test_form_e2e", sys.modules[__name__])    # form_e2e_joints.py uses this module, not a second copy
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dll", help="folder with a built SW2URDF.dll; the host program is compiled against a copy of it")
     parser.add_argument("--out", help="new or empty folder for the models, the exported packages and the result")
@@ -973,7 +990,7 @@ def main():
     parser.add_argument("--case-timeout", type=int, default=300, help="limit per scenario in seconds (default 300)")
     parser.add_argument("--min-free-gb", type=float, default=4.0, help="stop when Windows has less memory left than this (default 4)")
     parser.add_argument("--exe-hook", help="command run on the compiled host program before it starts; {exe} is the file")
-    parser.add_argument("--scenario", action="append", choices=list(SCENARIOS), help="only this scenario (repeatable; checks of the others fail)")
+    parser.add_argument("--scenario", action="append", choices=list(all_scenarios()), help="only this scenario (repeatable; checks of the others fail)")
     parser.add_argument("--keep", action="store_true", help="keep the scratch folder")
     parser.add_argument("--evaluate", metavar="FOLDER", help="check the recorded files of an earlier run again")
     parser.add_argument("--prove", metavar="FOLDER", help="prove on an earlier run that every check can fail")
