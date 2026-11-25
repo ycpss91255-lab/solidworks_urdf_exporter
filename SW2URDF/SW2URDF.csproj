@@ -332,7 +332,6 @@
     <Compile Include="Test\TestCsvInvariant.cs" />
     <Compile Include="Test\TestExportHelper.cs" />
     <Compile Include="Test\TestFileNames.cs" />
-    <Compile Include="Test\TestMenuImages.cs" />
     <Compile Include="Test\TestPackageXmlFile.cs" />
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
@@ -360,6 +359,7 @@
     <Compile Include="Test\TestROSFIles.cs" />
     <Compile Include="Test\SolidWorksBinding.cs" />
     <Compile Include="Test\TestSolidWorksBinding.cs" />
+    <Compile Include="Test\TestMenuImages.cs" />
     <Compile Include="Test\TestTwoBoxesFixture.cs" />
     <Compile Include="Test\TwoBoxesModel.cs" />
     <Compile Include="Test\TestSerialization.cs" />
