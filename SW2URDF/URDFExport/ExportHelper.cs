@@ -831,6 +831,7 @@ namespace SW2URDF.URDFExport
             CopyLogFile(Logger.GetFileName(), package.WindowsPackageDirectory);
         }
 
+        // The export is complete without the copy of the log: a copy that is not possible is only logged.
         internal static void CopyLogFile(string log_filename, string packageDirectory)
         {
             string destination = packageDirectory + "export.log";
@@ -839,13 +840,23 @@ namespace SW2URDF.URDFExport
             {
                 if (!File.Exists(log_filename))
                 {
-                    URDFPackage.MessageBox.Show("The log file was expected to be located at " + log_filename +
-                        ", but it was not found. Please contact your maintainer with this error message.");
+                    logger.Warn("The log file was expected to be located at " + log_filename +
+                        ", but it was not found. It is not copied into the package.");
+                    return;
                 }
-                else
+
+                logger.Info("Copying " + log_filename + " to " + destination);
+                try
                 {
-                    logger.Info("Copying " + log_filename + " to " + destination);
                     File.Copy(log_filename, destination, true);
+                }
+                catch (IOException e)
+                {
+                    logger.Warn("The log file could not be copied to " + destination, e);
+                }
+                catch (UnauthorizedAccessException e)
+                {
+                    logger.Warn("The log file could not be copied to " + destination, e);
                 }
             }
         }
