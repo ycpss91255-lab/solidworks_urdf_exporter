@@ -83,6 +83,7 @@ namespace SW2URDF.UI
             // Exact value behind the box; null when the box holds no number.
             public double? Exact;
             public string Display;
+            public bool Restored;
         }
 
         private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
@@ -141,6 +142,7 @@ namespace SW2URDF.UI
             entry.Display = Unit == AngleUnit.Degrees && entry.Exact.HasValue
                 ? Format(entry.Exact.Value, Unit)
                 : entry.Radians;
+            entry.Restored = false;
             box.Text = entry.Display;
         }
 
@@ -168,10 +170,15 @@ namespace SW2URDF.UI
             {
                 TextBox box = pair.Key;
                 Shown entry = pair.Value;
+                if (entry.Restored && box.Text == entry.Radians)
+                {
+                    continue;
+                }
                 if (box.Text != entry.Display)
                 {
                     TakeTyped(box.Text, entry);
                 }
+                entry.Restored = true;
                 box.Text = entry.Radians;
             }
         }
