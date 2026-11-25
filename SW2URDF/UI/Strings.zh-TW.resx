@@ -210,7 +210,7 @@
   <data xml:space="preserve" name="exporting mesh: {0}">
     <value>正在匯出網格: {0}</value>
   </data>
-  <data xml:space="preserve" name="inferring the geometry of joint {0} from link {1} to {2} failed. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+  <data xml:space="preserve" name="inferring the joint geometry failed for joint {0} from link {1} to {2}. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
     <value>無法推算關節 {0} 的幾何 (由連桿 {1} 到 {2})。請確認配合沒有將連桿 {1} 的元件完全定義，而且剛好只有一個自由度。</value>
   </data>
   <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">

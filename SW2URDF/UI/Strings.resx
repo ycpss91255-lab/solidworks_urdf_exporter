@@ -210,8 +210,8 @@
   <data xml:space="preserve" name="exporting mesh: {0}">
     <value>Exporting mesh: {0}</value>
   </data>
-  <data xml:space="preserve" name="inferring the geometry of joint {0} from link {1} to {2} failed. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
-    <value>Inferring the geometry of joint {0} from link {1} to {2} failed. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.</value>
+  <data xml:space="preserve" name="inferring the joint geometry failed for joint {0} from link {1} to {2}. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+    <value>Inferring the joint geometry failed for joint {0} from link {1} to {2}. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.</value>
   </data>
   <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">
     <value>The following joints are missing required fields, please address them before continuing</value>

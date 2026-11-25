@@ -689,7 +689,7 @@ namespace SW2URDF.URDFExport
                 {
                     UiText ui = UiText.FromSolidWorks(iSwApp);
                     ExportErrorWhy = string.Format(
-                        ui.Get("Inferring the geometry of joint {0} from link {1} to {2} failed. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom."),
+                        ui.Get("Inferring the joint geometry failed for joint {0} from link {1} to {2}. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom."),
                         child.Joint.Name, child.Name, parent.Name);
                     return false;
                 }
