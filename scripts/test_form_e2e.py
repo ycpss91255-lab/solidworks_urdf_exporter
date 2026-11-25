@@ -924,18 +924,26 @@ def against_solidworks(check, case, line):
     for kind in ("visual", "collision"):
         uri, origin = robot.mesh(link, kind)
         path = obj.resolve_mesh(case.package, uri)
-        if path.lower().endswith(".3dxml"):
-            import form_e2e_joints
-            data = form_e2e_joints.read_3dxml(path)
-        else:
-            data = obj.read_obj(path)["vertices"] if path.lower().endswith(".obj") else obj.read_stl(path)
-        place = compose(placed, origin)
-        points = [[a + b for a, b in zip(apply(place[0], p), place[1])] for p in set(tuple(p) for p in data)]
+        points = [transformed(compose(placed, origin), p) for p in mesh_points(path)]
         far = max(min(math.dist(c, p) for p in points) for c in corners)
         off = worst(obj.bbox(points), vec(sw["sw.%s.box" % link]))
         check.add(where + kind, title + "%s mesh placed by the URDF (%s) against the bodies in SolidWorks: corners and bounding box in the world" % (
             kind, os.path.basename(path)), "%d corners and the box within 1e-5 m" % len(corners), "farthest corner %.2g m, box off by %.2g m" % (far, off),
             "PASS" if corners and far <= 1e-5 and off <= 1e-5 else "FAIL", case.name + "/export/" + PACKAGE + "/meshes/" + os.path.basename(path))
+
+
+def transformed(place, point):
+    return [a + b for a, b in zip(apply(place[0], point), place[1])]
+
+
+def mesh_points(path):
+    """The different vertices (m) of a mesh file, read without the exporter."""
+    if path.lower().endswith(".3dxml"):
+        import form_e2e_joints
+        data = form_e2e_joints.read_3dxml(path)
+    else:
+        data = obj.read_obj(path)["vertices"] if path.lower().endswith(".obj") else obj.read_stl(path)
+    return set(tuple(p) for p in data)
 
 
 def axis_on_boss(check, case, joint, boss, kind):

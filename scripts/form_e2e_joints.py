@@ -9,6 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 
+import regress_obj_export as obj
 import test_form_e2e as form
 
 AUTO, PACKAGE, FULL = form.AUTO, form.PACKAGE, form.FULL
@@ -37,6 +38,8 @@ def nested(number):
 
 NEST_TREE = [("base_link", "-", "LIM_BASE-1,LIM_BASE-2", "Origin_global", "", "", ""), nested(1), nested(2)]
 PLAIN = opened(("next",)) + FULL
+EDITED = (("X", 0.05), ("Y", -0.02), ("Z", 0.01), ("Yaw", 0.5))
+EDIT_ORIGIN = [("link", "block")] + [("type", "textBoxVisualOrigin" + name, repr(value)) for name, value in EDITED] + [("link", "arm")]
 MODEL_ONLY = ("export", "model", PACKAGE)
 # name: (model, tree, needs, steps), as in test_form_e2e.py
 SCENARIOS = {
@@ -88,6 +91,16 @@ SCENARIOS = {
                    + FULL + [("reopen",), ("saved", "file")]),
     "nested_obj": ("FORM_NEST", NEST_TREE, None, opened(("next",), ("radio", "radioButtonObj")) + FULL),
     "nested_3dxml": ("FORM_NEST", NEST_TREE, None, opened(("next",), ("radio", "radioButton3dxml")) + FULL),
+    # the mesh origin edited on the link page: it moves the mesh in the frame of the link, whatever the format
+    "origin_stl": ("FORM_MULTI", form.MULTI_TREE, None, opened(("next",), *EDIT_ORIGIN) + FULL),
+    "origin_obj": ("FORM_MULTI", form.MULTI_TREE, None, opened(("next",), ("radio", "radioButtonObj"), *EDIT_ORIGIN) + FULL),
+    "origin_3dxml": ("FORM_MULTI", form.MULTI_TREE, None, opened(("next",), ("radio", "radioButton3dxml"), *EDIT_ORIGIN) + FULL),
+    # a value of the link on display is in the saved settings
+    "settings_link": ("LIM_HINGE", tree(), None, opened(("next",), ("link", "arm"), ("type", "textBoxMass", "1.234")) + FULL + [("reopen",), ("saved", "file")]),
+    # another configuration becomes active while the form is open: nothing is exported, its settings are not replaced
+    "settings_switch": ("LIM_HINGE", tree(), None, opened(("next",), ("add_configuration", "Second")) + FULL[:1] + [("saved", "second")]),
+    # the configuration is renamed after an export: its settings are offered again
+    "settings_rename": ("LIM_HINGE", tree(), None, PLAIN + [("rename_configuration", "Renamed"), ("ensure",), ("saved", "renamed")]),
     # between the two pages, forwards and backwards, with links selected on the way: no value moves to another link
     "pages": ("FORM_MULTI", form.MULTI_TREE, None, opened(
         ("joint", "block_joint"), ("next",), ("link", "base_link"), ("link", "block"), ("previous",), ("joint", "post_joint"), ("next",), ("link", "slider"),
@@ -119,7 +132,9 @@ MESSAGES = {
     "axis_zero": ["arm_joint"],
     "cancel_joint": [],     # whether to save the changed settings; answered with Yes
     "cancel_link": [],
+    "settings_rename": ["Renamed"],
 }
+NOT_EXPORTED = ("settings_switch",)
 REFUSED = [n for n, s in SCENARIOS.items() if s[3] == NOT_BUILT]
 
 
@@ -189,7 +204,7 @@ def evaluate(check, cases, measured, guard):
             if len(texts) != (1 if wanted is not None else 0):
                 problems.append("%d messages: %s" % (len(texts), " / ".join(texts)[:300]))
             problems += ["message without %r: %s" % (w, t[:200]) for t in texts for w in wanted or [] if w not in t]
-            if any(s[0] == "export" for s in steps) and case.values.get("dialog.save") is None:
+            if name not in NOT_EXPORTED and any(s[0] == "export" for s in steps) and case.values.get("dialog.save") is None:
                 problems.append("no Save As dialog")
             check.equal(ident, title, "ok", "; ".join(problems) or "ok", case.proof)
 
@@ -318,6 +333,41 @@ def evaluate(check, cases, measured, guard):
         for line in NEST_TREE:
             guard("sw.%s.%s" % (name, line[0]), "%s: link %s against SolidWorks" % (name, line[0]), lambda n=name, l=line: form.against_solidworks(check, cases[n], l))
 
+    # ---- the mesh origin edited on the link page
+    for name in ("origin_stl", "origin_obj", "origin_3dxml"):
+        for kind in ("visual", "collision"):
+            @add("%s.%s" % (name, kind), "%s: %s mesh of the block, with the typed origin, against the bodies in SolidWorks moved by it in the link frame" % (name, kind))
+            def moved(ident, title, name=name, kind=kind):
+                case, robot = cases[name], cases[name].robot()
+                placed = robot.place("block", form.frame(case.values["sw.Origin_global"]))
+                yaw = EDITED[3][1]
+                typed = ([[math.cos(yaw), -math.sin(yaw), 0], [math.sin(yaw), math.cos(yaw), 0], [0, 0, 1]], [v for _n, v in EDITED[:3]])
+                back = (form.transpose(placed[0]), [-x for x in form.apply(form.transpose(placed[0]), placed[1])])
+                uri, origin = robot.mesh("block", kind)
+                path = obj.resolve_mesh(case.package, uri)
+                points = [form.transformed(form.compose(placed, origin), p) for p in form.mesh_points(path)]
+                vertices = form.vec(case.values["sw.block.vertices"])
+                corners = [form.transformed(form.compose(form.compose(placed, typed), back), vertices[i:i + 3]) for i in range(0, len(vertices), 3)]
+                far = max(min(math.dist(c, p) for p in points) for c in corners)
+                check.add(ident, title, "%d corners within 1e-5 m" % len(corners), "farthest corner %.2g m" % far, "PASS" if far <= 1e-5 else "FAIL", case.urdf_proof())
+
+    # ---- saved settings
+    @add("settings_link.mass", "mass typed for the link on display: in the URDF and in the settings of the saved file")
+    def settings_link(ident, title):
+        case = cases["settings_link"]
+        check.equal(ident, title, ["1.234", "1.234"], [case.robot().links["arm"].find("inertial/mass").get("value"), case.values.get("state.file.arm.mass")], case.proof)
+
+    @add("settings_switch.kept", "another configuration activated while the form is open: told once, nothing exported, no settings of it")
+    def settings_switch(ident, title):
+        case = cases["settings_switch"]
+        check.equal(ident, title, "named in a message: True, package: False, settings: False", "named in a message: %s, package: %s, settings: %s" % (
+            "Second" in case.values.get("messages", ""), case.robot_file() is not None, case.values.get("state.second.found")), case.proof)
+
+    @add("settings_rename.kept", "configuration renamed after an export: the settings are back, with the link tree")
+    def settings_rename(ident, title):
+        v = cases["settings_rename"].values
+        check.equal(ident, title, ["True", "revolute"], [v.get("state.renamed.found"), v.get("state.renamed.arm.type")], cases["settings_rename"].proof)
+
     # ---- between the pages
     @add("pages.urdf", "several visits of both pages without an edit: the joints of the URDF are those of multi_stl")
     def pages(ident, title):
@@ -383,6 +433,9 @@ def changes(proofs):
     def kind(case, value):
         return lambda c: c.attribute(case, "joint[@name='arm_joint']", "type", lambda v: value)
 
+    def moved(case, kind):
+        return lambda c: c.attribute(case, "link[@name='block']/%s/origin" % kind, "xyz", proofs.first_plus(2e-5))
+
     def remove_mesh(case, file):
         return lambda c: os.remove(c.path(case, "export", PACKAGE, "meshes", file))
 
@@ -407,6 +460,12 @@ def changes(proofs):
         "fixed.urdf": lambda c: c.attribute("fixed_on_page", "joint[@name='arm_joint']/axis", "xyz", lambda v: "0 0 0"),
         "3dxml.files": remove_mesh("multi_3dxml", "block.3dxml"),
         "3dxml.urdf": lambda c: c.attribute("multi_3dxml", "link[@name='block']/visual/geometry/mesh", "filename", lambda v: v.replace("block", "arm")),
+        "origin_stl.visual": moved("origin_stl", "visual"), "origin_stl.collision": moved("origin_stl", "collision"),
+        "origin_obj.visual": moved("origin_obj", "visual"), "origin_obj.collision": moved("origin_obj", "collision"),
+        "origin_3dxml.visual": moved("origin_3dxml", "visual"), "origin_3dxml.collision": moved("origin_3dxml", "collision"),
+        "settings_link.mass": lambda c: c.tsv("settings_link", state__file__arm__mass="0.5"),
+        "settings_switch.kept": lambda c: c.tsv("settings_switch", state__second__found="True"),
+        "settings_rename.kept": lambda c: c.tsv("settings_rename", state__renamed__found="False"),
         "nested.names": lambda c: c.tsv("nested_stl", state__file__wheel2__axis="???"),
         "pages.urdf": limit("pages", "arm_joint", "upper"),
         "previous.typed": limit("previous_typed", "arm_joint", "effort", lambda v: "10"),
