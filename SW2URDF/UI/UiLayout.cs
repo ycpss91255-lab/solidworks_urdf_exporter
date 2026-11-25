@@ -368,10 +368,12 @@ namespace SW2URDF.UI
                 return;
             }
             Rectangle area = WorkingArea(form);
-            if (gained > 0)
-            {
-                form.Height = Math.Min(form.Height + gained, area.Height);
-            }
+            // Scaled for the display the form can be larger than its screen, and its buttons would be
+            // outside: no larger than the work area, the content scrolls.
+            form.MinimumSize = new Size(Math.Min(form.MinimumSize.Width, area.Width),
+                Math.Min(form.MinimumSize.Height, area.Height));
+            form.Size = new Size(Math.Min(form.Width, area.Width),
+                Math.Min(form.Height + gained, area.Height));
             // A scrolling panel counts each control's margin, so content ending just above its bottom
             // edge can still need a few pixels of scrolling: the page then shows a scroll bar and
             // its last line is cut. Grow the form until the page on display fits (twice at most:
@@ -385,9 +387,10 @@ namespace SW2URDF.UI
                 }
                 form.Height = Math.Min(form.Height + over, area.Height);
             }
-            if (form.IsHandleCreated && form.Bottom > area.Bottom)
+            if (form.IsHandleCreated)
             {
-                form.Top = Math.Max(area.Top, area.Bottom - form.Height);
+                form.Location = new Point(Math.Max(area.Left, Math.Min(form.Left, area.Right - form.Width)),
+                    Math.Max(area.Top, Math.Min(form.Top, area.Bottom - form.Height)));
             }
         }
 
