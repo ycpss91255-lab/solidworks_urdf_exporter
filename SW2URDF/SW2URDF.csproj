@@ -320,6 +320,7 @@
   <ItemGroup>
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Legacy\SerialNode.cs" />
+    <Compile Include="Test\FakeSettingsModel.cs" />
     <Compile Include="UI\IMessageBox.cs" />
     <Compile Include="UI\MessageBoxHelper.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
