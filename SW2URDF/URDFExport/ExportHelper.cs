@@ -163,7 +163,19 @@ namespace SW2URDF.URDFExport
             int progressBarBound = CommonSwOperations.GetCount(URDFRobot.BaseLink);
             iSwApp.GetUserProgressBar(out progressBar);
             progressBar.Start(0, progressBarBound, "Creating package directories");
+            try
+            {
+                ExportPackage(exportSTL, meshFormat);
+            }
+            catch (Exception)
+            {
+                progressBar.End();
+                throw;
+            }
+        }
 
+        private void ExportPackage(bool exportSTL, MeshExportFormat meshFormat)
+        {
             //Creating package directories
             logger.Info("Creating package directories with name " + PackageName + " and save path " + SavePath);
             URDFPackage package = new URDFPackage(PackageName, SavePath, UiText.FromSolidWorks(iSwApp));
@@ -206,23 +218,24 @@ namespace SW2URDF.URDFExport
             logger.Info("Saving existing STL preferences");
             SaveUserPreferences();
 
-            logger.Info("Modifying STL preferences");
-            SetSTLExportPreferences();
-
-            //Saving part as STL mesh
-            AssemblyDoc assyDoc = (AssemblyDoc)ActiveSWModel;
-            List<string> hiddenComponents = CommonSwOperations.FindHiddenComponents(assyDoc.GetComponents(false));
-            logger.Info("Found " + hiddenComponents.Count + " hidden components " + String.Join(", ", hiddenComponents));
-            logger.Info("Hiding all components");
-            ActiveSWModel.Extension.SelectAll();
-            ActiveSWModel.HideComponent2();
-
             UiText ui = UiText.FromSolidWorks(iSwApp);
             failedMeshLinks.Clear();
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
             bool success = false;
+            List<string> hiddenComponents = null;
             try
             {
+                logger.Info("Modifying STL preferences");
+                SetSTLExportPreferences();
+
+                //Saving part as STL mesh
+                AssemblyDoc assyDoc = (AssemblyDoc)ActiveSWModel;
+                hiddenComponents = CommonSwOperations.FindHiddenComponents(assyDoc.GetComponents(false));
+                logger.Info("Found " + hiddenComponents.Count + " hidden components " + String.Join(", ", hiddenComponents));
+                logger.Info("Hiding all components");
+                ActiveSWModel.Extension.SelectAll();
+                ActiveSWModel.HideComponent2();
+
                 logger.Info("Beginning individual files export");
                 ExportFiles(URDFRobot.BaseLink, package, 0, exportSTL, meshFormat);
                 success = true;
@@ -233,11 +246,20 @@ namespace SW2URDF.URDFExport
             }
             finally
             {
-                logger.Info("Showing all components except previously hidden components");
-                CommonSwOperations.ShowAllComponents(ActiveSWModel, hiddenComponents);
-
-                logger.Info("Resetting STL preferences");
-                ResetUserPreferences();
+                try
+                {
+                    // Nothing was hidden yet when the list of hidden components is not there
+                    if (hiddenComponents != null)
+                    {
+                        logger.Info("Showing all components except previously hidden components");
+                        CommonSwOperations.ShowAllComponents(ActiveSWModel, hiddenComponents);
+                    }
+                }
+                finally
+                {
+                    logger.Info("Resetting STL preferences");
+                    ResetUserPreferences();
+                }
             }
 
             if (!success)
@@ -266,9 +288,6 @@ namespace SW2URDF.URDFExport
 
             logger.Info("Copying log file");
             CopyLogFile(package);
-
-            logger.Info("Resetting STL preferences");
-            ResetUserPreferences();
             progressBar.End();
         }
 
@@ -672,14 +691,14 @@ namespace SW2URDF.URDFExport
 
             //Customizing STL preferences to how I want them
             SaveUserPreferences();
-            SetSTLExportPreferences();
-            SetLinkSpecificSTLPreferences("", ActiveSWModel);
             int errors = 0;
             int warnings = 0;
             bool meshExported = true;
 
             try
             {
+                SetSTLExportPreferences();
+                SetLinkSpecificSTLPreferences("", ActiveSWModel);
                 if (meshFormat == MeshExportFormat.OBJ)
                 {
                     meshFileName = Path.ChangeExtension(meshFileName, ".obj");
