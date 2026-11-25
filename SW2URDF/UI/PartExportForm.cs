@@ -275,7 +275,7 @@ namespace SW2URDF.UI
         // Shows the link in the property boxes
         public void FillPropertyBoxes()
         {
-            Exporter.URDFRobot.BaseLink.Visual.Origin.FillBoxes(textBox_collision_origin_x,
+            Exporter.URDFRobot.BaseLink.Collision.Origin.FillBoxes(textBox_collision_origin_x,
                                                              textBox_collision_origin_y,
                                                              textBox_collision_origin_z,
                                                              textBox_collision_origin_roll,
