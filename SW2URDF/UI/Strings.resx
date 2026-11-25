@@ -201,6 +201,9 @@
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF Joint Errors</value>
   </data>
+  <data xml:space="preserve" name="{0}: the joint it mimics, &quot;{1}&quot;, is not in the robot">
+    <value>{0}: the joint it mimics, "{1}", is not in the robot</value>
+  </data>
   <data xml:space="preserve" name="urdf warnings">
     <value>URDF Warnings</value>
   </data>

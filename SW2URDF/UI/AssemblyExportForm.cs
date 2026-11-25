@@ -337,6 +337,14 @@ namespace SW2URDF.UI
                 builder.Append(node.Link.Joint.Name).Append("\r\n");
             }
 
+            // A joint that is not in the robot cannot be mimicked. Names are case sensitive in URDF.
+            string mimicked = node.Link.Joint.Mimic?.JointName;
+            if (mimicked != null && !Exporter.GetJointNames().Contains(mimicked))
+            {
+                builder.Append(string.Format(ui.Get("{0}: the joint it mimics, \"{1}\", is not in the robot"),
+                    node.Link.Joint.Name, mimicked)).Append("\r\n");
+            }
+
             foreach (LinkNode child in node.Nodes)
             {
                 CheckJointsForErrors(child, builder);
