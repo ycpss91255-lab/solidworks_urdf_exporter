@@ -402,7 +402,6 @@ namespace SW2URDF.UI
         private void FinishExport(bool exportSTL)
         {
             logger.Info("Completing URDF export");
-            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             // Saving selected node
             LinkNode node = (LinkNode)treeViewLinkProperties.SelectedNode;
@@ -410,6 +409,8 @@ namespace SW2URDF.UI
             {
                 SaveLinkDataFromPropertyBoxes(node.Link);
             }
+
+            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             Exporter.URDFRobot = CreateRobotFromTreeView(treeViewLinkProperties);
 
