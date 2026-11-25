@@ -12,7 +12,7 @@ limit per scenario and for the whole run.
   python scripts/test_form_e2e.py --prove <folder of an earlier run>           proves that every check can fail
 
 --prove changes one recorded thing per check (a number in the written URDF, a text in a box, a missing file) in a copy
-of the run and requires exactly that check to report FAIL. Checks that need a feature a build does not have (angle
+of the run and requires that check to report FAIL. Checks that need a feature a build does not have (angle
 unit, .xacro file name, 12 digit boxes) are SKIPPED, not passed.
 
 Exit code: 0 nothing failed (skipped checks are listed), 1 at least one check failed, 3 the run hit its time limit.

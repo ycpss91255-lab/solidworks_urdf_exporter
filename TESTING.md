@@ -448,7 +448,7 @@ Parts:
 | `make_form_fixtures.py` | the parts and the assemblies without mates |
 | `FormE2eProbe.cs` | the host: adds and measures the mates (with `LimitLiveProbe.cs`), carries out the steps of a scenario in the form, reads the reference values from SolidWorks. Decides nothing |
 | `test_form_e2e.py` | scenarios, expectations, result. All expectations come from the typed inputs, the measured motion of the arm, and SolidWorks mass properties and transforms, never from the exporter |
-| `form_e2e_proofs.py` | one change per check that must make exactly that check fail |
+| `form_e2e_proofs.py` | one change per check that must make that check fail |
 
 The models: a hinge with an angle limit mate (60 to 180 degrees, value 90), a slide with a distance limit mate (0 to
 30 mm, value 10), the same slide without its limit mate, the hinge placed so that the arm lies on the assembly origin,
