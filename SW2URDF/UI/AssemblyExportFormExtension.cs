@@ -114,7 +114,7 @@ namespace SW2URDF.UI
                                        textBoxJointYaw,
                                        ValueFormat.Box);
 
-                if (joint.Type != "fixed")
+                if (joint.Axis != null) // Also for a fixed joint: the boxes are saved whatever the type is
                 {
                     joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, ValueFormat.Box);
                 }
