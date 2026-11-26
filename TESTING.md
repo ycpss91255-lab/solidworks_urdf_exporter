@@ -530,6 +530,8 @@ What it checks:
 * axis and coordinate system of a part inside a sub-assembly, for both instances of it (STL, OBJ, 3DXML);
 * going between the two pages several times, with links and joints selected on the way: no value moves to another link;
 * Export Model File Only when mesh files are missing: the question and its three answers; none when they exist;
+* an export into the package of an earlier export: asked once whether to overwrite it; No writes nothing and keeps the form,
+  Yes writes the package;
 * a mesh origin typed on the link page moves the visual and the collision mesh in the link frame (STL, OBJ, 3DXML);
 * an OBJ export that is refused because of a texture, and STL in the same form;
 * saved settings: a value of the link on display, another configuration activated while the form is open, a configuration
