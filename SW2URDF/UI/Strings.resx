@@ -63,14 +63,14 @@
   <data xml:space="preserve" name="dynamics">
     <value>Dynamics</value>
   </data>
-  <data xml:space="preserve" name="entries that are blank will not be written to urdf.">
-    <value>Entries that are blank will not be written to URDF.</value>
+  <data xml:space="preserve" name="blank entries are not written to the model file.">
+    <value>Blank entries are not written to the model file.</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>Export URDF Only...</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>Export Model File Only...</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>Export URDF and Meshes...</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>Export Model File and Meshes...</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>Export as URDF</value>
@@ -652,10 +652,40 @@
   <data xml:space="preserve" name="the value of the dimension cannot be read back">
     <value>the value of the dimension cannot be read back</value>
   </data>
-  <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>Write xacro (.urdf.xacro)</value>
+  <data xml:space="preserve" name="write xacro">
+    <value>Write xacro</value>
   </data>
-  <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
-    <value>Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
+    <value>Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  </data>
+  <data xml:space="preserve" name="angle unit">
+    <value>Angle unit</value>
+  </data>
+  <data xml:space="preserve" name="orientation (deg)">
+    <value>Orientation (deg)</value>
+  </data>
+  <data xml:space="preserve" name="lower (deg)">
+    <value>lower (deg)</value>
+  </data>
+  <data xml:space="preserve" name="upper (deg)">
+    <value>upper (deg)</value>
+  </data>
+  <data xml:space="preserve" name="velocity (deg/s)">
+    <value>velocity (deg/s)</value>
+  </data>
+  <data xml:space="preserve" name="soft lower limit (deg)">
+    <value>soft lower limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="soft upper limit (deg)">
+    <value>soft upper limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, rad)">
+    <value>Origin (m, rad)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, deg)">
+    <value>Origin (m, deg)</value>
+  </data>
+  <data xml:space="preserve" name="angles are shown in this unit. the urdf and the saved settings always use radians.">
+    <value>Angles are shown in this unit. The URDF and the saved settings always use radians.</value>
   </data>
 </root>

@@ -579,7 +579,8 @@ class Live:
         subprocess.run(["taskkill", "/PID", str(self.started), "/F"], check=False, capture_output=True)
 
     # -- build the host --------------------------------------------------------------------------
-    def compile_probe(self):
+    def compile_probe(self, host="ObjRegressProbe", extra=()):
+        """Compiles scripts/<host>.cs (and the extra sources) next to a private copy of the build."""
         dll_dir = os.path.abspath(self.args.dll)
         windir = os.environ.get("WINDIR", r"C:\Windows")
         framework = os.path.join(windir, "Microsoft.NET", "Framework64", "v4.0.30319")
@@ -591,17 +592,17 @@ class Live:
             if not os.path.isfile(path):
                 shutil.copy(os.path.join(sw_dir, name), path)
             interop.append(path)
-        exe = os.path.join(self.work, "bin", "ObjRegressProbe.exe")
+        exe = os.path.join(self.work, "bin", host + ".exe")
         os.makedirs(os.path.dirname(exe), exist_ok=True)
         # The host sits next to the DLL it tests: private copy of the build folder (the satellite
         # assemblies in the language folders carry the translated texts)
         shutil.copytree(dll_dir, os.path.dirname(exe), dirs_exist_ok=True)
-        references = ["System.Windows.Forms.dll", "System.Drawing.dll", "System.Core.dll", "System.Runtime.Serialization.dll",
+        references = ["System.Windows.Forms.dll", "System.Drawing.dll", "System.Core.dll", "System.Xml.dll", "System.Runtime.Serialization.dll",
                       os.path.join(framework, "WPF", "WindowsBase.dll"), os.path.join(framework, "WPF", "PresentationFramework.dll"),
                       os.path.join(os.path.dirname(exe), "SW2URDF.dll")]
-        command = [csc, "/nologo", "/target:winexe", "/platform:x64", "/out:" + exe]
+        command = [csc, "/nologo", "/target:winexe", "/platform:x64", "/main:" + host, "/out:" + exe]
         command += ["/r:" + r for r in references] + ["/link:" + i for i in interop]
-        command.append(os.path.join(HERE, "ObjRegressProbe.cs"))
+        command += [os.path.join(HERE, source + ".cs") for source in (host,) + tuple(extra)]
         subprocess.run(command, check=True)
         if self.args.exe_hook:
             # Optional command run on every binary this script compiles before it starts it

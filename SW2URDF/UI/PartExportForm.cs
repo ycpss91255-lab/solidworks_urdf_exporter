@@ -28,12 +28,34 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class PartExportForm : Form
+    public partial class PartExportForm : Form, IAlignsFieldLabels
     {
         public ExportHelper Exporter;
         private readonly UiText ui;
+        // DPI the layout is currently built for; the window may be drawn at another one.
+        private float layoutDpi = UiLayout.ScreenDpi();
         private static readonly log4net.ILog logger = SW2URDF.Utilities.Logger.GetLogger();
         private string loadedConfiguration;
+
+        // Room beyond the default window size (issue #156): the groups and the boxes holding paths
+        // widen, the browse buttons stay at the right end of their boxes.
+        private void SetUpGrowLayout()
+        {
+            GrowLayout grow = GrowLayout.For(this);
+            grow.Set(groupBox1, 0f, 1f, false);
+            grow.Set(groupBox2, 0f, 1f, false);
+            grow.Set(groupBox3, 0f, 1f, false);
+            grow.Set(textBox_save_as, 0f, 1f, false);
+            grow.Set(button_savename_browse, 1f, 0f, false);
+            grow.Set(textBox_texture, 0f, 1f, false);
+            grow.Set(button_texturebrowse, 1f, 0f, false);
+            grow.Capture();
+        }
+
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
 
         private void AlignFieldLabels()
         {
@@ -72,13 +94,16 @@ namespace SW2URDF.UI
 
         public PartExportForm(SldWorks iSwApp)
         {
-            InitializeComponent();
             ui = UiText.FromSolidWorks(iSwApp);
+            // One font for the whole form, chosen for the UI language (issue #157).
+            Font = ui.CreateFormFont();
+            InitializeComponent();
             ui.Apply(this);
-            new ToolTip().SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro."));
+            new ToolTip().SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."));
             AlignFieldLabels();
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             Exporter = new ExportHelper(iSwApp);
+            SetUpGrowLayout();
         }
 
         // The window DPI is only known once the handle exists, and changes when the form is moved to a
@@ -87,7 +112,7 @@ namespace SW2URDF.UI
         {
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
-            UiLayout.FitButtonHeightsToWindow(this);
+            UiLayout.FollowWindowDpi(this, ref layoutDpi);
         }
 
         protected override void WndProc(ref Message m)
@@ -95,7 +120,7 @@ namespace SW2URDF.UI
             base.WndProc(ref m);
             if (m.Msg == UiLayout.WM_DPICHANGED)
             {
-                UiLayout.FitButtonHeightsToWindow(this);
+                UiLayout.FollowWindowDpi(this, ref layoutDpi);
             }
         }
 
@@ -270,7 +295,7 @@ namespace SW2URDF.UI
                                                              textBox_collision_origin_roll,
                                                              textBox_collision_origin_pitch,
                                                              textBox_collision_origin_yaw,
-                                                             "R");
+                                                             ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Visual.Origin.FillBoxes(textBox_visual_origin_x,
                                                              textBox_visual_origin_y,
@@ -278,13 +303,13 @@ namespace SW2URDF.UI
                                                              textBox_visual_origin_roll,
                                                              textBox_visual_origin_pitch,
                                                              textBox_visual_origin_yaw,
-                                                             "R");
+                                                             ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Visual.Material.Color.FillBoxes(domainUpDown_red,
                                                                      domainUpDown_green,
                                                                      domainUpDown_blue,
                                                                      domainUpDown_alpha,
-                                                                     "R");
+                                                                     ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Inertial.Origin.FillBoxes(textBox_inertial_origin_x,
                                                                textBox_inertial_origin_y,
@@ -292,9 +317,9 @@ namespace SW2URDF.UI
                                                                textBox_inertial_origin_roll,
                                                                textBox_inertial_origin_pitch,
                                                                textBox_inertial_origin_yaw,
-                                                               "R");
+                                                               ValueFormat.Box);
 
-            Exporter.URDFRobot.BaseLink.Inertial.Mass.FillBoxes(textBox_mass, "R");
+            Exporter.URDFRobot.BaseLink.Inertial.Mass.FillBoxes(textBox_mass, ValueFormat.Box);
 
             Exporter.URDFRobot.BaseLink.Inertial.Inertia.FillBoxes(textBox_ixx,
                                                                 textBox_ixy,
@@ -302,7 +327,7 @@ namespace SW2URDF.UI
                                                                 textBox_iyy,
                                                                 textBox_iyz,
                                                                 textBox_izz,
-                                                                "R");
+                                                                ValueFormat.Box);
         }
 
         #endregion Form event handlers
