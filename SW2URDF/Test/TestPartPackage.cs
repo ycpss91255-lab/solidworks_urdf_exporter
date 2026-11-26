@@ -37,7 +37,8 @@ namespace SW2URDF.Test
         {
             URDFPackage package = new URDFPackage("arm_part", @"C:\out\");
             string path = PartPackage.NameRobot(TitledRobot(), package, true);
-            Assert.Equal(@"C:\out\arm_part\urdf\arm_part.urdf.xacro", path);
+            // The xacro suffix is the one of XacroOutput, whatever it is
+            Assert.Equal(@"C:\out\arm_part\urdf\arm_part" + XacroOutput.XacroExtension, path);
         }
 
         [Fact]
@@ -101,7 +102,8 @@ namespace SW2URDF.Test
                 PartPackage.WriteRosFiles(robot, package, true);
 
                 string display = File.ReadAllText(package.WindowsLaunchDirectory + "display.launch");
-                Assert.Contains("$(find xacro)/xacro $(find arm_part)/urdf/arm_part.urdf.xacro", display);
+                Assert.Contains("$(find xacro)/xacro $(find arm_part)/urdf/arm_part" + XacroOutput.XacroExtension,
+                    display);
                 string gazebo = File.ReadAllText(package.WindowsLaunchDirectory + "gazebo.launch");
                 Assert.Contains("-param robot_description -urdf -model arm_part", gazebo);
             });
