@@ -60,6 +60,12 @@ namespace SW2URDF.URDF
         {
         }
 
+        /// <summary>False for an attribute that keeps its value but is not written to the URDF.</summary>
+        protected virtual bool WritesAttribute(URDFAttribute attribute)
+        {
+            return true;
+        }
+
         public virtual void WriteURDF(XmlWriter writer)
         {
             if (!AreRequiredFieldsSatisfied())
@@ -75,7 +81,7 @@ namespace SW2URDF.URDF
             writer.WriteStartElement(ElementName);
             foreach (URDFAttribute attribute in Attributes)
             {
-                if (attribute.Value != null)
+                if (attribute.Value != null && WritesAttribute(attribute))
                 {
                     attribute.WriteURDF(writer);
                 }
