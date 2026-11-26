@@ -649,6 +649,15 @@
   <data xml:space="preserve" name="mesh files are missing">
     <value>Mesh files are missing</value>
   </data>
+  <data xml:space="preserve" name="the package folder exists already">
+    <value>The package folder exists already</value>
+  </data>
+  <data xml:space="preserve" name="the export replaces the files in it, files edited by hand included: the urdf, package.xml, cmakelists.txt, the launch and config files, the meshes and the textures. overwrite them? choose no to go back and choose another folder or name.">
+    <value>The export replaces the files in it, files edited by hand included: the URDF, package.xml, CMakeLists.txt, the launch and config files, the meshes and the textures. Overwrite them? Choose No to go back and choose another folder or name.</value>
+  </data>
+  <data xml:space="preserve" name="the package exists already">
+    <value>The package exists already</value>
+  </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
     <value>The mesh of these links could not be exported: {0}. The URDF was not written and the package is incomplete (see {1}). Check the log and the output folder, then export again.</value>
   </data>

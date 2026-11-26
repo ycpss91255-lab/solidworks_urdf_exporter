@@ -187,6 +187,13 @@ namespace SW2URDF.UI
         {
             Exporter.PackageName = Path.GetFileName(textBox_save_as.Text);
             Exporter.SavePath = Path.GetDirectoryName(textBox_save_as.Text);
+            if (!ExistingPackagePrompt.Confirm(
+                new URDFPackage(Exporter.PackageName, Exporter.SavePath, ui).WindowsPackageDirectory,
+                URDFPackage.MessageBox, ui))
+            {
+                logger.Info("Export cancelled: the existing package is not overwritten");
+                return;
+            }
             // The link, and so its mesh, is named after the package that URDFPackage makes of this name
             Exporter.URDFRobot.BaseLink.Name = PartPackage.LinkName(Exporter.PackageName);
 
