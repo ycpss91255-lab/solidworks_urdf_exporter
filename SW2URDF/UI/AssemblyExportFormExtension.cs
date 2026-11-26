@@ -182,6 +182,7 @@ namespace SW2URDF.UI
                 comboBoxOrigin.FindStringExact(joint.CoordinateSystemName);
 
             // Updating Mimic Element Fields
+            Mimic.FindTargets(Exporter.GetJoints());
             List<string> jointNames = Exporter.GetJointNames();
 
             // We'll be setting this automatically, so unsubscribe callback
@@ -193,8 +194,10 @@ namespace SW2URDF.UI
             {
                 ShowMimicControls(true);
                 MimicCheckBox.Checked = true;
+                // A name that is not a joint of the robot is shown too. Joint names are case sensitive.
+                int mimicIndex = MimicJointComboBox.Items.IndexOf(joint.Mimic.JointName);
                 MimicJointComboBox.SelectedIndex =
-                    MimicJointComboBox.FindStringExact(joint.Mimic.JointName);
+                    mimicIndex >= 0 ? mimicIndex : MimicJointComboBox.Items.Add(joint.Mimic.JointName);
                 joint.Mimic.FillBoxes(textBoxMimicMultiplier, textBoxMimicOffset);
             }
             else
@@ -305,8 +308,15 @@ namespace SW2URDF.UI
             Joint.Parent.Update(labelParent);
             Joint.Child.Update(labelChild);
 
-            Joint.CoordinateSystemName = comboBoxOrigin.Text;
-            Joint.AxisName = comboBoxAxis.Text;
+            // Nothing is selected when the name is not in the model, and nobody can select a blank.
+            if (comboBoxOrigin.SelectedIndex >= 0)
+            {
+                Joint.CoordinateSystemName = comboBoxOrigin.Text;
+            }
+            if (comboBoxAxis.SelectedIndex >= 0)
+            {
+                Joint.AxisName = comboBoxAxis.Text;
+            }
 
             Joint.Origin.Update(textBoxJointX,
                                 textBoxJointY,

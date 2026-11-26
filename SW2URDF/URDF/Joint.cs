@@ -69,6 +69,9 @@ namespace SW2URDF.URDF
         // configuration and the URDF do not change.
         public LimitMateInfo LimitInfo;
 
+        // The mimics that name this joint, found by Mimic.FindTargets. Not serialised.
+        internal List<Mimic> MimickedBy;
+
         public Joint() : base("joint", false)
         {
             Origin = new Origin(false);
@@ -110,6 +113,7 @@ namespace SW2URDF.URDF
         public void Update(TextBox boxName, ComboBox boxType, SW2URDF.UI.UiText ui = null)
         {
             Name = boxName.Text;
+            MimickedBy?.ForEach(mimic => mimic.JointName = Name);
             Type = ui == null ? boxType.Text : ui.ComboValue(boxType.Text);
         }
 

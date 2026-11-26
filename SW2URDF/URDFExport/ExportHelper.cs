@@ -274,7 +274,13 @@ namespace SW2URDF.URDFExport
 
         public List<string> GetJointNames()
         {
-            List<string> jointNames = new List<string>();
+            return GetJoints().ConvertAll(joint => joint.Name);
+        }
+
+        /// <summary>The joints of the robot, without the one of the base link.</summary>
+        public List<Joint> GetJoints()
+        {
+            List<Joint> joints = new List<Joint>();
 
             Queue<Link> queue = new Queue<Link>();
             queue.Enqueue(URDFRobot.BaseLink);
@@ -283,7 +289,7 @@ namespace SW2URDF.URDFExport
                 Link current = queue.Dequeue();
                 if (current.Parent != null)
                 {
-                    jointNames.Add(current.Joint.Name);
+                    joints.Add(current.Joint);
                 }
 
                 foreach (Link child in current.Children)
@@ -292,7 +298,7 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            return jointNames;
+            return joints;
         }
 
         //Recursive method for exporting each link (and writing it to the URDF)

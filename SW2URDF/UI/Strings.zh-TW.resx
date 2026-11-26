@@ -201,6 +201,9 @@
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF 關節錯誤</value>
   </data>
+  <data xml:space="preserve" name="{0}: the joint it mimics, &quot;{1}&quot;, is not in the robot">
+    <value>{0}: 它跟隨的關節「{1}」不在機器人中</value>
+  </data>
   <data xml:space="preserve" name="urdf warnings">
     <value>URDF 警告</value>
   </data>

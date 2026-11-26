@@ -1,4 +1,6 @@
-﻿using System.Runtime.Serialization;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
 using System.Windows.Forms;
 
 namespace SW2URDF.URDF
@@ -51,6 +53,9 @@ namespace SW2URDF.URDF
             }
         }
 
+        // The joint it names, found by FindTargets. Not serialised.
+        private Joint target;
+
         public Mimic() : base("mimic", false)
         {
             JointNameAttribute = new URDFAttribute("joint", true, null);
@@ -81,6 +86,31 @@ namespace SW2URDF.URDF
             JointNameAttribute.Value = null;
             MultiplierAttribute.Value = null;
             OffsetAttribute.Value = null;
+        }
+
+        /// <summary>
+        /// Finds the joint that every mimic names, so that the mimic follows when Joint.Update renames it.
+        /// While several joints have the same name, a mimic stays with the one it named before.
+        /// </summary>
+        public static void FindTargets(ICollection<Joint> joints)
+        {
+            foreach (Mimic mimic in joints.Select(joint => joint.Mimic).Where(mimic => mimic != null))
+            {
+                if (mimic.JointName == null)
+                {
+                    mimic.target = null;
+                }
+                else if (mimic.target?.Name != mimic.JointName || !joints.Contains(mimic.target))
+                {
+                    List<Joint> named = joints.Where(joint => joint.Name == mimic.JointName).ToList();
+                    mimic.target = named.Count == 1 ? named[0] : null;
+                }
+            }
+            foreach (Joint joint in joints)
+            {
+                joint.MimickedBy = joints.Select(other => other.Mimic)
+                    .Where(mimic => mimic != null && mimic.target == joint).ToList();
+            }
         }
 
         internal void FillBoxes(TextBox textBoxMimicMultiplier, TextBox textBoxMimicOffset)
