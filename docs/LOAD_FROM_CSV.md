@@ -75,7 +75,7 @@ These were checked in SolidWorks 2023 with a two-box assembly.
   and a link that was never exported gets 0, for example a mass of 0. This also happens when a CSV from another
   SolidWorks configuration lacks a link of this one, or when nothing matches at all. For a CSV that does not cover all links,
   choose the model's values for the groups where that matters.
-- **Mesh file names from the CSV are not kept.** On every export, also **Export URDF Only**, the mesh file names are set to
+- **Mesh file names from the CSV are not kept.** On every export, also **Export Model File Only**, the mesh file names are set to
   `package://<package>/meshes/<link>.STL`. Use the CSV for numbers, colors and joint values.
 - **Number format.** The loader reads a comma-separated file with `.` as decimal point, the format the exporter writes.
   If a spreadsheet saved it with a decimal comma or with `;` as separator, nothing is reported: the numbers become 0, or

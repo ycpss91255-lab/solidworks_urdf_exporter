@@ -18,6 +18,7 @@ namespace SW2URDF.URDF
             settings.OmitXmlDeclaration = true;
             settings.Indent = true;
             settings.NewLineOnAttributes = false;
+            settings.WriteEndDocumentOnClose = false;
             logger.Info("Creating package.xml at " + savePath);
             writer = XmlWriter.Create(savePath, settings);
         }
@@ -50,29 +51,31 @@ namespace SW2URDF.URDF
             license = new License("BSD");
         }
 
+        /// <summary>Writes the manifest and closes the writer, also when writing fails.</summary>
         public void WriteElement(PackageXMLWriter mWriter)
         {
-            XmlWriter writer = mWriter.writer;
-            writer.WriteStartDocument();
-            writer.WriteStartElement("package");
-            writer.WriteAttributeString("format", "2");
+            using (XmlWriter writer = mWriter.writer)
+            {
+                writer.WriteStartDocument();
+                writer.WriteStartElement("package");
+                writer.WriteAttributeString("format", "2");
 
-            description.WriteElement(writer);
+                description.WriteElement(writer);
 
-            author.WriteElement(writer);
-            license.WriteElement(writer);
-            dependencies.WriteElement(writer);
+                author.WriteElement(writer);
+                license.WriteElement(writer);
+                dependencies.WriteElement(writer);
 
-            writer.WriteStartElement("export");
+                writer.WriteStartElement("export");
 
-            writer.WriteStartElement("architecture_independent");
-            writer.WriteEndElement();
+                writer.WriteStartElement("architecture_independent");
+                writer.WriteEndElement();
 
-            writer.WriteEndElement();
+                writer.WriteEndElement();
 
-            writer.WriteEndElement();
-            writer.WriteEndDocument();
-            writer.Close();
+                writer.WriteEndElement();
+                writer.WriteEndDocument();
+            }
         }
     }
 

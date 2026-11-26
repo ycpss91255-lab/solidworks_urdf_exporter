@@ -69,6 +69,12 @@ namespace SW2URDF.URDF
             return info.Describe(ui);
         }
 
+        /// <summary>The read-only text for a joint whose limits may not be set, or only on one side.</summary>
+        public static string Describe(LimitMateInfo info, Limit limit, UiText ui)
+        {
+            return limit.HasRange() ? Describe(info, limit.Lower, limit.Upper, ui) : ManualText(ui);
+        }
+
         // The reasons come from LimitMateProbe.Blocker; each is looked up with a literal key.
         private string Reason(UiText ui)
         {
