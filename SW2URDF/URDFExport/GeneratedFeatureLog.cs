@@ -210,7 +210,8 @@ namespace SW2URDF.URDFExport
     /// <summary>
     /// The coordinate system and axis names the joints had before a run generated frames, so a
     /// cancelled run can put them back ("Automatically Generate" must not turn into the name of a
-    /// frame that no longer exists).
+    /// frame that no longer exists). The same for the joint type: "Automatically Detect" must not turn
+    /// into the type the run found, which would count as one the user chose.
     /// </summary>
     public sealed class JointNameSnapshot
     {
@@ -221,6 +222,8 @@ namespace SW2URDF.URDFExport
             public Joint Joint;
             public string CoordinateSystemName;
             public string AxisName;
+            public string Type;
+            public string DetectedType;
         }
 
         public static JointNameSnapshot Take(LinkNode root)
@@ -236,7 +239,8 @@ namespace SW2URDF.URDFExport
             {
                 Joint = node.Link.Joint,
                 CoordinateSystemName = node.Link.Joint.CoordinateSystemName,
-                AxisName = node.Link.Joint.AxisName
+                AxisName = node.Link.Joint.AxisName,
+                Type = node.Link.Joint.Type
             });
             foreach (LinkNode child in node.Nodes)
             {
@@ -245,8 +249,9 @@ namespace SW2URDF.URDFExport
         }
 
         /// <summary>
-        /// Puts the earlier names back on the joints that still carry a name this run handed out.
-        /// A name the user chose in the meantime is left alone.
+        /// Puts the earlier names back on the joints that still carry a name this run handed out, and
+        /// the earlier type on those that still have the type it found. A name or type the user chose in
+        /// the meantime is left alone.
         /// </summary>
         public void Restore(GeneratedFeatureLog log)
         {
@@ -261,6 +266,22 @@ namespace SW2URDF.URDFExport
                     log.WasAssigned(GeneratedKind.Axis, entry.Joint.AxisName))
                 {
                     entry.Joint.AxisName = entry.AxisName;
+                }
+                if (entry.DetectedType != null && entry.Joint.Type == entry.DetectedType)
+                {
+                    entry.Joint.Type = entry.Type;
+                }
+            }
+        }
+
+        /// <summary>Remembers the type the run found for a joint whose type it had to detect.</summary>
+        public void SetDetectedType(Joint joint, string type)
+        {
+            foreach (Entry entry in entries)
+            {
+                if (ReferenceEquals(entry.Joint, joint))
+                {
+                    entry.DetectedType = type;
                 }
             }
         }

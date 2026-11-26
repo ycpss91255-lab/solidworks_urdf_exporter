@@ -21,6 +21,7 @@ namespace SW2URDF.Test
             public string Type;
             public string Name;
             public bool CanBeSelected = true;
+            public bool CanBeWritten = true;
             public readonly Dictionary<int, string> Data = new Dictionary<int, string>();
             public readonly Dictionary<int, double> Version = new Dictionary<int, double>();
             public Feature Feature;
@@ -44,12 +45,12 @@ namespace SW2URDF.Test
         /// <summary>Whether SolidWorks refuses the n-th folder insertion (from 1).</summary>
         public Func<int, bool> InsertFails = n => false;
         public bool InsertThrows;
-        public bool AttributeIsReadOnly;
         public string Path = @"C:\model\robot.SLDASM";
         public bool ReadOnly;
         public bool SaveResult = true;
         public int SaveErrors;
         public int Saves;
+        public int SaveOptions;
         public bool SaveThrows;
 
         private readonly List<Config> configurations = new List<Config>();
@@ -123,6 +124,7 @@ namespace SW2URDF.Test
                 .Callback(new SaveCallback((int options, ref int errors, ref int warnings) =>
                 {
                     Saves++;
+                    SaveOptions = options;
                     errors = SaveErrors;
                     if (SaveThrows) throw new InvalidOperationException("save");
                 }))
@@ -242,7 +244,7 @@ namespace SW2URDF.Test
             data.Setup(p => p.SetStringValue2(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
                 .Returns((string value, int options, string configuration) =>
                 {
-                    if (AttributeIsReadOnly) return false;
+                    if (!node.CanBeWritten) return false;
                     node.Data[active.Id] = value;
                     return true;
                 });
@@ -252,7 +254,7 @@ namespace SW2URDF.Test
             version.Setup(p => p.SetDoubleValue2(It.IsAny<double>(), It.IsAny<int>(), It.IsAny<string>()))
                 .Returns((double value, int options, string configuration) =>
                 {
-                    if (AttributeIsReadOnly) return false;
+                    if (!node.CanBeWritten) return false;
                     node.Version[active.Id] = value;
                     return true;
                 });

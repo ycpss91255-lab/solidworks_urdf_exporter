@@ -63,14 +63,14 @@
   <data xml:space="preserve" name="dynamics">
     <value>Dynamics</value>
   </data>
-  <data xml:space="preserve" name="entries that are blank will not be written to urdf.">
-    <value>Entries that are blank will not be written to URDF.</value>
+  <data xml:space="preserve" name="blank entries are not written to the model file.">
+    <value>Blank entries are not written to the model file.</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>Export URDF Only...</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>Export Model File Only...</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>Export URDF and Meshes...</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>Export Model File and Meshes...</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>Export as URDF</value>
@@ -198,8 +198,41 @@
   <data xml:space="preserve" name="urdf errors">
     <value>URDF Errors</value>
   </data>
+  <data xml:space="preserve" name="building link: {0}">
+    <value>Building link: {0}</value>
+  </data>
+  <data xml:space="preserve" name="building links">
+    <value>Building links</value>
+  </data>
+  <data xml:space="preserve" name="creating package directories">
+    <value>Creating package directories</value>
+  </data>
+  <data xml:space="preserve" name="exporting mesh: {0}">
+    <value>Exporting mesh: {0}</value>
+  </data>
+  <data xml:space="preserve" name="inferring the joint geometry failed for joint {0} from link {1} to {2}. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+    <value>Inferring the joint geometry failed for joint {0} from link {1} to {2}. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.</value>
+  </data>
+  <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">
+    <value>The following joints are missing required fields, please address them before continuing</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained errors in either their link or joint properties. please address before continuing">
+    <value>The following links contained errors in either their link or joint properties. Please address before continuing</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained issues that may cause problems. do you wish to proceed?">
+    <value>The following links contained issues that may cause problems. Do you wish to proceed?</value>
+  </data>
+  <data xml:space="preserve" name="the log file was expected to be located at {0}, but it was not found. please contact your maintainer with this error message.">
+    <value>The log file was expected to be located at {0}, but it was not found. Please contact your maintainer with this error message.</value>
+  </data>
+  <data xml:space="preserve" name="there was a problem with the export form:">
+    <value>There was a problem with the export form:</value>
+  </data>
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF Joint Errors</value>
+  </data>
+  <data xml:space="preserve" name="{0}: the joint it mimics, &quot;{1}&quot;, is not in the robot">
+    <value>{0}: the joint it mimics, "{1}", is not in the robot</value>
   </data>
   <data xml:space="preserve" name="urdf warnings">
     <value>URDF Warnings</value>
@@ -436,6 +469,9 @@
   <data xml:space="preserve" name="serializing this link failed. please email your maintainer with your sw assembly.">
     <value>Serializing this link failed. Please email your maintainer with your SW assembly.</value>
   </data>
+  <data xml:space="preserve" name="solidworks could not create the feature tree folder &quot;{0}&quot;. the urdf settings are kept in their entries in the feature tree. the exporter creates the folder the next time it is opened or the settings are saved.">
+    <value>SolidWorks could not create the feature tree folder "{0}". The URDF settings are kept in their entries in the feature tree. The exporter creates the folder the next time it is opened or the settings are saved.</value>
+  </data>
   <data xml:space="preserve" name="the configuration has changed, would you like to save?">
     <value>The configuration has changed, would you like to save?</value>
   </data>
@@ -445,11 +481,20 @@
   <data xml:space="preserve" name="the urdf configuration could not be saved to this model.">
     <value>The URDF configuration could not be saved to this model.</value>
   </data>
+  <data xml:space="preserve" name="the urdf settings stored in the feature tree entry &quot;{0}&quot; cannot be read. they are kept as they are and will not be overwritten.">
+    <value>The URDF settings stored in the feature tree entry "{0}" cannot be read. They are kept as they are and will not be overwritten.</value>
+  </data>
+  <data xml:space="preserve" name="the urdf settings were not saved: the feature tree entry &quot;{0}&quot; holds settings that this exporter cannot read, and they are not overwritten. delete that entry to store new settings.">
+    <value>The URDF settings were not saved: the feature tree entry "{0}" holds settings that this exporter cannot read, and they are not overwritten. Delete that entry to store new settings.</value>
+  </data>
   <data xml:space="preserve" name="converting mesh to obj">
     <value>Converting mesh to OBJ</value>
   </data>
   <data xml:space="preserve" name="converting 3dxml to obj + mtl...">
     <value>Converting 3DXML to OBJ + MTL...</value>
+  </data>
+  <data xml:space="preserve" name="the obj export does not support textures, and these links have one: {0}. export as stl or 3dxml, or remove the texture.">
+    <value>The OBJ export does not support textures, and these links have one: {0}. Export as STL or 3DXML, or remove the texture.</value>
   </data>
   <data xml:space="preserve" name="preview and export...">
     <value>Preview and Export...</value>
@@ -532,23 +577,17 @@
   <data xml:space="preserve" name="the following nodes are incomplete. you need to fix them before continuing.">
     <value>The following nodes are incomplete. You need to fix them before continuing.</value>
   </data>
-  <data xml:space="preserve" name="links with children cannot be empty. select its associated components">
-    <value>Links with children cannot be empty. Select its associated components</value>
-  </data>
   <data xml:space="preserve" name="the origin reference coordinate system cannot be automatically generated without components. either select an origin or at least one component.">
     <value>The origin reference coordinate system cannot be automatically generated without components. Either select an origin or at least one component.</value>
-  </data>
-  <data xml:space="preserve" name="the reference axis cannot be automatically generated without components. either select an axis or at least one component.">
-    <value>The reference axis cannot be automatically generated without components. Either select an axis or at least one component.</value>
-  </data>
-  <data xml:space="preserve" name="the joint type cannot be automatically detected without components. either select a joint type or at least one component.">
-    <value>The joint type cannot be automatically detected without components. Either select a joint type or at least one component.</value>
   </data>
   <data xml:space="preserve" name="link name is empty. fill in a unique link name">
     <value>Link name is empty. Fill in a unique link name</value>
   </data>
   <data xml:space="preserve" name="joint name is empty. fill in a unique joint name">
     <value>Joint name is empty. Fill in a unique joint name</value>
+  </data>
+  <data xml:space="preserve" name="{0}: its mimic leads back to itself">
+    <value>{0}: its mimic leads back to itself</value>
   </data>
   <data xml:space="preserve" name="please fix these errors before proceeding.">
     <value>Please fix these errors before proceeding.</value>
@@ -580,6 +619,12 @@
   <data xml:space="preserve" name="new: nothing stored yet">
     <value>New: nothing stored yet</value>
   </data>
+  <data xml:space="preserve" name="the configuration &quot;{0}&quot; has no urdf settings of its own. the settings stored under the name &quot;{1}&quot; belong to no configuration any more, which happens when a configuration is renamed. use them for &quot;{0}&quot;?">
+    <value>The configuration "{0}" has no URDF settings of its own. The settings stored under the name "{1}" belong to no configuration any more, which happens when a configuration is renamed. Use them for "{0}"?</value>
+  </data>
+  <data xml:space="preserve" name="configuration renamed">
+    <value>Configuration renamed</value>
+  </data>
   <data xml:space="preserve" name="settings not saved">
     <value>Settings not saved</value>
   </data>
@@ -598,11 +643,29 @@
   <data xml:space="preserve" name="exporting the urdf failed unexpectedly.">
     <value>Exporting the URDF failed unexpectedly.</value>
   </data>
+  <data xml:space="preserve" name="the model file (urdf or xacro) refers to mesh files that do not exist in the package folder, so rviz and gazebo cannot show these links:">
+    <value>The model file (URDF or xacro) refers to mesh files that do not exist in the package folder, so RViz and Gazebo cannot show these links:</value>
+  </data>
+  <data xml:space="preserve" name="export the meshes as well? choose no to export only the model file anyway, or cancel to go back.">
+    <value>Export the meshes as well? Choose No to export only the model file anyway, or Cancel to go back.</value>
+  </data>
+  <data xml:space="preserve" name="mesh files are missing">
+    <value>Mesh files are missing</value>
+  </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
     <value>The mesh of these links could not be exported: {0}. The URDF was not written and the package is incomplete (see {1}). Check the log and the output folder, then export again.</value>
   </data>
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>Select an existing reference coordinate system for empty link {0}</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. select an existing axis, or change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. Select an existing axis, or change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. Change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. Change the joint type or the mates.</value>
   </data>
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it.</value>
@@ -655,10 +718,40 @@
   <data xml:space="preserve" name="the value of the dimension cannot be read back">
     <value>the value of the dimension cannot be read back</value>
   </data>
-  <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>Write xacro (.urdf.xacro)</value>
+  <data xml:space="preserve" name="write xacro">
+    <value>Write xacro</value>
   </data>
-  <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
-    <value>Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
+    <value>Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  </data>
+  <data xml:space="preserve" name="angle unit">
+    <value>Angle unit</value>
+  </data>
+  <data xml:space="preserve" name="orientation (deg)">
+    <value>Orientation (deg)</value>
+  </data>
+  <data xml:space="preserve" name="lower (deg)">
+    <value>lower (deg)</value>
+  </data>
+  <data xml:space="preserve" name="upper (deg)">
+    <value>upper (deg)</value>
+  </data>
+  <data xml:space="preserve" name="velocity (deg/s)">
+    <value>velocity (deg/s)</value>
+  </data>
+  <data xml:space="preserve" name="soft lower limit (deg)">
+    <value>soft lower limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="soft upper limit (deg)">
+    <value>soft upper limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, rad)">
+    <value>Origin (m, rad)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, deg)">
+    <value>Origin (m, deg)</value>
+  </data>
+  <data xml:space="preserve" name="angles are shown in this unit. the urdf and the saved settings always use radians.">
+    <value>Angles are shown in this unit. The URDF and the saved settings always use radians.</value>
   </data>
 </root>

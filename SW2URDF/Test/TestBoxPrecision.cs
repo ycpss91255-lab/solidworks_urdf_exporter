@@ -74,6 +74,54 @@ namespace SW2URDF.Test
         }
 
         [Fact]
+        public void BoxesShowTwelveSignificantDigits()
+        {
+            // Issue #164: the forms show numbers with 12 significant digits.
+            Assert.Equal("G12", SW2URDF.UI.ValueFormat.Box);
+            const double Noisy = -0.019999999999999997;
+            Origin origin = new Origin(true);
+            origin.SetXYZ(new double[] { Noisy, Long, 0 });
+            origin.SetRPY(new double[] { Roll, 0, 0 });
+            TextBox[] b = Boxes(6);
+            origin.FillBoxes(b[0], b[1], b[2], b[3], b[4], b[5], SW2URDF.UI.ValueFormat.Box);
+            Assert.Equal("-0.02", b[0].Text);
+            Assert.Equal("1.23456789012", b[1].Text);
+            Assert.Equal("-1.57079632679", b[3].Text);
+        }
+
+        [Fact]
+        public void RoundedBoxesKeepTheExactValueUnlessEdited()
+        {
+            const double Noisy = -0.019999999999999997;
+            Origin origin = new Origin(true);
+            origin.SetXYZ(new double[] { Noisy, Long, 0 });
+            origin.SetRPY(new double[] { Roll, 0, 0 });
+            TextBox[] b = Boxes(6);
+            origin.FillBoxes(b[0], b[1], b[2], b[3], b[4], b[5], SW2URDF.UI.ValueFormat.Box);
+            origin.Update(b[0], b[1], b[2], b[3], b[4], b[5]);
+            Assert.Equal(new double[] { Noisy, Long, 0 }, origin.GetXYZ());
+            Assert.Equal(Roll, origin.GetRPY()[0]);
+
+            // Saved again without edits: still exact. A typed value is taken as typed, even one that
+            // looks like the rounded text of another box.
+            origin.Update(b[0], b[1], b[2], b[3], b[4], b[5]);
+            Assert.Equal(Noisy, origin.GetXYZ()[0]);
+            b[1].Text = "1.5";
+            b[2].Text = "-0.02";
+            origin.Update(b[0], b[1], b[2], b[3], b[4], b[5]);
+            Assert.Equal(new double[] { Noisy, 1.5, -0.02 }, origin.GetXYZ());
+
+            Limit limit = new Limit { Lower = -Long, Upper = Noisy, Effort = 12.5, Velocity = 0.98765432109876 };
+            TextBox[] l = Boxes(4);
+            limit.FillBoxes(l[0], l[1], l[2], l[3], SW2URDF.UI.ValueFormat.Box);
+            Assert.Equal("0.987654321099", l[3].Text);
+            limit.SetValues(l[0], l[1], l[2], l[3]);
+            Assert.Equal(-Long, limit.Lower);
+            Assert.Equal(Noisy, limit.Upper);
+            Assert.Equal(0.98765432109876, limit.Velocity);
+        }
+
+        [Fact]
         public void AxisAndMassKeepFullPrecision()
         {
             Axis axis = new Axis();
