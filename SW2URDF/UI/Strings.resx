@@ -607,6 +607,9 @@
   <data xml:space="preserve" name="active configuration: {0}">
     <value>Active configuration: {0}</value>
   </data>
+  <data xml:space="preserve" name="the exporter was opened for the configuration &quot;{0}&quot;, but now &quot;{1}&quot; is active. nothing was saved or exported, so that the settings of &quot;{1}&quot; are kept. activate &quot;{0}&quot; again, or open the exporter again for &quot;{1}&quot;.">
+    <value>The exporter was opened for the configuration "{0}", but now "{1}" is active. Nothing was saved or exported, so that the settings of "{1}" are kept. Activate "{0}" again, or open the exporter again for "{1}".</value>
+  </data>
   <data xml:space="preserve" name="stored for this configuration">
     <value>Stored for this configuration</value>
   </data>

@@ -741,9 +741,13 @@ namespace SW2URDF.URDFExport
         /// </summary>
         public static bool CheckSameConfiguration(ModelDoc2 model, string opened, UiText ui)
         {
+            if (opened == null)
+            {
+                return true;
+            }
             string active = GetActiveConfigurationName(model);
             string[] names = model.GetConfigurationNames() as string[];
-            if (opened == null || active == null || active == opened || names == null || !names.Contains(opened))
+            if (active == null || active == opened || names == null || !names.Contains(opened))
             {
                 return true;
             }

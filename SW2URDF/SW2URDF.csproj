@@ -336,6 +336,7 @@
     <Compile Include="Test\TestCsvColumnCheck.cs" />
     <Compile Include="Test\TestAttributeDate.cs" />
     <Compile Include="Test\TestCsvInvariant.cs" />
+    <Compile Include="Test\TestConfigurationChanged.cs" />
     <Compile Include="Test\TestExportHelper.cs" />
     <Compile Include="Test\TestFileNames.cs" />
     <Compile Include="Test\TestUnreadableSettings.cs" />

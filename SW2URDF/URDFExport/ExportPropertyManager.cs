@@ -210,6 +210,10 @@ namespace SW2URDF.URDFExport
 
         private void ExportButtonPress()
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(ActiveSWModel, loadedConfiguration, ui))
+            {
+                return;
+            }
             SaveActiveNode();
 
             Exporter.SetComputeInertial(PMComputeMassInertia.Checked);

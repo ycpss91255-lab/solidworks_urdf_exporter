@@ -479,6 +479,10 @@ namespace SW2URDF.UI
 
         public virtual void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(model, loadedConfiguration, ui))
+            {
+                return;
+            }
             CommonSwOperations.RetrieveSWComponentPIDs(model, BaseNode);
             ConfigurationSerialization.SaveConfigTreeXML(swApp, model, BaseNode, warnUser, ui);
             RefreshConfigurationStatus();

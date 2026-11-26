@@ -37,8 +37,15 @@ namespace SW2URDF.URDFExport
         public static readonly double ConfigurationVersion = 1.3;
         public static readonly double SoapMinVersion = 1.3;
 
+        /// <summary>The configuration the tree was loaded for.</summary>
+        private string loadedConfiguration;
+
         public void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(model, loadedConfiguration, ui))
+            {
+                return;
+            }
             CommonSwOperations.RetrieveSWComponentPIDs(model, BaseNode);
             ConfigurationSerialization.SaveConfigTreeXML(swApp, model, BaseNode, warnUser, ui);
             RefreshConfigurationStatus();
@@ -485,6 +492,7 @@ namespace SW2URDF.URDFExport
                 return false;
             }
 
+            loadedConfiguration = ConfigurationSerialization.GetActiveConfigurationName(ActiveSWModel);
             SetConfigTree(baseNode);
             RefreshConfigurationStatus();
 
