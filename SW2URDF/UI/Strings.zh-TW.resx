@@ -385,16 +385,16 @@
     <value>摩擦 (N)</value>
   </data>
   <data xml:space="preserve" name="friction (n-m)">
-    <value>摩擦 (N-m)</value>
+    <value>摩擦 (N·m)</value>
   </data>
   <data xml:space="preserve" name="damping">
     <value>阻尼</value>
   </data>
   <data xml:space="preserve" name="damping (n-m-s/rad)">
-    <value>阻尼 (N-m-s/rad)</value>
+    <value>阻尼 (N·m·s/rad)</value>
   </data>
   <data xml:space="preserve" name="damping (n-s/m)">
-    <value>阻尼 (N-s/m)</value>
+    <value>阻尼 (N·s/m)</value>
   </data>
   <data xml:space="preserve" name="soft lower limit">
     <value>軟下限</value>
@@ -657,5 +657,35 @@
   </data>
   <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
     <value>將機器人寫成 .xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
+  </data>
+  <data xml:space="preserve" name="angle unit">
+    <value>角度單位</value>
+  </data>
+  <data xml:space="preserve" name="orientation (deg)">
+    <value>姿態 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="lower (deg)">
+    <value>下限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="upper (deg)">
+    <value>上限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="velocity (deg/s)">
+    <value>速度 (deg/s)</value>
+  </data>
+  <data xml:space="preserve" name="soft lower limit (deg)">
+    <value>軟下限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="soft upper limit (deg)">
+    <value>軟上限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, rad)">
+    <value>原點 (m, rad)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, deg)">
+    <value>原點 (m, deg)</value>
+  </data>
+  <data xml:space="preserve" name="angles are shown in this unit. the urdf and the saved settings always use radians.">
+    <value>角度以此單位顯示。URDF 與儲存的設定一律使用弧度。</value>
   </data>
 </root>
