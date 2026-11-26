@@ -50,6 +50,7 @@ namespace SW2URDF.Test
         public bool SaveResult = true;
         public int SaveErrors;
         public int Saves;
+        public int SaveOptions;
         public bool SaveThrows;
 
         private readonly List<Config> configurations = new List<Config>();
@@ -123,6 +124,7 @@ namespace SW2URDF.Test
                 .Callback(new SaveCallback((int options, ref int errors, ref int warnings) =>
                 {
                     Saves++;
+                    SaveOptions = options;
                     errors = SaveErrors;
                     if (SaveThrows) throw new InvalidOperationException("save");
                 }))
