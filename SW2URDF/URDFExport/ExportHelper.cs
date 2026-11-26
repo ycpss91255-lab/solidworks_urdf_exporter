@@ -662,8 +662,8 @@ namespace SW2URDF.URDFExport
             string meshBaseName = FileNames.SanitizeFileName(URDFRobot.BaseLink.Name);
             string meshFileName = package.MeshesDirectory + meshBaseName + ".STL";
             string windowsMeshFileName = package.WindowsMeshesDirectory + meshBaseName + ".STL";
-            string windowsURDFFileName = package.WindowsRobotsDirectory +
-                XacroOutput.RobotFileName(FileNames.SanitizeFileName(URDFRobot.Name, "robot"), URDFRobot.BaseLink.WriteXacro);
+            // The robot and its file are named after the package, as in the assembly export
+            string windowsURDFFileName = PartPackage.NameRobot(URDFRobot, package, URDFRobot.BaseLink.WriteXacro);
 
             //Creating package.xml, the same file the assembly export writes
             PackageXMLWriter packageXMLWriter = new PackageXMLWriter(package.WindowsPackageXML);

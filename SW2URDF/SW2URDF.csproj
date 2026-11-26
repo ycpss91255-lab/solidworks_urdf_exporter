@@ -395,6 +395,7 @@
     <Compile Include="URDFExport\ExportHelper.cs" />
     <Compile Include="URDFExport\FileNames.cs" />
     <Compile Include="URDFExport\XacroOutput.cs" />
+    <Compile Include="URDFExport\PartPackage.cs" />
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
     <Compile Include="URDFExport\ObjConversionRunner.cs" />
