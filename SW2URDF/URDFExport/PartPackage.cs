@@ -1,3 +1,4 @@
+using System.IO;
 using SW2URDF.ROS;
 using SW2URDF.URDF;
 
@@ -11,6 +12,30 @@ namespace SW2URDF.URDFExport
     /// </summary>
     public static class PartPackage
     {
+        /// <summary>
+        /// Save As path the part form proposes: the package name made from the document title, so
+        /// without the .SLDPRT that SolidWorks shows in the title.
+        /// </summary>
+        public static string DefaultSaveAs(string savePath, string documentTitle)
+        {
+            return Path.Combine(savePath, FileNames.SanitizePackageName(documentTitle));
+        }
+
+        /// <summary>
+        /// Name of the link of the part: the package name actually used, which is the Save As name
+        /// as URDFPackage cleans it.
+        /// </summary>
+        public static string LinkName(string saveAsName)
+        {
+            return FileNames.SanitizePackageName(saveAsName);
+        }
+
+        /// <summary>File name of the mesh of the link, without a directory.</summary>
+        public static string MeshFileName(Link link, string extension)
+        {
+            return FileNames.SanitizeFileName(link.Name) + extension;
+        }
+
         /// <summary>
         /// Names the robot after the package and returns the Windows path of its URDF (or xacro) file.
         /// </summary>
