@@ -389,6 +389,8 @@
     <Compile Include="Test\TestROSFIles.cs" />
     <Compile Include="Test\TestFixedJointAxis.cs" />
     <Compile Include="Test\SolidWorksBinding.cs" />
+    <Compile Include="Test\SilentFormThread.cs" />
+    <Compile Include="Test\TestLinkPageSettings.cs" />
     <Compile Include="Test\TestSolidWorksBinding.cs" />
     <Compile Include="Test\TestMenuImages.cs" />
     <Compile Include="Test\TestTwoBoxesFixture.cs" />
