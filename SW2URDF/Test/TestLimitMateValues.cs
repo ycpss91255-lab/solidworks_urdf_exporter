@@ -84,6 +84,32 @@ namespace SW2URDF.Test
             Assert.Equal("30", (upper * 180.0 / Math.PI).ToString("G12", CultureInfo.InvariantCulture));
         }
 
+        // Issue #170: when an equation or a global variable sets the angle, SolidWorks stores the evaluated
+        // value rounded to about 15 significant digits, further from the exact value than a typed one.
+        // These are the values a live read returned for 90, 120 and 100 deg.
+        [Fact]
+        public void AnglesSetByEquationsGiveTheTypedLimits()
+        {
+            double[][] cases = { new[] { 1.5707963267949, 90 }, new[] { 2.0943951023932, 120 },
+                new[] { 1.7453292519943333, 100 } };
+            foreach (double[] c in cases)
+            {
+                LimitMateValues.Variations(true, c[0], Radians(60), Radians(180), out double minimum, out double maximum);
+                Assert.Equal(Radians(60 - c[1]), minimum);
+                Assert.Equal(Radians(180 - c[1]), maximum);
+            }
+        }
+
+        [Fact]
+        public void AngleSetByAnEquationIsWrittenWithoutNoise()
+        {
+            Limits(true, -1, 1.5707963267949, Radians(60), Radians(180), out double lower, out double upper);
+            Assert.Equal((-Math.PI / 2).ToString(CultureInfo.InvariantCulture), lower.ToString(CultureInfo.InvariantCulture));
+            Assert.Equal((Math.PI / 6).ToString(CultureInfo.InvariantCulture), upper.ToString(CultureInfo.InvariantCulture));
+            Assert.Equal("-90", (lower * 180.0 / Math.PI).ToString("G12", CultureInfo.InvariantCulture));
+            Assert.Equal("30", (upper * 180.0 / Math.PI).ToString("G12", CultureInfo.InvariantCulture));
+        }
+
         [Fact]
         public void UntypedValuesAreKept()
         {

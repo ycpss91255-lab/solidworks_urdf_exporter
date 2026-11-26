@@ -33,12 +33,15 @@ namespace SW2URDF.URDFExport
         }
 
         // Converting a typed decimal and back leaves it a few units in the last place off (60 deg reads
-        // back as 59.999999999999986). Such a value is put back on its decimal; any other value, for
-        // example one an equation computed, is kept as it is.
+        // back as 59.999999999999986). When an equation or a global variable sets the value, SolidWorks
+        // stores the evaluated value rounded to about 15 significant digits (90 deg is stored as
+        // 1.5707963267949 rad and reads back as 90.00000000000019). Such a value, within 1e-14 of its
+        // size from a decimal with at most 10 places, is put back on that decimal; any other value, for
+        // example 180/7 deg, is kept as it is.
         internal static double Typed(double value)
         {
             double rounded = Math.Round(value, 10);
-            double tolerance = 8 * Math.Max(Math.Abs(value), 1.0) * 2.220446049250313e-16;
+            double tolerance = 1e-14 * Math.Max(Math.Abs(value), 1.0);
             return Math.Abs(value - rounded) <= tolerance ? rounded : value;
         }
     }
