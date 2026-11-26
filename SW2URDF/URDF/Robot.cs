@@ -43,20 +43,27 @@ namespace SW2URDF.URDF
             }
         }
 
+        /// <summary>Writes the robot and closes the writer, also when writing fails.</summary>
         public override void WriteURDF(XmlWriter writer)
         {
-            writer.WriteStartDocument();
-            string buildVersion = Versioning.Version.GetBuildVersion();
-            string commitVersion = Versioning.Version.GetCommitVersion();
+            try
+            {
+                writer.WriteStartDocument();
+                string buildVersion = Versioning.Version.GetBuildVersion();
+                string commitVersion = Versioning.Version.GetCommitVersion();
 
-            writer.WriteComment(" This URDF was automatically created by SolidWorks to URDF Exporter! " +
-                "Originally created by Stephen Brawner (brawner@gmail.com) \r\n" +
-                string.Format("     Commit Version: {0}  Build Version: {1}\r\n", commitVersion, buildVersion) +
-                "     For more information, please see http://wiki.ros.org/sw_urdf_exporter ");
+                writer.WriteComment(" This URDF was automatically created by SolidWorks to URDF Exporter! " +
+                    "Originally created by Stephen Brawner (brawner@gmail.com) \r\n" +
+                    string.Format("     Commit Version: {0}  Build Version: {1}\r\n", commitVersion, buildVersion) +
+                    "     For more information, please see http://wiki.ros.org/sw_urdf_exporter ");
 
-            base.WriteURDF(writer);
-            writer.WriteEndDocument();
-            writer.Close();
+                base.WriteURDF(writer);
+                writer.WriteEndDocument();
+            }
+            finally
+            {
+                writer.Close();
+            }
         }
 
         public void SetBaseLink(Link link)
