@@ -13,6 +13,17 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# The first use of a WPF type (MessageBoxResult, which the fake message boxes return) makes the
+# process DPI aware, and that cannot be undone. Text measured before and after that point does
+# not agree, so a test of a window could pass alone and fail after a test that touched WPF.
+# Make the process DPI aware before any test, as SOLIDWORKS is before the add-in is loaded.
+Add-Type -Namespace SW2URDFTestRunner -Name Dpi -MemberDefinition @"
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+public static extern bool SetProcessDPIAware();
+"@
+[void][SW2URDFTestRunner.Dpi]::SetProcessDPIAware()
+
 $resolved = (Resolve-Path -LiteralPath $AssemblyPath).Path
 $assembly = [Reflection.Assembly]::LoadFrom($resolved)
 try { $types = $assembly.GetTypes() }
