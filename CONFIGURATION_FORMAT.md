@@ -69,13 +69,17 @@ when an older file does not have it, and an older exporter ignores it.
 
 | Member | Where | Meaning | Default |
 |---|---|---|---|
-| `WriteXacro` | the base link of the configuration entry | The export writes the robot as `<robot_name>.urdf.xacro` instead of `<robot_name>.urdf` (the "Write xacro" checkbox of the export forms). | `false`. It is not written when false, so the data of a configuration without xacro is byte-for-byte what it was before the member existed. |
+| `WriteXacro` | the base link of the configuration entry | The export writes the robot as `<robot_name>.xacro` instead of `<robot_name>.urdf` (the "Write xacro" checkbox of the export forms). | `false`. It is not written when false, so the data of a configuration without xacro is byte-for-byte what it was before the member existed. |
 
-With `WriteXacro` set, only the `.urdf.xacro` file is written (no extra plain `.urdf`). The `<robot>` element
+With `WriteXacro` set, only the `.xacro` file is written (no extra plain `.urdf`). The `<robot>` element
 declares `xmlns:xacro="http://www.ros.org/wiki/xacro"` and the rest of the file is the plain URDF, including the
 `package://` mesh paths. The ROS 1 `display.launch` and `gazebo.launch` expand it with
 `$(find xacro)/xacro`; without the member they are unchanged. The CSV next to the robot file keeps the name
 `<robot_name>.csv`. Macros and parameters are not generated.
+
+Exports before this change wrote `<robot_name>.urdf.xacro`. Exporting again into such a package writes
+`<robot_name>.xacro` and launch files that expand it; the old `.urdf.xacro` is left in place, unused, and can
+be deleted.
 
 ## Format version
 
@@ -107,6 +111,8 @@ When raising it:
   left in place (older exporters can still read it) and can be deleted by the user.
 - Data with a version **higher** than the exporter supports is refused with a message asking
   the user to update the exporter; it is never overwritten.
+- Data that cannot be read (damaged, or not of this format) is reported when it is loaded. It is kept: a save
+  that would overwrite it is refused with a message. Delete the entry to store new settings.
 
 ## Tests
 

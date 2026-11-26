@@ -63,14 +63,14 @@
   <data xml:space="preserve" name="dynamics">
     <value>動態參數</value>
   </data>
-  <data xml:space="preserve" name="entries that are blank will not be written to urdf.">
-    <value>空白欄位不會寫入 URDF。</value>
+  <data xml:space="preserve" name="blank entries are not written to the model file.">
+    <value>空白欄位不會寫入模型檔。</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>僅匯出 URDF…</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>僅匯出模型檔…</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>匯出 URDF 與網格…</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>匯出模型檔與網格…</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>匯出為 URDF</value>
@@ -127,7 +127,7 @@
     <value>OBJ + MTL</value>
   </data>
   <data xml:space="preserve" name="obj + mtl (native colors)">
-    <value>OBJ + MTL（原生配色）</value>
+    <value>OBJ + MTL (原生配色)</value>
   </data>
   <data xml:space="preserve" name="obj color and texture are defined by the mtl file.">
     <value>OBJ 的顏色與貼圖由 MTL 檔案決定。</value>
@@ -198,8 +198,41 @@
   <data xml:space="preserve" name="urdf errors">
     <value>URDF 錯誤</value>
   </data>
+  <data xml:space="preserve" name="building link: {0}">
+    <value>正在建立連桿: {0}</value>
+  </data>
+  <data xml:space="preserve" name="building links">
+    <value>正在建立連桿</value>
+  </data>
+  <data xml:space="preserve" name="creating package directories">
+    <value>正在建立套件資料夾</value>
+  </data>
+  <data xml:space="preserve" name="exporting mesh: {0}">
+    <value>正在匯出網格: {0}</value>
+  </data>
+  <data xml:space="preserve" name="inferring the joint geometry failed for joint {0} from link {1} to {2}. check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom.">
+    <value>無法推算關節 {0} 的幾何 (由連桿 {1} 到 {2})。請確認配合沒有將連桿 {1} 的元件完全定義，而且剛好只有一個自由度。</value>
+  </data>
+  <data xml:space="preserve" name="the following joints are missing required fields, please address them before continuing">
+    <value>下列關節缺少必要欄位，請先修正才能繼續</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained errors in either their link or joint properties. please address before continuing">
+    <value>下列連桿或其關節的屬性有錯誤，請先修正才能繼續</value>
+  </data>
+  <data xml:space="preserve" name="the following links contained issues that may cause problems. do you wish to proceed?">
+    <value>下列連桿可能造成問題。是否仍要繼續？</value>
+  </data>
+  <data xml:space="preserve" name="the log file was expected to be located at {0}, but it was not found. please contact your maintainer with this error message.">
+    <value>預期記錄檔位於 {0}，但找不到該檔案。請將此錯誤訊息告知維護人員。</value>
+  </data>
+  <data xml:space="preserve" name="there was a problem with the export form:">
+    <value>匯出表單發生問題：</value>
+  </data>
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF 關節錯誤</value>
+  </data>
+  <data xml:space="preserve" name="{0}: the joint it mimics, &quot;{1}&quot;, is not in the robot">
+    <value>{0}: 它跟隨的關節「{1}」不在機器人中</value>
   </data>
   <data xml:space="preserve" name="urdf warnings">
     <value>URDF 警告</value>
@@ -316,7 +349,7 @@
     <value>從 CSV 載入…</value>
   </data>
   <data xml:space="preserve" name="merge values from the csv written by an earlier export (links are matched by name)">
-    <value>合併先前匯出所寫出 CSV 檔中的數值（依連桿名稱配對）</value>
+    <value>合併先前匯出所寫出 CSV 檔中的數值 (依連桿名稱配對)</value>
   </data>
   <data xml:space="preserve" name="imported file: ">
     <value>匯入檔案：</value>
@@ -352,7 +385,8 @@
     <value>連桿樹</value>
   </data>
   <data xml:space="preserve" name="customize the joint properties. if you want to adjust the coordinate systems and axes in the model, click cancel and restart the export. the tool will recognize your changes on the next run.">
-    <value>若要修改座標系或軸，請先取消匯出。修改後重新匯出即可套用變更。</value>
+    <value>若要修改座標系或軸，請先取消匯出。
+修改後重新匯出即可套用變更。</value>
   </data>
   <data xml:space="preserve" name="lower">
     <value>下限</value>
@@ -385,16 +419,16 @@
     <value>摩擦 (N)</value>
   </data>
   <data xml:space="preserve" name="friction (n-m)">
-    <value>摩擦 (N-m)</value>
+    <value>摩擦 (N·m)</value>
   </data>
   <data xml:space="preserve" name="damping">
     <value>阻尼</value>
   </data>
   <data xml:space="preserve" name="damping (n-m-s/rad)">
-    <value>阻尼 (N-m-s/rad)</value>
+    <value>阻尼 (N·m·s/rad)</value>
   </data>
   <data xml:space="preserve" name="damping (n-s/m)">
-    <value>阻尼 (N-s/m)</value>
+    <value>阻尼 (N·s/m)</value>
   </data>
   <data xml:space="preserve" name="soft lower limit">
     <value>軟下限</value>
@@ -409,14 +443,14 @@
     <value>軟上限 (m)</value>
   </data>
   <data xml:space="preserve" name="creating urdf package &quot;{0}&quot; at:&#10;{1}">
-    <value>建立 URDF 套件「{0}」於：
+    <value>建立 URDF 套件「{0}」於:
 {1}</value>
   </data>
   <data xml:space="preserve" name="the following links are missing solidworks components in the active configuration &quot;{0}&quot; (for example because the configuration suppresses a part):">
-    <value>以下連桿在作用中的組態「{0}」缺少 SolidWorks 元件（例如該組態抑制了某個零件）：</value>
+    <value>以下連桿在作用中的組態「{0}」缺少 SolidWorks 元件 (例如該組態抑制了某個零件):</value>
   </data>
   <data xml:space="preserve" name="the following links are missing solidworks components (for example because the configuration suppresses a part):">
-    <value>以下連桿缺少 SolidWorks 元件（例如目前組態抑制了某個零件）：</value>
+    <value>以下連桿缺少 SolidWorks 元件 (例如目前組態抑制了某個零件):</value>
   </data>
   <data xml:space="preserve" name="the exported robot will be incomplete (missing geometry, mass and inertia). export anyway?">
     <value>匯出的機器人將不完整（缺少幾何、質量與慣性）。仍要匯出嗎？</value>
@@ -428,13 +462,16 @@
     <value>缺少元件</value>
   </data>
   <data xml:space="preserve" name="the configuration saved in this model is newer than what this exporter supports ({0} &gt; {1}). please update your exporter version">
-    <value>此模型中儲存的設定版本比目前匯出工具支援的版本新（{0} &gt; {1}）。請更新匯出工具版本。</value>
+    <value>此模型中儲存的設定版本比目前匯出工具支援的版本新 ({0} &gt; {1})。請更新匯出工具版本。</value>
   </data>
   <data xml:space="preserve" name="you have a urdf configuration with an outdated save format. it will automatically be upgraded to the latest version and saved for the active solidworks configuration. the old data is left in place and can be deleted at your convenience.">
     <value>您的 URDF 設定使用舊的儲存格式，將自動升級為最新版本，並儲存到目前作用中的 SolidWorks 組態。舊資料會保留，可隨時刪除。</value>
   </data>
   <data xml:space="preserve" name="serializing this link failed. please email your maintainer with your sw assembly.">
     <value>序列化此連桿失敗，請將您的 SolidWorks 組件寄給維護者。</value>
+  </data>
+  <data xml:space="preserve" name="solidworks could not create the feature tree folder &quot;{0}&quot;. the urdf settings are kept in their entries in the feature tree. the exporter creates the folder the next time it is opened or the settings are saved.">
+    <value>SolidWorks 無法建立特徵樹資料夾「{0}」。URDF 設定仍保留在特徵樹的各項目中。下次開啟匯出工具或儲存設定時，會再建立此資料夾。</value>
   </data>
   <data xml:space="preserve" name="the configuration has changed, would you like to save?">
     <value>設定已變更，是否要儲存？</value>
@@ -445,11 +482,20 @@
   <data xml:space="preserve" name="the urdf configuration could not be saved to this model.">
     <value>無法將 URDF 設定儲存到此模型。</value>
   </data>
+  <data xml:space="preserve" name="the urdf settings stored in the feature tree entry &quot;{0}&quot; cannot be read. they are kept as they are and will not be overwritten.">
+    <value>特徵樹項目「{0}」中儲存的 URDF 設定無法讀取。這些設定會原樣保留，不會被覆寫。</value>
+  </data>
+  <data xml:space="preserve" name="the urdf settings were not saved: the feature tree entry &quot;{0}&quot; holds settings that this exporter cannot read, and they are not overwritten. delete that entry to store new settings.">
+    <value>URDF 設定未儲存: 特徵樹項目「{0}」中的設定無法由此匯出工具讀取，因此不會被覆寫。若要儲存新設定，請先刪除該項目。</value>
+  </data>
   <data xml:space="preserve" name="converting mesh to obj">
     <value>正在將網格轉換為 OBJ</value>
   </data>
   <data xml:space="preserve" name="converting 3dxml to obj + mtl...">
     <value>正在將 3DXML 轉換為 OBJ + MTL...</value>
+  </data>
+  <data xml:space="preserve" name="the obj export does not support textures, and these links have one: {0}. export as stl or 3dxml, or remove the texture.">
+    <value>OBJ 匯出不支援貼圖，下列連桿有貼圖: {0}。請改用 STL 或 3DXML 匯出，或移除貼圖。</value>
   </data>
   <data xml:space="preserve" name="preview and export...">
     <value>預覽並匯出…</value>
@@ -532,23 +578,17 @@
   <data xml:space="preserve" name="the following nodes are incomplete. you need to fix them before continuing.">
     <value>下列節點尚未完成，請先修正才能繼續。</value>
   </data>
-  <data xml:space="preserve" name="links with children cannot be empty. select its associated components">
-    <value>含有子連桿的連桿不可為空，請選取其對應的元件</value>
-  </data>
   <data xml:space="preserve" name="the origin reference coordinate system cannot be automatically generated without components. either select an origin or at least one component.">
     <value>未選取元件時無法自動產生原點參考座標系統，請選取原點或至少一個元件。</value>
-  </data>
-  <data xml:space="preserve" name="the reference axis cannot be automatically generated without components. either select an axis or at least one component.">
-    <value>未選取元件時無法自動產生參考軸，請選取軸或至少一個元件。</value>
-  </data>
-  <data xml:space="preserve" name="the joint type cannot be automatically detected without components. either select a joint type or at least one component.">
-    <value>未選取元件時無法自動偵測關節類型，請選取關節類型或至少一個元件。</value>
   </data>
   <data xml:space="preserve" name="link name is empty. fill in a unique link name">
     <value>連桿名稱為空，請填入唯一的連桿名稱</value>
   </data>
   <data xml:space="preserve" name="joint name is empty. fill in a unique joint name">
     <value>關節名稱為空，請填入唯一的關節名稱</value>
+  </data>
+  <data xml:space="preserve" name="{0}: its mimic leads back to itself">
+    <value>{0}: 跟隨的關節最後又回到它自己</value>
   </data>
   <data xml:space="preserve" name="please fix these errors before proceeding.">
     <value>請先修正這些錯誤再繼續。</value>
@@ -566,7 +606,10 @@
     <value>（無）</value>
   </data>
   <data xml:space="preserve" name="active configuration: {0}">
-    <value>使用中的組態：{0}</value>
+    <value>使用中的組態: {0}</value>
+  </data>
+  <data xml:space="preserve" name="the exporter was opened for the configuration &quot;{0}&quot;, but now &quot;{1}&quot; is active. nothing was saved or exported, so that the settings of &quot;{1}&quot; are kept. activate &quot;{0}&quot; again, or open the exporter again for &quot;{1}&quot;.">
+    <value>匯出工具是為組態「{0}」開啟的，但目前使用中的是「{1}」。為了保留「{1}」的設定，未儲存也未匯出任何內容。請重新啟用「{0}」，或為「{1}」重新開啟匯出工具。</value>
   </data>
   <data xml:space="preserve" name="stored for this configuration">
     <value>已儲存於此組態</value>
@@ -576,6 +619,12 @@
   </data>
   <data xml:space="preserve" name="new: nothing stored yet">
     <value>新設定：尚未儲存</value>
+  </data>
+  <data xml:space="preserve" name="the configuration &quot;{0}&quot; has no urdf settings of its own. the settings stored under the name &quot;{1}&quot; belong to no configuration any more, which happens when a configuration is renamed. use them for &quot;{0}&quot;?">
+    <value>組態「{0}」沒有自己的 URDF 設定。以「{1}」為名儲存的設定已不屬於任何組態，組態重新命名後會出現這種情況。要將這些設定用於「{0}」嗎？</value>
+  </data>
+  <data xml:space="preserve" name="configuration renamed">
+    <value>組態已重新命名</value>
   </data>
   <data xml:space="preserve" name="settings not saved">
     <value>設定尚未儲存</value>
@@ -590,16 +639,34 @@
     <value>請開啟零件或組合件以使用 URDF 匯出工具。</value>
   </data>
   <data xml:space="preserve" name="saving the document did not finish cleanly (solidworks error code {0}, warning code {1}). the exporter continues, but its settings may not be stored in the file. save the document yourself, otherwise they can be lost when it is closed.">
-    <value>儲存文件時未能順利完成（SolidWorks 錯誤碼 {0}，警告碼 {1}）。匯出器會繼續執行，但其設定可能未存入檔案。請自行儲存文件，否則關閉文件時設定可能遺失。</value>
+    <value>儲存文件時未能順利完成 (SolidWorks 錯誤碼 {0}，警告碼 {1})。匯出器會繼續執行，但其設定可能未存入檔案。請自行儲存文件，否則關閉文件時設定可能遺失。</value>
   </data>
   <data xml:space="preserve" name="exporting the urdf failed unexpectedly.">
     <value>匯出 URDF 時發生未預期的錯誤。</value>
   </data>
+  <data xml:space="preserve" name="the model file (urdf or xacro) refers to mesh files that do not exist in the package folder, so rviz and gazebo cannot show these links:">
+    <value>模型檔 (URDF 或 xacro) 參照的網格檔不在套件資料夾中，因此 RViz 與 Gazebo 無法顯示下列連桿:</value>
+  </data>
+  <data xml:space="preserve" name="export the meshes as well? choose no to export only the model file anyway, or cancel to go back.">
+    <value>要一併匯出網格嗎？選擇「否」仍只匯出模型檔，選擇「取消」則返回。</value>
+  </data>
+  <data xml:space="preserve" name="mesh files are missing">
+    <value>缺少網格檔</value>
+  </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
-    <value>下列連桿的網格無法匯出：{0}。URDF 未寫入，套件不完整（請見 {1}）。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
+    <value>下列連桿的網格無法匯出: {0}。URDF 未寫入，套件不完整 (請見 {1})。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
   </data>
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>空連桿 {0} 請選取既有的參考座標系統</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. select an existing axis, or change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但找不到連桿 {2} 相對於 {3} 的單一自由方向，因此無法產生它的軸。請選取既有的軸，或變更關節類型或配合。</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但配合讓連桿 {2} 相對於 {3} 滑動而不是旋轉。請變更關節類型或配合。</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. change the joint type or the mates.">
+    <value>關節 {0} 設為「{1}」，但配合讓連桿 {2} 相對於 {3} 旋轉而不是滑動。請變更關節類型或配合。</value>
   </data>
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>匯出程式量測極限配合 {0} 的方向後，無法將它還原為 {2}，目前為 {1}。儲存模型前請先檢查這個配合。</value>
@@ -614,7 +681,7 @@
     <value>距離極限配合</value>
   </data>
   <data xml:space="preserve" name="limit mate {0} ({1})">
-    <value>極限配合 {0}（{1}）</value>
+    <value>極限配合 {0} ({1})</value>
   </data>
   <data xml:space="preserve" name="solidworks variation {0} to {1}">
     <value>SolidWorks 變化量 {0} 至 {1}</value>
@@ -623,13 +690,13 @@
     <value>SolidWorks 範圍 {0} 至 {1}，參考值 {2}</value>
   </data>
   <data xml:space="preserve" name="urdf (relative): {0} to {1} = {2} to {3}">
-    <value>URDF（相對）：{0} 至 {1} = {2} 至 {3}</value>
+    <value>URDF (相對): {0} 至 {1} = {2} 至 {3}</value>
   </data>
   <data xml:space="preserve" name="direction: measured on the model">
     <value>方向：在模型上量測</value>
   </data>
   <data xml:space="preserve" name="direction: taken from the mate type rule ({0})">
-    <value>方向：依配合類型規則（{0}）</value>
+    <value>方向: 依配合類型規則 ({0})</value>
   </data>
   <data xml:space="preserve" name="the direction could not be measured">
     <value>無法量測方向</value>
@@ -652,10 +719,40 @@
   <data xml:space="preserve" name="the value of the dimension cannot be read back">
     <value>無法讀回尺寸的值</value>
   </data>
-  <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>輸出 xacro（.urdf.xacro）</value>
+  <data xml:space="preserve" name="write xacro">
+    <value>輸出 xacro</value>
   </data>
-  <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
-    <value>將機器人寫成 .urdf.xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
+  <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
+    <value>將機器人寫成 .xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
+  </data>
+  <data xml:space="preserve" name="angle unit">
+    <value>角度單位</value>
+  </data>
+  <data xml:space="preserve" name="orientation (deg)">
+    <value>姿態 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="lower (deg)">
+    <value>下限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="upper (deg)">
+    <value>上限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="velocity (deg/s)">
+    <value>速度 (deg/s)</value>
+  </data>
+  <data xml:space="preserve" name="soft lower limit (deg)">
+    <value>軟下限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="soft upper limit (deg)">
+    <value>軟上限 (deg)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, rad)">
+    <value>原點 (m, rad)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, deg)">
+    <value>原點 (m, deg)</value>
+  </data>
+  <data xml:space="preserve" name="angles are shown in this unit. the urdf and the saved settings always use radians.">
+    <value>角度以此單位顯示。URDF 與儲存的設定一律使用弧度。</value>
   </data>
 </root>
