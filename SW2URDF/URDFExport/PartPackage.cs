@@ -34,7 +34,8 @@ namespace SW2URDF.URDFExport
         {
             string robotFile = RobotFileName(robot, writeXacro);
             package.CreateCMakeLists();
-            package.CreateConfigYAML(robot.GetJointNames(false));
+            // A single part has no joints; its base link carries an empty joint that is not written
+            package.CreateConfigYAML(new string[0]);
             new Rviz(package.PackageName, robotFile, writeXacro).WriteFiles(package.WindowsLaunchDirectory);
             new Gazebo(robot.Name, package.PackageName, robotFile, writeXacro)
                 .WriteFile(package.WindowsLaunchDirectory);
