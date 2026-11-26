@@ -1,11 +1,205 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
+    /// <summary>A form that places captions next to their fields by measuring the caption text.</summary>
+    internal interface IAlignsFieldLabels
+    {
+        void AlignFieldLabels();
+    }
+
+    /// <summary>
+    /// Spends the room a form has beyond its default size. Each registered control moves right by a
+    /// share of the extra width, grows by a share of it, and may grow by the extra height. Below the
+    /// default width, controls registered with SetShrink give up width (the tree first) up to
+    /// MaxShrink; narrower than that, and below the default height, the scrolling content panels
+    /// show scroll bars. Anchors are not used for this because inside a scrolling panel they also
+    /// move and shrink controls when the window gets smaller than the content, which makes them
+    /// overlap.
+    /// Changes are applied as differences to the current bounds, so a scrolled panel stays scrolled.
+    /// </summary>
+    internal sealed class GrowLayout
+    {
+        private sealed class Item
+        {
+            public Control Control;
+            public float MoveX;
+            public float GrowX;
+            public bool GrowY;
+            public float ShrinkMoveX;
+            public float ShrinkGrowX;
+            public int Dx;
+            public int Dw;
+            public int Dh;
+        }
+
+        private static readonly ConditionalWeakTable<Form, GrowLayout> Layouts =
+            new ConditionalWeakTable<Form, GrowLayout>();
+
+        private readonly Form form;
+        private readonly Dictionary<Control, Item> items = new Dictionary<Control, Item>();
+        private Size baseSize;
+        private bool captured;
+        private int suspended;
+
+        // Most the window may lose below its default width by taking it from the shrinking
+        // controls (the tree); narrower than that, the scrolling panels scroll as before.
+        internal int MaxShrink { get; set; }
+
+        // Runs after every change of the layout, for positions that depend on others (header text).
+        internal Action AfterApply { get; set; }
+
+        // True while the layout code rearranges the form (DPI rescale, button fitting).
+        internal bool IsSuspended
+        {
+            get { return suspended > 0; }
+        }
+
+        private GrowLayout(Form form)
+        {
+            this.form = form;
+            form.SizeChanged += delegate { Apply(); };
+            form.Shown += delegate
+            {
+                CreateHiddenHandles(form);
+                // Combo boxes take their real height with their window: place what depends on them again.
+                if (AfterApply != null)
+                {
+                    AfterApply();
+                }
+            };
+        }
+
+        internal static GrowLayout For(Form form)
+        {
+            return Layouts.GetValue(form, f => new GrowLayout(f));
+        }
+
+        internal static GrowLayout Find(Form form)
+        {
+            GrowLayout layout;
+            return form != null && Layouts.TryGetValue(form, out layout) ? layout : null;
+        }
+
+        // moveX and growX are shares of the extra width (0..1); growY takes all the extra height.
+        internal GrowLayout Set(Control control, float moveX, float growX, bool growY)
+        {
+            Item item;
+            if (!items.TryGetValue(control, out item))
+            {
+                item = new Item { Control = control };
+                items[control] = item;
+            }
+            item.MoveX = moveX;
+            item.GrowX = growX;
+            item.GrowY = growY;
+            return this;
+        }
+
+        // Below the default width: moveX and growX are shares of the width the window lost.
+        internal GrowLayout SetShrink(Control control, float moveX, float growX)
+        {
+            Item item;
+            if (!items.TryGetValue(control, out item))
+            {
+                item = new Item { Control = control };
+                items[control] = item;
+            }
+            item.ShrinkMoveX = moveX;
+            item.ShrinkGrowX = growX;
+            return this;
+        }
+
+        // Call once the default layout is complete, with the form at its default size.
+        internal void Capture()
+        {
+            baseSize = form.ClientSize;
+            captured = true;
+            Apply();
+        }
+
+        // A control that is hidden until needed (the mimic row, the page not on display) has no
+        // window yet. A scrolling panel moves only the child windows that exist, so such a control
+        // stays where it was while the panel scrolls and shows up out of place later; a combo box
+        // also takes its real height only when its window is made. Make the windows when the form is
+        // shown, so hidden controls are laid out like the visible ones.
+        private static void CreateHiddenHandles(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (!c.IsHandleCreated)
+                {
+                    IntPtr handle = c.Handle;
+                }
+                CreateHiddenHandles(c);
+            }
+        }
+
+        // Puts every control back at its default bounds while the layout code rearranges the form.
+        internal void Suspend()
+        {
+            Apply(0, 0);
+            suspended++;
+        }
+
+        // The default size changes with a DPI rescale (factor) and when the layout code made the
+        // form taller (gainedHeight).
+        internal void Resume(float factor, int gainedHeight)
+        {
+            suspended = Math.Max(0, suspended - 1);
+            baseSize = new Size((int)Math.Round(baseSize.Width * factor),
+                (int)Math.Round(baseSize.Height * factor) + gainedHeight);
+            MaxShrink = (int)Math.Round(MaxShrink * factor);
+            Apply();
+        }
+
+        private void Apply()
+        {
+            if (!captured || suspended > 0 || form.WindowState == FormWindowState.Minimized)
+            {
+                return;
+            }
+            Size now = form.ClientSize;
+            Apply(Math.Max(-MaxShrink, now.Width - baseSize.Width), Math.Max(0, now.Height - baseSize.Height));
+        }
+
+        private void Apply(int extraWidth, int extraHeight)
+        {
+            if (!captured)
+            {
+                return;
+            }
+            foreach (Item item in items.Values)
+            {
+                bool shrinking = extraWidth < 0;
+                int dx = (int)Math.Round((shrinking ? item.ShrinkMoveX : item.MoveX) * extraWidth);
+                int dw = (int)Math.Round((shrinking ? item.ShrinkGrowX : item.GrowX) * extraWidth);
+                int dh = item.GrowY ? extraHeight : 0;
+                if (dx == item.Dx && dw == item.Dw && dh == item.Dh)
+                {
+                    continue;
+                }
+                Control c = item.Control;
+                // Only what changes is set: a combo box set to its own height again may resize itself.
+                BoundsSpecified specified = BoundsSpecified.X | BoundsSpecified.Width |
+                    (item.GrowY ? BoundsSpecified.Height : BoundsSpecified.None);
+                c.SetBounds(c.Left + dx - item.Dx, c.Top, c.Width + dw - item.Dw, c.Height + dh - item.Dh, specified);
+                item.Dx = dx;
+                item.Dw = dw;
+                item.Dh = dh;
+            }
+            if (AfterApply != null)
+            {
+                AfterApply();
+            }
+        }
+    }
+
     /// <summary>Layout corrections applied once the designer layout is built.</summary>
     internal static class UiLayout
     {
@@ -46,11 +240,99 @@ namespace SW2URDF.UI
             return ScreenDpi();
         }
 
+        // WinForms lays a form out for the DPI of the primary screen (ScreenDpi). In a per-monitor DPI
+        // aware host the window can be drawn at another DPI (another monitor, or moved there), and
+        // nothing rescales it. Bring the layout to the DPI the window really has, then fit the buttons.
+        // layoutDpi is the DPI the form is currently laid out for; it is updated.
+        internal static void FollowWindowDpi(Form form, ref float layoutDpi)
+        {
+            float dpi = WindowDpi(form);
+            if (dpi > 0 && Math.Abs(dpi - layoutDpi) > 0.5f)
+            {
+                ScaleForDpi(form, layoutDpi, dpi);
+                layoutDpi = dpi;
+            }
+            else
+            {
+                FitButtonHeightsToWindow(form);
+            }
+        }
+
+        // Rescales an open form from one DPI to another: the form font and every font a control set
+        // for itself (bold titles) grow by the same factor, so all text keeps one size relation, and
+        // AutoScaleMode.Font scales the control bounds with the form font.
+        internal static void ScaleForDpi(Form form, float fromDpi, float toDpi)
+        {
+            if (fromDpi <= 0 || toDpi <= 0 || Math.Abs(toDpi - fromDpi) < 0.5f)
+            {
+                return;
+            }
+            GrowLayout grow = GrowLayout.Find(form);
+            if (grow != null)
+            {
+                grow.Suspend();
+            }
+            float factor = toDpi / fromDpi;
+            List<KeyValuePair<Control, Font>> own = new List<KeyValuePair<Control, Font>>();
+            CollectOwnFonts(form, own);
+            form.Font = Scaled(form.Font, factor);
+            foreach (KeyValuePair<Control, Font> pair in own)
+            {
+                pair.Key.Font = Scaled(pair.Value, factor);
+            }
+            int height = form.Height;
+            // Captions placed by measuring their text are placed again for the new text widths:
+            // scaling their old position can leave them a pixel into the box they describe.
+            IAlignsFieldLabels aligned = form as IAlignsFieldLabels;
+            if (aligned != null)
+            {
+                aligned.AlignFieldLabels();
+            }
+            RefitStatusBanner(form);
+            FitForm(form, toDpi);
+            if (grow != null)
+            {
+                grow.Resume(factor, form.Height - height);
+            }
+        }
+
+        // Controls whose font is their own rather than the one they inherit from their parent.
+        private static void CollectOwnFonts(Control parent, List<KeyValuePair<Control, Font>> own)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (!ReferenceEquals(c.Font, parent.Font))
+                {
+                    own.Add(new KeyValuePair<Control, Font>(c, c.Font));
+                }
+                CollectOwnFonts(c, own);
+            }
+        }
+
+        private static Font Scaled(Font font, float factor)
+        {
+            return new Font(font.FontFamily, font.SizeInPoints * factor, font.Style, GraphicsUnit.Point,
+                font.GdiCharSet, font.GdiVerticalFont);
+        }
+
         // Same fit, using the DPI the (already created) form really has.
         internal static void FitButtonHeightsToWindow(Control root)
         {
+            // The grow layout puts every control back at its default bounds while the form is refitted,
+            // and takes the height the fit added as part of the default size.
+            Form form = root as Form;
+            GrowLayout grow = GrowLayout.Find(form);
+            if (grow != null)
+            {
+                grow.Suspend();
+            }
+            int height = root.Height;
             RefitStatusBanner(root);
             FitForm(root, WindowDpi(root));
+            if (grow != null)
+            {
+                grow.Resume(1f, root.Height - height);
+            }
         }
 
         /// <summary>
@@ -120,16 +402,74 @@ namespace SW2URDF.UI
         // Fits the button heights and gives the form the height the buttons gained. The button row at
         // the bottom sizes itself to its buttons, so taller buttons would otherwise take the room from
         // the content above it and push its last line out of view.
+        private static readonly System.Reflection.MethodInfo GetState = typeof(Control).GetMethod(
+            "GetState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            null, new[] { typeof(int) }, null);
+
+        // Whether the control itself is set visible. Control.Visible is false for every control of a
+        // form that is not shown yet, which is when the constructors fit the layout.
+        private static bool IsSetVisible(Control c)
+        {
+            return GetState == null ? c.Visible : (bool)GetState.Invoke(c, new object[] { 2 });
+        }
+
+        // Pixels the content of the scrolling panels on display needs beyond their height.
+        private static int ScrollOverflow(Control parent)
+        {
+            int over = 0;
+            foreach (Control c in parent.Controls)
+            {
+                if (!IsSetVisible(c))
+                {
+                    continue;
+                }
+                ScrollableControl scrolling = c as ScrollableControl;
+                if (scrolling != null && scrolling.AutoScroll && !(c is Form))
+                {
+                    int bottom = 0;
+                    foreach (Control child in c.Controls)
+                    {
+                        if (IsSetVisible(child))
+                        {
+                            bottom = Math.Max(bottom, child.Bottom + child.Margin.Bottom);
+                        }
+                    }
+                    over = Math.Max(over, bottom - c.ClientSize.Height);
+                }
+                if (!(c is UpDownBase) && !(c is ComboBox))
+                {
+                    over = Math.Max(over, ScrollOverflow(c));
+                }
+            }
+            return over;
+        }
+
         internal static void FitForm(Control root, float dpi)
         {
             int gained = FitButtonHeights(root, dpi) + SpaceRows(root, dpi);
             Form form = root as Form;
-            if (form == null || gained <= 0 || form.WindowState != FormWindowState.Normal)
+            if (form == null || form.WindowState != FormWindowState.Normal)
             {
                 return;
             }
             Rectangle area = Screen.FromControl(form).WorkingArea;
-            form.Height = Math.Min(form.Height + gained, area.Height);
+            if (gained > 0)
+            {
+                form.Height = Math.Min(form.Height + gained, area.Height);
+            }
+            // A scrolling panel counts each control's margin, so content ending just above its bottom
+            // edge can still need a few pixels of scrolling: the page then shows a scroll bar and
+            // its last line is cut. Grow the form until the page on display fits (twice at most:
+            // the first growth can change the layout once more).
+            for (int i = 0; i < 2 && form.Height < area.Height; i++)
+            {
+                int over = ScrollOverflow(form);
+                if (over <= 0)
+                {
+                    break;
+                }
+                form.Height = Math.Min(form.Height + over, area.Height);
+            }
             if (form.IsHandleCreated && form.Bottom > area.Bottom)
             {
                 form.Top = Math.Max(area.Top, area.Bottom - form.Height);
@@ -268,6 +608,12 @@ namespace SW2URDF.UI
                     }
                     int extra = IsField(above) && IsField(item)
                         ? Math.Max(0, gap - (tops[item] - (tops[above] + above.Height))) : 0;
+                    // A caption or panel right above a control keeps a gap of one pixel to it: with some fonts
+                    // (Chinese drawn through font linking) its lines are taller than the designer's.
+                    if (!IsField(above))
+                    {
+                        extra = Math.Max(extra, 1 - (tops[item] - (tops[above] + above.Height)));
+                    }
                     int growth;
                     grew.TryGetValue(above, out growth);
                     shift = Math.Max(shift, aboveShift + growth + extra);
@@ -336,12 +682,43 @@ namespace SW2URDF.UI
             return best;
         }
 
+        // Horizontal room a push button needs beyond its measured caption: the theme border, the focus
+        // rectangle and the text padding on both sides. A themed button draws its caption wider than
+        // TextRenderer measures it (about 12 px for a 160 px caption at 96 DPI), so the room is two
+        // lines of the button font, which scales with the font and the DPI.
+        internal static int ButtonHorizontalMargin(Font font)
+        {
+            return 2 * font.Height;
+        }
+
+        // A push button keeps its caption on one line: widen it when the caption (longer in another
+        // language or a larger font) does not fit. A button in a flow or table layout is placed by the
+        // layout; one anchored to the right grows to the left, any other one to the right.
+        private static void FitButtonWidth(Button button)
+        {
+            if (string.IsNullOrEmpty(button.Text))
+            {
+                return;
+            }
+            int needed = TextRenderer.MeasureText(button.Text, button.Font).Width + ButtonHorizontalMargin(button.Font);
+            int grow = needed - button.Width;
+            if (grow <= 0)
+            {
+                return;
+            }
+            bool placedByLayout = button.Parent is FlowLayoutPanel || button.Parent is TableLayoutPanel;
+            bool right = (button.Anchor & AnchorStyles.Right) != 0 && (button.Anchor & AnchorStyles.Left) == 0;
+            int left = !placedByLayout && right ? button.Left - grow : button.Left;
+            button.SetBounds(left, button.Top, needed, button.Height);
+        }
+
         // The designer gives push buttons a fixed height, but the visual theme clips the caption to
         // a rectangle smaller than the button, by a margin that grows with the DPI (and CJK fonts
         // are taller). A button that is too short shows its caption with the top of the glyphs
         // cut off, even when the button frame itself looks fine. Grow every button that is
         // too short for its text by the missing height, around its centre line.
         // Returns the largest height any single button gained (0 when nothing had to grow).
+        // Each button is first made wide enough for its caption (FitButtonWidth).
         internal static int FitButtonHeights(Control root, float dpi)
         {
             int gained = 0;
@@ -351,6 +728,7 @@ namespace SW2URDF.UI
                 Button button = child as Button;
                 if (button != null && !button.AutoSize)
                 {
+                    FitButtonWidth(button);
                     int text = Math.Max(button.Font.Height, TextRenderer.MeasureText(
                         button.Text, button.Font, new Size(Math.Max(1, button.Width - 8), 0),
                         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height);
@@ -378,11 +756,8 @@ namespace SW2URDF.UI
         {
             int oldHeight = banner.Height;
             banner.Text = text;
-            Size room = new Size(Math.Max(1, banner.ClientSize.Width - banner.Padding.Horizontal), 0);
-            Size need = TextRenderer.MeasureText(text ?? "", banner.Font, room,
-                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
-            int height = need.Height + banner.Padding.Vertical + (banner.Height - banner.ClientSize.Height) + 6;
-            banner.Height = height;
+            int height = FitBannerHeight(banner);
+            KeepBannerFitted(banner);
             Form form = banner.FindForm();
             if (banner.Dock == DockStyle.Top && form != null && form.WindowState == FormWindowState.Normal
                 && height != oldHeight)
@@ -390,6 +765,43 @@ namespace SW2URDF.UI
                 Rectangle area = Screen.FromControl(form).WorkingArea;
                 form.Height = Math.Min(form.Height + (height - oldHeight), area.Height);
             }
+        }
+
+        private static int FitBannerHeight(Label banner)
+        {
+            Size room = new Size(Math.Max(1, banner.ClientSize.Width - banner.Padding.Horizontal), 0);
+            Size need = TextRenderer.MeasureText(banner.Text ?? "", banner.Font, room,
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+            int height = need.Height + banner.Padding.Vertical + (banner.Height - banner.ClientSize.Height) + 6;
+            banner.Height = height;
+            return height;
+        }
+
+        private static readonly ConditionalWeakTable<Label, object> FittedBanners =
+            new ConditionalWeakTable<Label, object>();
+
+        // When the window is resized the banner text wraps differently: fit the height to it again.
+        // The window keeps its size; the content below the banner gives or takes the room.
+        private static void KeepBannerFitted(Label banner)
+        {
+            object attached;
+            if (FittedBanners.TryGetValue(banner, out attached))
+            {
+                return;
+            }
+            FittedBanners.Add(banner, new object());
+            int width = banner.Width;
+            banner.SizeChanged += delegate
+            {
+                if (banner.Width != width)
+                {
+                    width = banner.Width;
+                    if (!string.IsNullOrEmpty(banner.Text))
+                    {
+                        FitBannerHeight(banner);
+                    }
+                }
+            };
         }
     }
 }

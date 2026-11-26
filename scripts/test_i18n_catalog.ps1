@@ -54,6 +54,42 @@ if ($english -and $chinese) {
             }
         }
     }
+    # Punctuation around Latin text in Traditional Chinese. Full-width brackets and colons next to
+    # Latin text, numbers or placeholders are drawn with wide gaps, so a zh-TW text that contains any
+    # of those uses half-width ( ) : instead: a space before "(", a space after ":" (unless it ends
+    # the text). Texts in Chinese only keep full-width marks. Angles are written "deg" in both languages.
+    $fullWidth = '[' + [char]0xFF08 + [char]0xFF09 + [char]0xFF1A + ']'
+    foreach ($k in $chinese.Keys) {
+        $v = $chinese[$k]
+        if ($v -notmatch '[A-Za-z0-9]') { continue }
+        if ($v -match $fullWidth) { Fail "zh-TW '$k' mixes Latin text with full-width brackets or colons: '$v'" }
+        if ($v -match '[^\s(\[' + [char]0x300C + ']\(') { Fail "zh-TW '$k' needs a space before '(': '$v'" }
+        if ($v -match ':[^\s/\\]') { Fail "zh-TW '$k' needs a space after ':': '$v'" }
+    }
+    # The note under the joint page names the model file, which may be a .urdf or a .xacro file.
+    $note = [regex]::Match((Get-Content -LiteralPath (Join-Path $ui 'AssemblyExportForm.Designer.cs') -Raw -Encoding UTF8), 'label4\.Text = "([^"]*)"').Groups[1].Value
+    if ($note -notmatch 'model file') { Fail "the blank-field note does not name the model file: '$note'" }
+    elseif (-not $chinese.Contains($note.ToLowerInvariant()) -or $chinese[$note.ToLowerInvariant()] -ne ((-join [char[]](0x7A7A, 0x767D, 0x6B04, 0x4F4D, 0x4E0D, 0x6703, 0x5BEB, 0x5165, 0x6A21, 0x578B, 0x6A94, 0x3002)))) {
+        Fail "the zh-TW blank-field note is not the agreed text"
+    }
+    # The joint page description is two sentences; in zh-TW it breaks after the first one instead of
+    # wherever the width ends (Chinese wraps between any two characters, splitting words).
+    $descriptionKey = 'customize the joint properties. if you want to adjust the coordinate systems and axes in the model, click cancel and restart the export. the tool will recognize your changes on the next run.'
+    $period = [string][char]0x3002
+    if (-not $chinese.Contains($descriptionKey)) { Fail 'the joint page description has no zh-TW text' }
+    elseif ($chinese[$descriptionKey] -notmatch ([regex]::Escape($period) + '\r?\n\S')) { Fail "the zh-TW joint page description does not break after its first sentence: '$($chinese[$descriptionKey])'" }
+    # The export buttons of the link page name the model file too, not URDF.
+    $designer = Get-Content -LiteralPath (Join-Path $ui 'AssemblyExportForm.Designer.cs') -Raw -Encoding UTF8
+    $modelFile = -join [char[]](0x6A21, 0x578B, 0x6A94)
+    $agreed = @{
+        'buttonLinksExportUrdfOnly' = (-join [char[]](0x50C5, 0x532F, 0x51FA)) + $modelFile + [char]0x2026
+        'buttonLinksFinish' = (-join [char[]](0x532F, 0x51FA)) + $modelFile + (-join [char[]](0x8207, 0x7DB2, 0x683C)) + [char]0x2026
+    }
+    foreach ($button in $agreed.Keys) {
+        $caption = [regex]::Match($designer, [regex]::Escape($button) + '\.Text = "([^"]*)"').Groups[1].Value
+        if ($caption -notmatch 'Model File') { Fail "the $button caption does not name the model file: '$caption'" }
+        elseif ($chinese[$caption.ToLowerInvariant()] -ne $agreed[$button]) { Fail "the zh-TW $button caption is not the agreed text" }
+    }
     # Every caption the code looks up needs a resource, and every resource must be looked
     # up or shown somewhere in this tree (no orphans from strings that live in other branches).
     $used = New-Object System.Collections.Generic.HashSet[string]

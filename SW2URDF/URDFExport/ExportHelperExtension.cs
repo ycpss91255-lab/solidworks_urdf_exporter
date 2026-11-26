@@ -2236,6 +2236,60 @@ namespace SW2URDF.URDFExport
             }
         }
 
+        // The values the user set on a limit mate (angle or distance, minimum and maximum), from its
+        // feature data, and the variations computed from them (LimitMateValues). These are exact,
+        // unlike Mate2.MinimumVariation and MaximumVariation, which come from the solved geometry.
+        // False when the feature data cannot be read or does not hold a usable range.
+        private bool ReadLimitMateValues(Mate2 swMate, bool angle, out double reference,
+            out double minimumVariation, out double maximumVariation)
+        {
+            reference = double.NaN;
+            minimumVariation = 0;
+            maximumVariation = 0;
+            double minimum, maximum;
+            try
+            {
+                object data = ((Feature)swMate).GetDefinition();
+                if (angle && data is AngleMateFeatureData angleData)
+                {
+                    reference = angleData.Angle;
+                    minimum = angleData.MinimumAngle;
+                    maximum = angleData.MaximumAngle;
+                }
+                else if (!angle && data is DistanceMateFeatureData distanceData)
+                {
+                    reference = distanceData.Distance;
+                    minimum = distanceData.MinimumDistance;
+                    maximum = distanceData.MaximumDistance;
+                }
+                else
+                {
+                    reference = double.NaN;
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Reading the feature data of a limit mate failed: " + e.Message);
+                reference = double.NaN;
+                return false;
+            }
+            if (double.IsNaN(reference) || double.IsInfinity(reference) || double.IsNaN(minimum) ||
+                double.IsInfinity(minimum) || double.IsNaN(maximum) || double.IsInfinity(maximum) ||
+                !(minimum < maximum))
+            {
+                reference = double.NaN;
+                return false;
+            }
+            LimitMateValues.Variations(angle, reference, minimum, maximum, out minimumVariation, out maximumVariation);
+            Func<double, string> text = v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            logger.Info("Limit mate values from the feature data: " + text(reference) + " in " + text(minimum) +
+                " .. " + text(maximum) + "; variations " + text(minimumVariation) + " .. " +
+                text(maximumVariation) + " (reported " + text(swMate.MinimumVariation) + " .. " +
+                text(swMate.MaximumVariation) + ")");
+            return true;
+        }
+
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
         private bool AddLimits(Joint Joint, List<Mate2> limitMates,
@@ -2282,6 +2336,19 @@ namespace SW2URDF.URDFExport
                         (Joint.Type == "prismatic" && swMate.Type ==
                             (int)swMateType_e.swMateDISTANCE))
                     {
+                        string mateName = ((Feature)swMate).Name;
+                        bool isAngle = Joint.Type != "prismatic";
+                        // The mate's own values, read before the direction probe moves the mate.
+                        double reference, minimumVariation, maximumVariation;
+                        if (!ReadLimitMateValues(swMate, isAngle, out reference, out minimumVariation,
+                            out maximumVariation))
+                        {
+                            logger.Warn("The values of limit mate " + mateName +
+                                " could not be read from its feature data; using the variations SolidWorks reports");
+                            reference = ReadMateReference(mateName);
+                            minimumVariation = swMate.MinimumVariation;
+                            maximumVariation = swMate.MaximumVariation;
+                        }
                         // Which way the child moves along the axis when the variation grows depends on
                         // the faces and the alignment of the mate, so it is measured on the model;
                         // the rule of LimitFromMate is only the fallback.
@@ -2290,26 +2357,25 @@ namespace SW2URDF.URDFExport
                         double lower, upper;
                         if (direction != 0)
                         {
-                            LimitFromDirection(direction, swMate.MinimumVariation, swMate.MaximumVariation,
+                            LimitFromDirection(direction, minimumVariation, maximumVariation,
                                 out lower, out upper);
                         }
                         else
                         {
                             logger.Warn("The direction of the limit mate could not be measured, using the rule for the mate type");
                             LimitFromMate(Joint.Type == "prismatic", swMate.Flipped,
-                                swMate.MinimumVariation, swMate.MaximumVariation,
+                                minimumVariation, maximumVariation,
                                 out lower, out upper);
                         }
                         Joint.Limit.Lower = lower;
                         Joint.Limit.Upper = upper;
-                        string mateName = ((Feature)swMate).Name;
                         Joint.LimitInfo = new LimitMateInfo
                         {
                             MateName = mateName,
-                            IsAngle = Joint.Type != "prismatic",
-                            Reference = ReadMateReference(mateName),
-                            MinimumVariation = swMate.MinimumVariation,
-                            MaximumVariation = swMate.MaximumVariation,
+                            IsAngle = isAngle,
+                            Reference = reference,
+                            MinimumVariation = minimumVariation,
+                            MaximumVariation = maximumVariation,
                             Lower = lower,
                             Upper = upper,
                             DirectionMeasured = direction != 0,

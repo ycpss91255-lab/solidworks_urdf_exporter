@@ -46,7 +46,7 @@ namespace SW2URDF.URDF
 
         /// <summary>
         /// Export setting of the SolidWorks configuration, kept on the base link: write the robot as
-        /// .urdf.xacro instead of .urdf. Not emitted when false, so the data of a configuration
+        /// .xacro instead of .urdf. Not emitted when false, so the data of a configuration
         /// without xacro is identical to what exporters without this member wrote and read.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
