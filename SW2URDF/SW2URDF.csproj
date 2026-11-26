@@ -381,6 +381,7 @@
     <Compile Include="Test\TestSWAttached.cs" />
     <Compile Include="Test\TestMimicLoops.cs" />
     <Compile Include="Test\TestURDFMerge.cs" />
+    <Compile Include="Test\TestTextureMessage.cs" />
     <Compile Include="Test\TestURDFPackage.cs" />
     <Compile Include="Test\TestJointFailedLog.cs" />
     <Compile Include="Test\TestVersioning.cs" />

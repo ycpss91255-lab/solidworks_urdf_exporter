@@ -455,6 +455,9 @@
   <data xml:space="preserve" name="converting 3dxml to obj + mtl...">
     <value>正在將 3DXML 轉換為 OBJ + MTL...</value>
   </data>
+  <data xml:space="preserve" name="the obj export does not support textures, and these links have one: {0}. export as stl or 3dxml, or remove the texture.">
+    <value>OBJ 匯出不支援貼圖，下列連桿有貼圖: {0}。請改用 STL 或 3DXML 匯出，或移除貼圖。</value>
+  </data>
   <data xml:space="preserve" name="preview and export...">
     <value>預覽並匯出…</value>
   </data>
