@@ -152,17 +152,8 @@ namespace SW2URDF.URDFExport
         {
             string[] names = model.GetConfigurationNames() as string[];
             string active = GetActiveConfigurationName(model);
-            List<string> existing = new List<string>();
-            if (names != null)
-            {
-                foreach (string name in names)
-                {
-                    if (FindConfigurationAttributeFeature(model, name) != null)
-                    {
-                        existing.Add(name);
-                    }
-                }
-            }
+            HashSet<string> entries = GetEntryNames(model);
+            List<string> existing = (names ?? new string[0]).Where(entries.Contains).ToList();
 
             bool created = false;
             string[] toCreate = DocumentPersistence.NamesToCreate(names, active, existing.ToArray());
@@ -306,6 +297,9 @@ namespace SW2URDF.URDFExport
         {
             private readonly ModelDoc2 model;
 
+            // Read once: the cleanup asks for every configuration and creates no entry
+            private HashSet<string> entryNames;
+
             public ModelSharedAttributes(ModelDoc2 model)
             {
                 this.model = model;
@@ -318,7 +312,8 @@ namespace SW2URDF.URDFExport
 
             public bool HasEntry(string configuration)
             {
-                return FindConfigurationAttributeFeature(model, configuration) != null;
+                entryNames = entryNames ?? GetEntryNames(model);
+                return entryNames.Contains(configuration);
             }
 
             public AttributeData GetEntry(string configuration)
@@ -771,6 +766,13 @@ namespace SW2URDF.URDFExport
                 feature = feature.GetNextFeature() as Feature;
             }
             return result;
+        }
+
+        /// <summary>The names of all attributes of the exporter, read in one walk of the tree.</summary>
+        private static HashSet<string> GetEntryNames(ModelDoc2 model)
+        {
+            return new HashSet<string>(GetConfigurationAttributeFeatures(model).Select(feature =>
+                ((SolidWorks.Interop.sldworks.Attribute)feature.GetSpecificFeature2()).GetName()));
         }
 
         private static Feature FindConfigurationAttributeFeature(ModelDoc2 model, string configurationName)

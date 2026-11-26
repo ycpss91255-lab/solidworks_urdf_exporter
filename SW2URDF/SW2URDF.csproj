@@ -377,6 +377,7 @@
     <Compile Include="Test\TestBlankLimitBoxes.cs" />
     <Compile Include="Test\TestPartSettings.cs" />
     <Compile Include="Test\TestPerConfiguration.cs" />
+    <Compile Include="Test\TestTreeScans.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />
     <Compile Include="Test\TestNumberBoxDisplay.cs" />
     <Compile Include="Test\TestPropertyManager.cs" />
