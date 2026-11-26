@@ -378,6 +378,7 @@
     <Compile Include="Test\SolidWorksBinding.cs" />
     <Compile Include="Test\TestSolidWorksBinding.cs" />
     <Compile Include="Test\TestTwoBoxesFixture.cs" />
+    <Compile Include="Test\Test3dxmlPlacement.cs" />
     <Compile Include="Test\TwoBoxesModel.cs" />
     <Compile Include="Test\TestSerialization.cs" />
     <Compile Include="Test\TestNestedReferenceGeometry.cs" />
