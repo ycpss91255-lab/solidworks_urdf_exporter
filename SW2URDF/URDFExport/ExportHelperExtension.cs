@@ -591,8 +591,8 @@ namespace SW2URDF.URDFExport
             if (parent != null && ComputeJointKinematics)
             {
                 logger.Info("Creating joint " + node.Link.Name);
-                bool error = CreateJoint(parent, node.Link);
-                if (error)
+                bool created = CreateJoint(parent, node.Link);
+                if (!created)
                 {
                     logger.Warn(
                         string.Format("Creating joint from parent {0} to child {1} failed", 
@@ -677,18 +677,23 @@ namespace SW2URDF.URDFExport
             {
                 // We have to estimate the joint if the user specifies automatic for either the
                 // reference coordinate system, the reference axis or the joint type.
-                EstimateGlobalJointFromComponents(parent, child);
+                bool inferred = EstimateGlobalJointFromComponents(parent, child);
                 axisOfMateLimits = LimitsFromMate ? child.Joint.Axis.GetXYZ() : null;
-                bool autoGenerateError = (
-                    child.Joint.Origin.X == 0.0 && child.Joint.Origin.Y == 0.0 && child.Joint.Origin.Z == 0.0 &&
-                    child.Joint.Origin.Roll == 0.0 && child.Joint.Origin.Pitch == 0.0 && child.Joint.Origin.Yaw == 0.0);
-
-                if (autoGenerateError)
+                if (EstimateFailed(inferred, child.Joint.Origin))
                 {
                     ExportErrorWhy = string.Format("Inferring the joint geometry failed for the joint {0} " +
                         "from link {1} to {2} failed. Check that the mates have not fully defined the " +
                         "components in link {1} and that there is exactly one degree of freedom.",
                         child.Joint.Name, child.Name, parent.Name);
+                    return false;
+                }
+
+                string problem = ChosenTypeProblem(jointType, estimatedType, axisName == "Automatically Generate",
+                    UiText.FromSolidWorks(iSwApp));
+                if (problem != null)
+                {
+                    ExportErrorWhy = string.Format(problem, child.Joint.Name,
+                        UiText.FromSolidWorks(iSwApp).ComboDisplay(jointType), child.Name, parent.Name);
                     return false;
                 }
             }
@@ -745,6 +750,16 @@ namespace SW2URDF.URDFExport
             return true;
         }
 
+        // A joint that was inferred can be anywhere, also on the assembly origin. One that was not (the
+        // child is not free along exactly one axis, and not fully defined either) is a fixed joint at the
+        // frame of the child, unless that frame is the assembly origin.
+        private static bool EstimateFailed(bool inferred, Origin origin)
+        {
+            return !inferred &&
+                origin.X == 0.0 && origin.Y == 0.0 && origin.Z == 0.0 &&
+                origin.Roll == 0.0 && origin.Pitch == 0.0 && origin.Yaw == 0.0;
+        }
+
         // The saved settings name the coordinate system and axis of a joint. When an earlier export
         // generated them (they hang on the "URDF Reference" sketch) they are only right for the
         // geometry they were generated in: the position of the frame does not follow the
@@ -773,12 +788,12 @@ namespace SW2URDF.URDFExport
 
             Link probe = new Link { Name = child.Name };
             probe.Joint.Name = child.Joint.Name;
+            probe.Joint.Type = child.Joint.Type;
             probe.SWComponents.AddRange(child.SWComponents);
             probe.SWMainComponent = child.SWMainComponent;
-            EstimateGlobalJointFromComponents(parent, probe);
+            bool inferred = EstimateGlobalJointFromComponents(parent, probe);
             Origin wanted = probe.Joint.Origin;
-            if (wanted.X == 0.0 && wanted.Y == 0.0 && wanted.Z == 0.0 &&
-                wanted.Roll == 0.0 && wanted.Pitch == 0.0 && wanted.Yaw == 0.0)
+            if (EstimateFailed(inferred, wanted))
             {
                 logger.Warn("The place of joint " + child.Joint.Name +
                     " could not be worked out, its saved coordinate system and axis are used as they are");
@@ -806,7 +821,7 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            if (axisGenerated && probe.Joint.Type != "fixed")
+            if (axisGenerated && estimatedType != "fixed")
             {
                 double[] wantedAxis = probe.Joint.Axis.GetXYZ();
                 string name = GeneratedFeatureLog.RefreshName(
@@ -1535,9 +1550,14 @@ namespace SW2URDF.URDFExport
         }
 
         //Calculates the free degree of freedom (if exists), and then determines the location of the joint,
-        // the axis of rotation/translation, and the type of joint
+        // the axis of rotation/translation, and the type of joint. True when a joint was inferred: the
+        // child is free along exactly one axis, or it is fully defined (a fixed joint)
         public Boolean EstimateGlobalJointFromComponents(Link parent, Link child)
         {
+            // A type the user chose stays on the joint; estimatedType holds the one that is found
+            string chosenType = child.Joint.Type;
+            double[] chosenAxis = child.Joint.Axis.GetXYZ();
+            estimatedType = "fixed";
             LimitsFromMate = false;
             child.Joint.LimitInfo = null;
             //Create the ref objects
@@ -1547,7 +1567,7 @@ namespace SW2URDF.URDFExport
             List<Component2> fixedComponents = FixComponents(parent);
 
             // Surpress Limit Mates to properly find degrees of freedom. They don't work with the API call
-            List<Mate2> limitMates = SuppressLimitMates(child.SWMainComponent);
+            List<Mate2> limitMates = SuppressLimitMates(parent, child);
             Boolean success = false;
             if (child.SWMainComponent != null)
             {
@@ -1593,7 +1613,13 @@ namespace SW2URDF.URDFExport
                     logger.Info("L2: " + L2Status);
                 }
 
+                if (chosenType == "prismatic" && L1Status == 1)
+                {
+                    // Free to turn and to slide: the user chose to slide
+                    R1Status = 0;
+                }
                 degreesOfFreedom = remainingDOFs;
+                success = degreesOfFreedom == 0 && R1Status == 0 && R2Status == 0 && L1Status == 0 && L2Status == 0;
 
                 // Convert the gotten degrees of freedom to a joint type, origin and axis
                 child.Joint.Type = "fixed";
@@ -1602,9 +1628,9 @@ namespace SW2URDF.URDFExport
 
                 if (degreesOfFreedom == 0 && (R1Status + L1Status > 0))
                 {
-                    success = true;
                     if (R1Status == 1)
                     {
+                        success = true;
                         child.Joint.Type = "continuous";
                         child.Joint.Axis.SetXYZ(RDir1.ArrayData);
                         child.Joint.Origin.SetXYZ(RPoint1.ArrayData);
@@ -1613,6 +1639,7 @@ namespace SW2URDF.URDFExport
                     }
                     else if (L1Status == 1)
                     {
+                        success = true;
                         child.Joint.Type = "prismatic";
                         child.Joint.Axis.SetXYZ(LDir1.ArrayData);
                         child.Joint.Origin.SetXYZ(MathOps.GetXYZ(child.SWMainComponent.Transform2));
@@ -1623,13 +1650,30 @@ namespace SW2URDF.URDFExport
                 child.Joint.Origin.SetXYZ(MathOps.Threshold(child.Joint.Origin.GetXYZ(), 0.00001));
                 child.Joint.Origin.SetRPY(MathOps.Threshold(child.Joint.Origin.GetRPY(), 0.00001));
                 UnsuppressLimitMates(limitMates);
-                if (limitMates.Count > 0 && ComputeJointLimits)
+                estimatedType = child.Joint.Type;
+                if (limitMates.Count > 0 && ComputeJointLimits && TakesMateLimits(chosenType, estimatedType))
                 {
-                    LimitsFromMate = AddLimits(child.Joint, limitMates, parent.SWMainComponent, child.SWMainComponent);
+                    LimitsFromMate = AddLimits(child.Joint, limitMates, parent, child);
                 }
             }
 
             UnFixComponents(fixedComponents);
+            if (IsChosenType(chosenType))
+            {
+                if (estimatedType != chosenType)
+                {
+                    logger.Info("Joint " + child.Joint.Name + " keeps its type " + chosenType + ", the estimate is " + estimatedType);
+                }
+                child.Joint.Type = chosenType;
+                if (!JointUsesAxis(chosenType))
+                {
+                    child.Joint.Axis.SetXYZ(chosenAxis);
+                }
+            }
+            else if (jointNames != null)
+            {
+                jointNames.SetDetectedType(child.Joint, child.Joint.Type);
+            }
             return success;
         }
 
@@ -2236,44 +2280,92 @@ namespace SW2URDF.URDFExport
             }
         }
 
+        // The values the user set on a limit mate (angle or distance, minimum and maximum), from its
+        // feature data, and the variations computed from them (LimitMateValues). These are exact,
+        // unlike Mate2.MinimumVariation and MaximumVariation, which come from the solved geometry.
+        // False when the feature data cannot be read or does not hold a usable range.
+        private bool ReadLimitMateValues(Mate2 swMate, bool angle, out double reference,
+            out double minimumVariation, out double maximumVariation)
+        {
+            reference = double.NaN;
+            minimumVariation = 0;
+            maximumVariation = 0;
+            double minimum, maximum;
+            try
+            {
+                object data = ((Feature)swMate).GetDefinition();
+                if (angle && data is AngleMateFeatureData angleData)
+                {
+                    reference = angleData.Angle;
+                    minimum = angleData.MinimumAngle;
+                    maximum = angleData.MaximumAngle;
+                }
+                else if (!angle && data is DistanceMateFeatureData distanceData)
+                {
+                    reference = distanceData.Distance;
+                    minimum = distanceData.MinimumDistance;
+                    maximum = distanceData.MaximumDistance;
+                }
+                else
+                {
+                    reference = double.NaN;
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Reading the feature data of a limit mate failed: " + e.Message);
+                reference = double.NaN;
+                return false;
+            }
+            if (double.IsNaN(reference) || double.IsInfinity(reference) || double.IsNaN(minimum) ||
+                double.IsInfinity(minimum) || double.IsNaN(maximum) || double.IsInfinity(maximum) ||
+                !(minimum < maximum))
+            {
+                reference = double.NaN;
+                return false;
+            }
+            LimitMateValues.Variations(angle, reference, minimum, maximum, out minimumVariation, out maximumVariation);
+            Func<double, string> text = v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            logger.Info("Limit mate values from the feature data: " + text(reference) + " in " + text(minimum) +
+                " .. " + text(maximum) + "; variations " + text(minimumVariation) + " .. " +
+                text(maximumVariation) + " (reported " + text(swMate.MinimumVariation) + " .. " +
+                text(swMate.MaximumVariation) + ")");
+            return true;
+        }
+
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
-        private bool AddLimits(Joint Joint, List<Mate2> limitMates,
-            Component2 parentComponent, Component2 childComponent)
+        private bool AddLimits(Joint Joint, List<Mate2> limitMates, Link parent, Link child)
         {
             bool limitsWritten = false;
-            logger.Info("Parent SW Component: " + parentComponent.Name2);
-            logger.Info("Child SW Component: " + childComponent.Name2);
-            // The number of limit Mates should only be one. But for completeness, I cycle through
-            // every found limit mate.
+            Component2 childComponent = child.SWMainComponent;
+            logger.Info("Parent SW Components: " + ComponentNames(parent.SWComponents));
+            logger.Info("Child SW Components: " + ComponentNames(child.SWComponents));
+            // The number of limit Mates should only be one. Of several the first one is used, one between
+            // the main components of the links before the others.
+            Component2[] mainParent = { parent.SWMainComponent };
+            Component2[] mainChild = { child.SWMainComponent };
+            limitMates = limitMates.OrderBy(
+                mate => MateConnects(MateComponents(mate), mainParent, mainChild) ? 0 : 1).ToList();
             foreach (Mate2 swMate in limitMates)
             {
                 logger.Info("Determining limit mate eligibility ");
-                List<Component2> entities = new List<Component2>();
-                for (int i = 0; i < swMate.GetMateEntityCount(); i++)
+                List<List<Component2>> entities = MateComponents(swMate);
+                logger.Info("Limit mate " + ((Feature)swMate).Name + " is between: " +
+                    ComponentNames(entities.Select(components => components[0])));
+
+                if (!MateConnects(entities, parent.SWComponents, child.SWComponents))
                 {
-                    MateEntity2 entity = swMate.MateEntity(i);
-                    
-                    // Check if entity.ReferenceComponent is null and skip if so
-                    if (entity.ReferenceComponent == null)
-                    {
-                        logger.Warn("Mate entity has no reference component");
-                        continue;
-                    }
-                    
-                    entities.Add(entity.ReferenceComponent);
-                    logger.Info("Adding component entity: " + entity.ReferenceComponent.Name2);
-
-                    Component2 parent = entity.ReferenceComponent.GetParent();
-                    while (parent != null)
-                    {
-                        logger.Info("Adding component entity: " + parent.Name2);
-                        entities.Add(parent);
-                        parent = parent.GetParent();
-                    }
+                    logger.Info("Limit mate " + ((Feature)swMate).Name + " is not used: it is not between the parent link " +
+                        parent.Name + " and the child link " + child.Name);
                 }
-
-                if (entities.Contains(parentComponent) && entities.Contains(childComponent))
+                else if (limitsWritten)
+                {
+                    logger.Warn("Limit mate " + ((Feature)swMate).Name + " is not used: the limits of joint " +
+                        Joint.Name + " already come from limit mate " + Joint.LimitInfo.MateName);
+                }
+                else
                 {
                     // [TODO] This assumes the limit mate limits the right degree of freedom,
                     // it really should check that assumption
@@ -2282,6 +2374,19 @@ namespace SW2URDF.URDFExport
                         (Joint.Type == "prismatic" && swMate.Type ==
                             (int)swMateType_e.swMateDISTANCE))
                     {
+                        string mateName = ((Feature)swMate).Name;
+                        bool isAngle = Joint.Type != "prismatic";
+                        // The mate's own values, read before the direction probe moves the mate.
+                        double reference, minimumVariation, maximumVariation;
+                        if (!ReadLimitMateValues(swMate, isAngle, out reference, out minimumVariation,
+                            out maximumVariation))
+                        {
+                            logger.Warn("The values of limit mate " + mateName +
+                                " could not be read from its feature data; using the variations SolidWorks reports");
+                            reference = ReadMateReference(mateName);
+                            minimumVariation = swMate.MinimumVariation;
+                            maximumVariation = swMate.MaximumVariation;
+                        }
                         // Which way the child moves along the axis when the variation grows depends on
                         // the faces and the alignment of the mate, so it is measured on the model;
                         // the rule of LimitFromMate is only the fallback.
@@ -2290,26 +2395,25 @@ namespace SW2URDF.URDFExport
                         double lower, upper;
                         if (direction != 0)
                         {
-                            LimitFromDirection(direction, swMate.MinimumVariation, swMate.MaximumVariation,
+                            LimitFromDirection(direction, minimumVariation, maximumVariation,
                                 out lower, out upper);
                         }
                         else
                         {
                             logger.Warn("The direction of the limit mate could not be measured, using the rule for the mate type");
                             LimitFromMate(Joint.Type == "prismatic", swMate.Flipped,
-                                swMate.MinimumVariation, swMate.MaximumVariation,
+                                minimumVariation, maximumVariation,
                                 out lower, out upper);
                         }
                         Joint.Limit.Lower = lower;
                         Joint.Limit.Upper = upper;
-                        string mateName = ((Feature)swMate).Name;
                         Joint.LimitInfo = new LimitMateInfo
                         {
                             MateName = mateName,
-                            IsAngle = Joint.Type != "prismatic",
-                            Reference = ReadMateReference(mateName),
-                            MinimumVariation = swMate.MinimumVariation,
-                            MaximumVariation = swMate.MaximumVariation,
+                            IsAngle = isAngle,
+                            Reference = reference,
+                            MinimumVariation = minimumVariation,
+                            MaximumVariation = maximumVariation,
                             Lower = lower,
                             Upper = upper,
                             DirectionMeasured = direction != 0,
@@ -2321,13 +2425,45 @@ namespace SW2URDF.URDFExport
                             Joint.Type = "revolute";
                         }
                     }
+                    else
+                    {
+                        logger.Warn("Limit mate " + ((Feature)swMate).Name + " is not used: its type does not fit the " +
+                            Joint.Type + " joint " + Joint.Name);
+                    }
                 }
             }
             return limitsWritten;
         }
 
-        // Suppresses limit mates to make it easier to find the free degree of freedom in a joint
-        private static List<Mate2> SuppressLimitMates(IComponent2 component)
+        // Suppresses limit mates to make it easier to find the free degree of freedom in a joint: the ones of
+        // the main component of the child, and the ones other components of it have with the parent
+        private static List<Mate2> SuppressLimitMates(Link parent, Link child)
+        {
+            List<Mate2> limitMates = LimitMates(child.SWMainComponent);
+            foreach (Component2 component in child.SWComponents)
+            {
+                foreach (Mate2 mate in LimitMates(component))
+                {
+                    if (!limitMates.Contains(mate) &&
+                        MateConnects(MateComponents(mate), parent.SWComponents, child.SWComponents))
+                    {
+                        limitMates.Add(mate);
+                    }
+                }
+            }
+
+            foreach (Mate2 swMate in limitMates)
+            {
+                Feature feat = (Feature)swMate;
+                feat.Select(false);
+                feat.SetSuppression2((int)swFeatureSuppressionAction_e.swSuppressFeature,
+                    (int)swInConfigurationOpts_e.swThisConfiguration, null);
+            }
+
+            return limitMates;
+        }
+
+        private static List<Mate2> LimitMates(IComponent2 component)
         {
             List<Mate2> limitMates = new List<Mate2>();
 
@@ -2348,14 +2484,6 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            foreach (Mate2 swMate in limitMates)
-            {
-                Feature feat = (Feature)swMate;
-                feat.Select(false);
-                feat.SetSuppression2((int)swFeatureSuppressionAction_e.swSuppressFeature,
-                    (int)swInConfigurationOpts_e.swThisConfiguration, null);
-            }
-
             return limitMates;
         }
 
@@ -2368,6 +2496,64 @@ namespace SW2URDF.URDFExport
                 feat.SetSuppression2((int)swFeatureSuppressionAction_e.swUnSuppressFeature,
                     (int)swInConfigurationOpts_e.swThisConfiguration, null);
             }
+        }
+
+        /// <summary>
+        /// True when a mate is between the parent and the child link. For each entity of the mate: its
+        /// component and the sub-assemblies it is in, from the inside out; the innermost one that belongs to
+        /// one of the links tells which link the entity is on. Free of SolidWorks calls so it can be tested.
+        /// </summary>
+        public static bool MateConnects<T>(IEnumerable<List<T>> entities, ICollection<T> parent, ICollection<T> child)
+        {
+            bool onParent = false;
+            bool onChild = false;
+            foreach (List<T> components in entities)
+            {
+                foreach (T component in components)
+                {
+                    bool inChild = child.Contains(component);
+                    bool inParent = !inChild && parent.Contains(component);
+                    onChild |= inChild;
+                    onParent |= inParent;
+                    if (inChild || inParent)
+                    {
+                        break;
+                    }
+                }
+            }
+            return onParent && onChild;
+        }
+
+        // For each entity of a mate: its component and the sub-assemblies it is in, from the inside out
+        private static List<List<Component2>> MateComponents(Mate2 swMate)
+        {
+            List<List<Component2>> entities = new List<List<Component2>>();
+            for (int i = 0; i < swMate.GetMateEntityCount(); i++)
+            {
+                MateEntity2 entity = swMate.MateEntity(i);
+
+                // Check if entity.ReferenceComponent is null and skip if so
+                if (entity.ReferenceComponent == null)
+                {
+                    logger.Warn("Mate entity has no reference component");
+                    continue;
+                }
+
+                List<Component2> components = new List<Component2>();
+                Component2 component = entity.ReferenceComponent;
+                while (component != null)
+                {
+                    components.Add(component);
+                    component = component.GetParent();
+                }
+                entities.Add(components);
+            }
+            return entities;
+        }
+
+        private static string ComponentNames(IEnumerable<Component2> components)
+        {
+            return string.Join(", ", components.Select(c => c.Name2));
         }
 
         //Unfixes components that were fixed to find the free degree of freedom
@@ -2402,6 +2588,47 @@ namespace SW2URDF.URDFExport
         internal static bool JointUsesAxis(string jointType)
         {
             return jointType != "fixed";
+        }
+
+        // The type the estimate found for the joint being built; the joint keeps a type the user chose
+        private string estimatedType;
+
+        private static bool IsChosenType(string jointType)
+        {
+            return !string.IsNullOrWhiteSpace(jointType) && jointType != "Automatically Detect";
+        }
+
+        // Whether the limits of a limit mate are for this joint. A chosen type takes none when it has no
+        // limits (continuous, fixed) or is not what the mates allow, which is reported.
+        private static bool TakesMateLimits(string chosen, string estimated)
+        {
+            return !IsChosenType(chosen) || (chosen == "revolute" && estimated == "continuous") ||
+                (chosen == "prismatic" && estimated == "prismatic");
+        }
+
+        /// <summary>
+        /// Why a chosen joint type cannot be built from the estimate ({0} joint, {1} type, {2} child,
+        /// {3} parent link), or null when it can. Free of SolidWorks calls.
+        /// </summary>
+        internal static string ChosenTypeProblem(string chosen, string estimated, bool generateAxis, UiText ui)
+        {
+            if (!IsChosenType(chosen) || !JointUsesAxis(chosen))
+            {
+                return null;
+            }
+            if (estimated == "fixed")
+            {
+                return generateAxis ? ui.Get("Joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. Select an existing axis, or change the joint type or the mates.") : null;
+            }
+            if (estimated == "prismatic" && (chosen == "revolute" || chosen == "continuous"))
+            {
+                return ui.Get("Joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. Change the joint type or the mates.");
+            }
+            if (estimated != "prismatic" && chosen == "prismatic")
+            {
+                return ui.Get("Joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. Change the joint type or the mates.");
+            }
+            return null;
         }
 
         private bool CheckRefCoordsysExists(string OriginName)

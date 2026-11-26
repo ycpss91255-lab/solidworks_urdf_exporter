@@ -69,6 +69,9 @@ namespace SW2URDF.URDF
         // configuration and the URDF do not change.
         public LimitMateInfo LimitInfo;
 
+        // The mimics that name this joint, found by Mimic.FindTargets. Not serialised.
+        internal List<Mimic> MimickedBy;
+
         public Joint() : base("joint", false)
         {
             Origin = new Origin(false);
@@ -110,6 +113,7 @@ namespace SW2URDF.URDF
         public void Update(TextBox boxName, ComboBox boxType, SW2URDF.UI.UiText ui = null)
         {
             Name = boxName.Text;
+            MimickedBy?.ForEach(mimic => mimic.JointName = Name);
             Type = ui == null ? boxType.Text : ui.ComboValue(boxType.Text);
         }
 
@@ -118,9 +122,17 @@ namespace SW2URDF.URDF
             return !string.IsNullOrWhiteSpace(Name) && !string.IsNullOrWhiteSpace(Type);
         }
 
+        /// <summary>True for a joint that needs an axis and has none (0 0 0).</summary>
+        public bool IsAxisMissing()
+        {
+            return (Type == "revolute" || Type == "continuous" || Type == "prismatic" || Type == "planar") &&
+                Axis.X == 0.0 && Axis.Y == 0.0 && Axis.Z == 0.0;
+        }
+
         public override bool AreRequiredFieldsSatisfied()
         {
             Limit.SetRequired((Type == "prismatic" || Type == "revolute"));
+            Limit.SetJointType(Type);
             return base.AreRequiredFieldsSatisfied();
         }
 
@@ -178,6 +190,38 @@ namespace SW2URDF.URDF
             Calibration.SetElement(joint.Calibration);
             Dynamics.SetElement(joint.Dynamics);
             Safety.SetElement(joint.Safety);
+        }
+
+        /// <summary>Whether following the mimics by name, beginning with this joint, leads back to this joint.</summary>
+        public bool MimicsItself(ICollection<Joint> joints)
+        {
+            Joint current = this;
+            // A chain without this joint can still end in a loop of others, so it is not followed for ever.
+            for (int step = 0; step < joints.Count; step++)
+            {
+                string name = current.Mimic?.JointName;
+                List<Joint> named = new List<Joint>();
+                if (name != null)
+                {
+                    foreach (Joint joint in joints)
+                    {
+                        if (joint.Name == name)
+                        {
+                            named.Add(joint);
+                        }
+                    }
+                }
+                if (named.Count != 1)
+                {
+                    return false;
+                }
+                current = named[0];
+                if (current == this)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

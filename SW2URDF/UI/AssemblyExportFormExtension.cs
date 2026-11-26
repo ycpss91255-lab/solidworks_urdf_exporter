@@ -39,16 +39,17 @@ namespace SW2URDF.UI
         public void FillLinkPropertyBoxes(Link Link)
         {
             FillBlank(linkBoxes);
+            angles.Forget(linkBoxes);
             if (!Link.isFixedFrame)
             {
-                //R: round-trip format, shows the full precision of the stored value
+                // 12 significant digits (ValueFormat.Box); a box that is not edited keeps the exact value
                 Link.Visual.Origin.FillBoxes(textBoxVisualOriginX,
                                              textBoxVisualOriginY,
                                              textBoxVisualOriginZ,
                                              textBoxVisualOriginRoll,
                                              textBoxVisualOriginPitch,
                                              textBoxVisualOriginYaw,
-                                             "R");
+                                             ValueFormat.Box);
 
                 Link.Inertial.Origin.FillBoxes(textBoxInertialOriginX,
                                                textBoxInertialOriginY,
@@ -56,9 +57,9 @@ namespace SW2URDF.UI
                                                textBoxInertialOriginRoll,
                                                textBoxInertialOriginPitch,
                                                textBoxInertialOriginYaw,
-                                               "R");
+                                               ValueFormat.Box);
 
-                Link.Inertial.Mass.FillBoxes(textBoxMass, "R");
+                Link.Inertial.Mass.FillBoxes(textBoxMass, ValueFormat.Box);
 
                 Link.Inertial.Inertia.FillBoxes(textBoxIxx,
                                                 textBoxIxy,
@@ -66,7 +67,7 @@ namespace SW2URDF.UI
                                                 textBoxIyy,
                                                 textBoxIyz,
                                                 textBoxIzz,
-                                                "R");
+                                                ValueFormat.Box);
 
                 Link.Visual.Material.FillBoxes(comboBoxMaterials);
                 textBoxTexture.Text = Link.Visual.Material.Texture.wFilename;
@@ -75,7 +76,11 @@ namespace SW2URDF.UI
                                                      domainUpDownGreen,
                                                      domainUpDownBlue,
                                                      domainUpDownAlpha,
-                                                     "R");
+                                                     ValueFormat.Box);
+
+                // Display only: the boxes hold radians, shown in the chosen unit.
+                ShowRpy(Link.Visual.Origin, textBoxVisualOriginRoll, textBoxVisualOriginPitch, textBoxVisualOriginYaw);
+                ShowRpy(Link.Inertial.Origin, textBoxInertialOriginRoll, textBoxInertialOriginPitch, textBoxInertialOriginYaw);
 
             }
         }
@@ -84,6 +89,7 @@ namespace SW2URDF.UI
         public void FillJointPropertyBoxes(Joint joint)
         {
             FillBlank(jointBoxes);
+            angles.Forget(jointBoxes);
             labelLimitSource.Text = "";
             AutoUpdatingForm = true;
             if (joint != null) //For the base_link or if none is selected
@@ -98,7 +104,7 @@ namespace SW2URDF.UI
                 joint.Parent.FillBoxes(labelParent);
                 joint.Child.FillBoxes(labelChild);
 
-                //R: round-trip format, shows the full precision of the stored value
+                // 12 significant digits (ValueFormat.Box); a box that is not edited keeps the exact value
 
                 joint.Origin.FillBoxes(textBoxJointX,
                                        textBoxJointY,
@@ -106,39 +112,40 @@ namespace SW2URDF.UI
                                        textBoxJointRoll,
                                        textBoxJointPitch,
                                        textBoxJointYaw,
-                                       "R");
+                                       ValueFormat.Box);
 
-                if (joint.Type != "fixed")
+                if (joint.Axis != null) // Also for a fixed joint: the boxes are saved whatever the type is
                 {
-                    joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, "R");
+                    joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, ValueFormat.Box);
                 }
 
-                if (joint.Limit != null && joint.Type != "fixed")
+                // Also for a fixed joint, which keeps the limits without exporting them
+                if (joint.Limit != null)
                 {
                     joint.Limit.FillBoxes(textBoxLimitLower,
                                           textBoxLimitUpper,
                                           textBoxLimitEffort,
                                           textBoxLimitVelocity,
-                                          "R");
+                                          ValueFormat.Box);
                 }
 
                 // Display only: where the limits come from. Nothing here is exported.
                 labelLimitSource.Text = (joint.Limit != null && (joint.Type == "revolute" || joint.Type == "prismatic"))
-                    ? LimitMateInfo.Describe(joint.LimitInfo, joint.Limit.Lower, joint.Limit.Upper, ui)
+                    ? LimitMateInfo.Describe(joint.LimitInfo, joint.Limit, ui)
                     : "";
 
                 if (joint.Calibration != null)
                 {
                     joint.Calibration.FillBoxes(textBoxCalibrationRising,
                                                 textBoxCalibrationFalling,
-                                                "R");
+                                                ValueFormat.Box);
                 }
 
                 if (joint.Dynamics != null)
                 {
                     joint.Dynamics.FillBoxes(textBoxDamping,
                                              textBoxFriction,
-                                             "R");
+                                             ValueFormat.Box);
                 }
 
                 if (joint.Safety != null)
@@ -147,49 +154,24 @@ namespace SW2URDF.UI
                                            textBoxSoftUpper,
                                            textBoxKPosition,
                                            textBoxKVelocity,
-                                           "R");
+                                           ValueFormat.Box);
                 }
             }
 
-            if (joint != null && (joint.Type == "revolute" || joint.Type == "continuous"))
+            if (joint != null)
             {
-                labelLowerLimit.Text = ui.Get("lower (rad)");
-                labelLimitUpper.Text = ui.Get("upper (rad)");
-                labelEffort.Text = ui.Get("effort (N-m)");
-                labelVelocity.Text = ui.Get("velocity (rad/s)");
-                labelFriction.Text = ui.Get("friction (N-m)");
-                labelDamping.Text = ui.Get("damping (N-m-s/rad)");
-                labelSoftLower.Text = ui.Get("soft lower limit (rad)");
-                labelSoftUpper.Text = ui.Get("soft upper limit (rad)");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
+                // Display only: the boxes hold radians, shown in the chosen unit.
+                ShowRpy(joint.Origin, textBoxJointRoll, textBoxJointPitch, textBoxJointYaw);
+                if (joint.Type == "revolute" || joint.Type == "continuous")
+                {
+                    angles.Show(textBoxLimitLower, () => joint.Limit.Lower);
+                    angles.Show(textBoxLimitUpper, () => joint.Limit.Upper);
+                    angles.Show(textBoxLimitVelocity, () => joint.Limit.Velocity);
+                    angles.Show(textBoxSoftLower, () => joint.Safety.SoftLower);
+                    angles.Show(textBoxSoftUpper, () => joint.Safety.SoftUpper);
+                }
             }
-            else if (joint != null && joint.Type == "prismatic")
-            {
-                labelLowerLimit.Text = ui.Get("lower (m)");
-                labelLimitUpper.Text = ui.Get("upper (m)");
-                labelEffort.Text = ui.Get("effort (N)");
-                labelVelocity.Text = ui.Get("velocity (m/s)");
-                labelFriction.Text = ui.Get("friction (N)");
-                labelDamping.Text = ui.Get("damping (N-s/m)");
-                labelSoftLower.Text = ui.Get("soft lower limit (m)");
-                labelSoftUpper.Text = ui.Get("soft upper limit (m)");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
-            }
-            else
-            {
-                labelLowerLimit.Text = ui.Get("lower");
-                labelLimitUpper.Text = ui.Get("upper");
-                labelEffort.Text = ui.Get("effort");
-                labelVelocity.Text = ui.Get("velocity");
-                labelFriction.Text = ui.Get("friction");
-                labelDamping.Text = ui.Get("damping");
-                labelSoftLower.Text = ui.Get("soft lower limit");
-                labelSoftUpper.Text = ui.Get("soft upper limit");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
-            }
+            SetJointCaptions(joint == null ? "" : joint.Type);
             comboBoxOrigin.Items.Clear();
             List<string> originNames = Exporter.GetRefCoordinateSystems();
             comboBoxOrigin.Items.AddRange(originNames.ToArray());
@@ -200,6 +182,7 @@ namespace SW2URDF.UI
                 comboBoxOrigin.FindStringExact(joint.CoordinateSystemName);
 
             // Updating Mimic Element Fields
+            Mimic.FindTargets(Exporter.GetJoints());
             List<string> jointNames = Exporter.GetJointNames();
 
             // We'll be setting this automatically, so unsubscribe callback
@@ -211,8 +194,10 @@ namespace SW2URDF.UI
             {
                 ShowMimicControls(true);
                 MimicCheckBox.Checked = true;
+                // A name that is not a joint of the robot is shown too. Joint names are case sensitive.
+                int mimicIndex = MimicJointComboBox.Items.IndexOf(joint.Mimic.JointName);
                 MimicJointComboBox.SelectedIndex =
-                    MimicJointComboBox.FindStringExact(joint.Mimic.JointName);
+                    mimicIndex >= 0 ? mimicIndex : MimicJointComboBox.Items.Add(joint.Mimic.JointName);
                 joint.Mimic.FillBoxes(textBoxMimicMultiplier, textBoxMimicOffset);
             }
             else
@@ -230,6 +215,14 @@ namespace SW2URDF.UI
             AutoUpdatingForm = false;
         }
 
+        // Shows the angle boxes of an origin in the chosen unit, from the exact values it holds.
+        private void ShowRpy(Origin origin, TextBox roll, TextBox pitch, TextBox yaw)
+        {
+            angles.Show(roll, () => origin.Roll);
+            angles.Show(pitch, () => origin.Pitch);
+            angles.Show(yaw, () => origin.Yaw);
+        }
+
         public static void FillBlank(Control[] boxes)
         {
             foreach (Control box in boxes)
@@ -241,6 +234,20 @@ namespace SW2URDF.UI
         //Converts the text boxes back into values for the link
         public void SaveLinkDataFromPropertyBoxes(Link Link)
         {
+            // The model reads radians: angle boxes shown in degrees are converted back first.
+            angles.Restore();
+            try
+            {
+                SaveLinkBoxes(Link);
+            }
+            finally
+            {
+                angles.ShowAgain();
+            }
+        }
+
+        private void SaveLinkBoxes(Link Link)
+        {
             if (!Link.isFixedFrame)
             {
                 Link.Inertial.Origin.Update(textBoxInertialOriginX,
@@ -250,12 +257,14 @@ namespace SW2URDF.UI
                                             textBoxInertialOriginPitch,
                                             textBoxInertialOriginYaw);
 
+                // The boxes stand for both meshes: a value the user edited moves the collision mesh too
                 Link.Visual.Origin.Update(textBoxVisualOriginX,
                                           textBoxVisualOriginY,
                                           textBoxVisualOriginZ,
                                           textBoxVisualOriginRoll,
                                           textBoxVisualOriginPitch,
-                                          textBoxVisualOriginYaw);
+                                          textBoxVisualOriginYaw,
+                                          Link.Collision.Origin);
 
                 Link.Inertial.Mass.Update(textBoxMass);
 
@@ -280,13 +289,34 @@ namespace SW2URDF.UI
         //Saves data from text boxes back into a joint
         public void SaveJointDataFromPropertyBoxes(Joint Joint)
         {
+            // The model reads radians: angle boxes shown in degrees are converted back first.
+            angles.Restore();
+            try
+            {
+                SaveJointBoxes(Joint);
+            }
+            finally
+            {
+                angles.ShowAgain();
+            }
+        }
+
+        private void SaveJointBoxes(Joint Joint)
+        {
             Joint.Update(textBoxJointName, comboBoxJointType, ui);
 
             Joint.Parent.Update(labelParent);
             Joint.Child.Update(labelChild);
 
-            Joint.CoordinateSystemName = comboBoxOrigin.Text;
-            Joint.AxisName = comboBoxAxis.Text;
+            // Nothing is selected when the name is not in the model, and nobody can select a blank.
+            if (comboBoxOrigin.SelectedIndex >= 0)
+            {
+                Joint.CoordinateSystemName = comboBoxOrigin.Text;
+            }
+            if (comboBoxAxis.SelectedIndex >= 0)
+            {
+                Joint.AxisName = comboBoxAxis.Text;
+            }
 
             Joint.Origin.Update(textBoxJointX,
                                 textBoxJointY,
@@ -304,6 +334,10 @@ namespace SW2URDF.UI
                                   textBoxLimitUpper,
                                   textBoxLimitEffort,
                                   textBoxLimitVelocity);
+            if (!Joint.Limit.IsRequired())
+            {
+                Joint.Limit.UnsetBlank(textBoxLimitLower, textBoxLimitUpper, textBoxLimitEffort, textBoxLimitVelocity);
+            }
 
             if (String.IsNullOrWhiteSpace(textBoxCalibrationRising.Text) &&
                 String.IsNullOrWhiteSpace(textBoxCalibrationFalling.Text))
@@ -443,7 +477,7 @@ namespace SW2URDF.UI
             return builder.ToString();
         }
 
-        public void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
+        public virtual void SaveConfigTree(ModelDoc2 model, LinkNode BaseNode, bool warnUser)
         {
             CommonSwOperations.RetrieveSWComponentPIDs(model, BaseNode);
             ConfigurationSerialization.SaveConfigTreeXML(swApp, model, BaseNode, warnUser, ui);

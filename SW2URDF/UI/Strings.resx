@@ -63,14 +63,14 @@
   <data xml:space="preserve" name="dynamics">
     <value>Dynamics</value>
   </data>
-  <data xml:space="preserve" name="entries that are blank will not be written to urdf.">
-    <value>Entries that are blank will not be written to URDF.</value>
+  <data xml:space="preserve" name="blank entries are not written to the model file.">
+    <value>Blank entries are not written to the model file.</value>
   </data>
-  <data xml:space="preserve" name="export urdf only...">
-    <value>Export URDF Only...</value>
+  <data xml:space="preserve" name="export model file only...">
+    <value>Export Model File Only...</value>
   </data>
-  <data xml:space="preserve" name="export urdf and meshes...">
-    <value>Export URDF and Meshes...</value>
+  <data xml:space="preserve" name="export model file and meshes...">
+    <value>Export Model File and Meshes...</value>
   </data>
   <data xml:space="preserve" name="export as urdf">
     <value>Export as URDF</value>
@@ -200,6 +200,9 @@
   </data>
   <data xml:space="preserve" name="urdf joint errors">
     <value>URDF Joint Errors</value>
+  </data>
+  <data xml:space="preserve" name="{0}: the joint it mimics, &quot;{1}&quot;, is not in the robot">
+    <value>{0}: the joint it mimics, "{1}", is not in the robot</value>
   </data>
   <data xml:space="preserve" name="urdf warnings">
     <value>URDF Warnings</value>
@@ -451,6 +454,9 @@
   <data xml:space="preserve" name="converting 3dxml to obj + mtl...">
     <value>Converting 3DXML to OBJ + MTL...</value>
   </data>
+  <data xml:space="preserve" name="the obj export does not support textures, and these links have one: {0}. export as stl or 3dxml, or remove the texture.">
+    <value>The OBJ export does not support textures, and these links have one: {0}. Export as STL or 3DXML, or remove the texture.</value>
+  </data>
   <data xml:space="preserve" name="preview and export...">
     <value>Preview and Export...</value>
   </data>
@@ -550,6 +556,9 @@
   <data xml:space="preserve" name="joint name is empty. fill in a unique joint name">
     <value>Joint name is empty. Fill in a unique joint name</value>
   </data>
+  <data xml:space="preserve" name="{0}: its mimic leads back to itself">
+    <value>{0}: its mimic leads back to itself</value>
+  </data>
   <data xml:space="preserve" name="please fix these errors before proceeding.">
     <value>Please fix these errors before proceeding.</value>
   </data>
@@ -610,6 +619,15 @@
   <data xml:space="preserve" name="select an existing reference coordinate system for empty link {0}">
     <value>Select an existing reference coordinate system for empty link {0}</value>
   </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. select an existing axis, or change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but no single free direction of link {2} relative to {3} was found, so its axis cannot be generated. Select an existing axis, or change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} slide relative to {3} and not turn. Change the joint type or the mates.</value>
+  </data>
+  <data xml:space="preserve" name="joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. change the joint type or the mates.">
+    <value>Joint {0} is set to {1}, but the mates let link {2} turn relative to {3} and not slide. Change the joint type or the mates.</value>
+  </data>
   <data xml:space="preserve" name="the limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. check this mate in the model before you save it.">
     <value>The limit mate {0} could not be put back to {2} after the exporter measured its direction; it is now {1}. Check this mate in the model before you save it.</value>
   </data>
@@ -661,10 +679,40 @@
   <data xml:space="preserve" name="the value of the dimension cannot be read back">
     <value>the value of the dimension cannot be read back</value>
   </data>
-  <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>Write xacro (.urdf.xacro)</value>
+  <data xml:space="preserve" name="write xacro">
+    <value>Write xacro</value>
   </data>
-  <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
-    <value>Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
+    <value>Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro.</value>
+  </data>
+  <data xml:space="preserve" name="angle unit">
+    <value>Angle unit</value>
+  </data>
+  <data xml:space="preserve" name="orientation (deg)">
+    <value>Orientation (deg)</value>
+  </data>
+  <data xml:space="preserve" name="lower (deg)">
+    <value>lower (deg)</value>
+  </data>
+  <data xml:space="preserve" name="upper (deg)">
+    <value>upper (deg)</value>
+  </data>
+  <data xml:space="preserve" name="velocity (deg/s)">
+    <value>velocity (deg/s)</value>
+  </data>
+  <data xml:space="preserve" name="soft lower limit (deg)">
+    <value>soft lower limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="soft upper limit (deg)">
+    <value>soft upper limit (deg)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, rad)">
+    <value>Origin (m, rad)</value>
+  </data>
+  <data xml:space="preserve" name="origin (m, deg)">
+    <value>Origin (m, deg)</value>
+  </data>
+  <data xml:space="preserve" name="angles are shown in this unit. the urdf and the saved settings always use radians.">
+    <value>Angles are shown in this unit. The URDF and the saved settings always use radians.</value>
   </data>
 </root>

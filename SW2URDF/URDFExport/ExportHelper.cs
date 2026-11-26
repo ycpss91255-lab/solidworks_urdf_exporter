@@ -74,6 +74,9 @@ namespace SW2URDF.URDFExport
         // Links whose mesh could not be written in the current export (issue 61).
         private readonly List<string> failedMeshLinks = new List<string>();
 
+        // Those of them that the OBJ export refused because of a texture (issue 206).
+        private List<string> texturedMeshLinks;
+
         [XmlIgnore]
         public ModelDoc2 ActiveSWModel;
 
@@ -219,6 +222,7 @@ namespace SW2URDF.URDFExport
 
             UiText ui = UiText.FromSolidWorks(iSwApp);
             failedMeshLinks.Clear();
+            texturedMeshLinks = new List<string>();
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
             bool success = false;
             try
@@ -258,7 +262,7 @@ namespace SW2URDF.URDFExport
                 logger.Error("Mesh export failed for: " + failed + ". The URDF was not written.");
                 MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, failedMeshLinks);
                 progressBar.End();
-                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failed));
+                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failedMeshLinks, texturedMeshLinks));
                 return;
             }
 
@@ -287,7 +291,13 @@ namespace SW2URDF.URDFExport
 
         public List<string> GetJointNames()
         {
-            List<string> jointNames = new List<string>();
+            return GetJoints().ConvertAll(joint => joint.Name);
+        }
+
+        /// <summary>The joints of the robot, without the one of the base link.</summary>
+        public List<Joint> GetJoints()
+        {
+            List<Joint> joints = new List<Joint>();
 
             Queue<Link> queue = new Queue<Link>();
             queue.Enqueue(URDFRobot.BaseLink);
@@ -296,7 +306,7 @@ namespace SW2URDF.URDFExport
                 Link current = queue.Dequeue();
                 if (current.Parent != null)
                 {
-                    jointNames.Add(current.Joint.Name);
+                    joints.Add(current.Joint);
                 }
 
                 foreach (Link child in current.Children)
@@ -305,7 +315,7 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            return jointNames;
+            return joints;
         }
 
         //Recursive method for exporting each link (and writing it to the URDF)
@@ -379,6 +389,10 @@ namespace SW2URDF.URDFExport
                 {
                     logger.Error("Exporting the mesh of link " + link.Name + " failed", e);
                     exported = false;
+                    if (e is TextureNotSupportedException)
+                    {
+                        texturedMeshLinks.Add(link.Name);
+                    }
                 }
                 if (!exported)
                 {
@@ -533,11 +547,22 @@ namespace SW2URDF.URDFExport
             return MeshSaveSucceeded(link, saved, errors, windowsMeshFilename);
         }
 
-        private static string MeshFailureMessage(UiText ui, string failedLinks)
+        private static string MeshFailureMessage(UiText ui, ICollection<string> failedLinks, ICollection<string> texturedLinks)
         {
             string text = ui.Get("The mesh of these links could not be exported: {0}. The URDF was not written and the package is incomplete (see {1}). Check the log and the output folder, then export again.");
-            return string.Format(text, failedLinks, MeshExportCheck.FailureMarkerFileName) + "\n" +
-                string.Format(ui.Get("Email your maintainer with the log file found at {0}"), Logger.GetFileName());
+            string message = string.Format(text, MeshExportCheck.JoinLinkNames(failedLinks), MeshExportCheck.FailureMarkerFileName);
+            if (texturedLinks.Count > 0)
+            {
+                message += "\n" + string.Format(
+                    ui.Get("The OBJ export does not support textures, and these links have one: {0}. Export as STL or 3DXML, or remove the texture."),
+                    MeshExportCheck.JoinLinkNames(texturedLinks));
+            }
+            // A texture needs no maintainer.
+            if (texturedLinks.Count < failedLinks.Count)
+            {
+                message += "\n" + string.Format(ui.Get("Email your maintainer with the log file found at {0}"), Logger.GetFileName());
+            }
+            return message;
         }
 
         // A mesh counts as exported only when SolidWorks says so, reports no error and the file exists.
@@ -666,6 +691,7 @@ namespace SW2URDF.URDFExport
             int errors = 0;
             int warnings = 0;
             bool meshExported = true;
+            bool textured = false;
 
             try
             {
@@ -690,14 +716,16 @@ namespace SW2URDF.URDFExport
             {
                 logger.Error("Exporting the mesh of link " + URDFRobot.BaseLink.Name + " failed", e);
                 meshExported = false;
+                textured = e is TextureNotSupportedException;
             }
             finally { ResetUserPreferences(); }
 
             if (!meshExported)
             {
                 UiText ui = UiText.FromSolidWorks(iSwApp);
-                MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, new[] { URDFRobot.BaseLink.Name });
-                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, URDFRobot.BaseLink.Name));
+                string[] failed = { URDFRobot.BaseLink.Name };
+                MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, failed);
+                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failed, textured ? failed : new string[0]));
                 return;
             }
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
