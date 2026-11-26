@@ -65,7 +65,7 @@ namespace SW2URDF.Test
                 writer.writer.Close();
 
                 string urdf = File.ReadAllText(path);
-                Assert.Contains("<robot name=\"arm_part\"", urdf);
+                Assert.Matches(@"<robot\s+name=""arm_part""", urdf);
                 Assert.DoesNotContain("SLDPRT", urdf);
             });
         }
