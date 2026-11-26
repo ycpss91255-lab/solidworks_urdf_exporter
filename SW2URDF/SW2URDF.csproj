@@ -371,6 +371,7 @@
     <Compile Include="Test\TestDocumentPersistence.cs" />
     <Compile Include="Test\TestExportRestoresState.cs" />
     <Compile Include="Test\TestFolderNameCollision.cs" />
+    <Compile Include="Test\TestExportKeepsOrigins.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
     <Compile Include="Test\TestJointAtOrigin.cs" />
     <Compile Include="Test\TestExporterRouting.cs" />
@@ -459,6 +460,7 @@
     <Compile Include="URDFExport\TreeKeyActions.cs" />
     <Compile Include="URDFExport\DocumentPersistence.cs" />
     <Compile Include="URDFExport\GeneratedFeatureLog.cs" />
+    <Compile Include="URDFExport\LinkPlacement.cs" />
     <Compile Include="URDFExport\ExporterRouting.cs" />
     <Compile Include="URDFExport\OrphanAttributes.cs" />
     <Compile Include="URDFExport\SharedAttributeCleanup.cs" />

@@ -159,6 +159,14 @@ namespace SW2URDF.URDFExport
         // Beginning method for exporting the full package
         public void ExportRobot(bool exportSTL = true, MeshExportFormat meshFormat = MeshExportFormat.STL)
         {
+            using (new LinkPlacement(URDFRobot.BaseLink))
+            {
+                ExportRobotFiles(exportSTL, meshFormat);
+            }
+        }
+
+        private void ExportRobotFiles(bool exportSTL, MeshExportFormat meshFormat)
+        {
             //Setting up the progress bar
             logger.Info("Beginning the export process");
             meshFiles.Clear();
@@ -653,6 +661,14 @@ namespace SW2URDF.URDFExport
         }
 
         public void ExportLink(bool zIsUp, MeshExportFormat meshFormat)
+        {
+            using (new LinkPlacement(URDFRobot.BaseLink))
+            {
+                ExportLinkFiles(zIsUp, meshFormat);
+            }
+        }
+
+        private void ExportLinkFiles(bool zIsUp, MeshExportFormat meshFormat)
         {
             CreateBaseRefOrigin(zIsUp);
             MathTransform coordSysTransform =
