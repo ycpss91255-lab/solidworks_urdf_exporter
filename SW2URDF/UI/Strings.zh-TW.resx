@@ -440,6 +440,9 @@
   <data xml:space="preserve" name="serializing this link failed. please email your maintainer with your sw assembly.">
     <value>序列化此連桿失敗，請將您的 SolidWorks 組件寄給維護者。</value>
   </data>
+  <data xml:space="preserve" name="solidworks could not create the feature tree folder &quot;{0}&quot;. the urdf settings are kept in their entries in the feature tree. the exporter creates the folder the next time it is opened or the settings are saved.">
+    <value>SolidWorks 無法建立特徵樹資料夾「{0}」。URDF 設定仍保留在特徵樹的各項目中。下次開啟匯出工具或儲存設定時，會再建立此資料夾。</value>
+  </data>
   <data xml:space="preserve" name="the configuration has changed, would you like to save?">
     <value>設定已變更，是否要儲存？</value>
   </data>

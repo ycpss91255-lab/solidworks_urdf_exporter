@@ -192,7 +192,7 @@ namespace SW2URDF.URDFExport
             }
 
             bool removed = RemoveMigratedSharedAttributes(model);
-            bool regrouped = RegroupFolder(model, active);
+            bool regrouped = RegroupFolder(model, active, ui);
             return created || regrouped || removed;
         }
 
@@ -804,7 +804,7 @@ namespace SW2URDF.URDFExport
         {
             try
             {
-                if (RegroupFolder(model, GetActiveConfigurationName(model)))
+                if (RegroupFolder(model, GetActiveConfigurationName(model), ui))
                 {
                     PersistDocument(model, ui ?? new UiText(null));
                 }
@@ -815,7 +815,7 @@ namespace SW2URDF.URDFExport
             }
         }
 
-        private static bool RegroupFolder(ModelDoc2 model, string active)
+        private static bool RegroupFolder(ModelDoc2 model, string active, UiText ui)
         {
             bool changed = ResolveFolderNameCollision(model, out bool blocked);
             changed |= DeleteStrayFolders(model);
@@ -837,7 +837,27 @@ namespace SW2URDF.URDFExport
                 return changed;
             }
             TryGroupConfigurationAttributes(model, toShow);
+            if (toShow.Length > 0 && !ConfigurationFolderExists(model))
+            {
+                WarnFolderMissing(model, ui ?? new UiText(null));
+            }
             return true;
+        }
+
+        private static readonly HashSet<string> documentsWarnedAboutFolder = new HashSet<string>();
+
+        /// <summary>
+        /// The folder was deleted and SolidWorks did not create it again. The settings are still in
+        /// the entries and the next regroup tries again, so the user is told once per document.
+        /// </summary>
+        private static void WarnFolderMissing(ModelDoc2 model, UiText ui)
+        {
+            logger.Warn("The feature tree folder \"" + ConfigurationAttributeFolderName +
+                "\" is missing, its entries are kept in the feature tree");
+            if (documentsWarnedAboutFolder.Add(model.GetPathName() ?? ""))
+            {
+                MessageBox.Show(string.Format(ui.Get("SolidWorks could not create the feature tree folder \"{0}\". The URDF settings are kept in their entries in the feature tree. The exporter creates the folder the next time it is opened or the settings are saved."), ConfigurationAttributeFolderName));
+            }
         }
 
         /// <summary>Type and name of every feature in tree order (folder end tags included).</summary>
@@ -1049,8 +1069,9 @@ namespace SW2URDF.URDFExport
         /// <summary>
         /// Appearance only: put all per-configuration attributes in one feature tree folder.
         /// SolidWorks cannot move a feature into an existing folder, so the old folder is deleted
-        /// (deleting a folder keeps its contents) and recreated around all attributes. Failures are
-        /// logged and never interrupt saving.
+        /// (deleting a folder keeps its contents) and recreated around all attributes, with a second
+        /// try when SolidWorks does not create it. Failures are logged and never interrupt saving;
+        /// the caller checks whether the folder exists.
         /// </summary>
         private static void TryGroupConfigurationAttributes(ModelDoc2 model, string[] namesToGroup)
         {
@@ -1090,15 +1111,7 @@ namespace SW2URDF.URDFExport
                     return;
                 }
 
-                model.ClearSelection2(true);
-                bool append = false;
-                foreach (Feature feature in features)
-                {
-                    feature.Select2(append, 0);
-                    append = true;
-                }
-                Feature newFolder = model.FeatureManager.InsertFeatureTreeFolder2(
-                    (int)swFeatureTreeFolderType_e.swFeatureTreeFolder_Containing) as Feature;
+                Feature newFolder = InsertFolderAround(model, features) ?? InsertFolderAround(model, features);
                 if (newFolder != null)
                 {
                     try
@@ -1129,6 +1142,29 @@ namespace SW2URDF.URDFExport
                 logger.Warn("Grouping the URDF features into a folder failed", e);
             }
         }
+
+        /// <summary>The new folder, or null when SolidWorks does not create it. Never throws.</summary>
+        private static Feature InsertFolderAround(ModelDoc2 model, List<Feature> features)
+        {
+            try
+            {
+                model.ClearSelection2(true);
+                bool append = false;
+                foreach (Feature feature in features)
+                {
+                    feature.Select2(append, 0);
+                    append = true;
+                }
+                return model.FeatureManager.InsertFeatureTreeFolder2(
+                    (int)swFeatureTreeFolderType_e.swFeatureTreeFolder_Containing) as Feature;
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Inserting the URDF feature tree folder failed", e);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Builds a SW Attribute for saving our serialized data
         /// </summary>
@@ -1221,7 +1257,7 @@ namespace SW2URDF.URDFExport
             param = saveExporterAttribute.GetParameter("exporterVersion");
             param.SetDoubleValue2(SerializationVersion, ConfigurationOptions, "");
 
-            RegroupFolder(model, configurationName);
+            RegroupFolder(model, configurationName, ui);
             return true;
         }
 
