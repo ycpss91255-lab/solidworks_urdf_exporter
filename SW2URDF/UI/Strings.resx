@@ -222,9 +222,6 @@
   <data xml:space="preserve" name="the following links contained issues that may cause problems. do you wish to proceed?">
     <value>The following links contained issues that may cause problems. Do you wish to proceed?</value>
   </data>
-  <data xml:space="preserve" name="the log file was expected to be located at {0}, but it was not found. please contact your maintainer with this error message.">
-    <value>The log file was expected to be located at {0}, but it was not found. Please contact your maintainer with this error message.</value>
-  </data>
   <data xml:space="preserve" name="there was a problem with the export form:">
     <value>There was a problem with the export form:</value>
   </data>
