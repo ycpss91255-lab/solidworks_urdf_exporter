@@ -449,6 +449,12 @@
   <data xml:space="preserve" name="the urdf configuration could not be saved to this model.">
     <value>無法將 URDF 設定儲存到此模型。</value>
   </data>
+  <data xml:space="preserve" name="the urdf settings stored in the feature tree entry &quot;{0}&quot; cannot be read. they are kept as they are and will not be overwritten.">
+    <value>特徵樹項目「{0}」中儲存的 URDF 設定無法讀取。這些設定會原樣保留，不會被覆寫。</value>
+  </data>
+  <data xml:space="preserve" name="the urdf settings were not saved: the feature tree entry &quot;{0}&quot; holds settings that this exporter cannot read, and they are not overwritten. delete that entry to store new settings.">
+    <value>URDF 設定未儲存: 特徵樹項目「{0}」中的設定無法由此匯出工具讀取，因此不會被覆寫。若要儲存新設定，請先刪除該項目。</value>
+  </data>
   <data xml:space="preserve" name="converting mesh to obj">
     <value>正在將網格轉換為 OBJ</value>
   </data>
