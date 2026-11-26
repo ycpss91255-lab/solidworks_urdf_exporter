@@ -354,6 +354,7 @@
     <Compile Include="Test\TestLimitMateProbe.cs" />
     <Compile Include="Test\TestLimitMateValues.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
+    <Compile Include="Test\TestJointNamesUnique.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestFolderRegroup.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
