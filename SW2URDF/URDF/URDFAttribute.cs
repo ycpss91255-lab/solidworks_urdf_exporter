@@ -222,6 +222,28 @@ namespace SW2URDF.URDF
                 shownValue[index].Equals(current) && string.Equals(shownText[index], text, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Copies the array elements that the user edited, that is those whose text is not the text shown
+        /// for them, to another attribute. All its other elements stay exactly as they are. Call after
+        /// SetDoubleArrayFromStringArray with the same texts. When nothing was shown nothing is copied.
+        /// </summary>
+        public void CopyEditedElements(string[] textArray, URDFAttribute target)
+        {
+            if (shownText == null || !(Value is double[] values) || !(target.Value is double[] current))
+            {
+                return;
+            }
+            double[] result = (double[])current.Clone();
+            for (int i = 0; i < textArray.Length && i < shownText.Length && i < values.Length && i < result.Length; i++)
+            {
+                if (!string.Equals(shownText[i], textArray[i], StringComparison.Ordinal))
+                {
+                    result[i] = values[i];
+                }
+            }
+            target.Value = result;
+        }
+
         public string GetTextFromDoubleValue(string format = "R")
         {
             string result = "";
