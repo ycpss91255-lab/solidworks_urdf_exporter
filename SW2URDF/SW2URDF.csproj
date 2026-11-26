@@ -347,6 +347,7 @@
     <Compile Include="Test\TestUnreadableSettings.cs" />
     <Compile Include="Test\TestPackageXmlFile.cs" />
     <Compile Include="Test\TestConfigurationSwitch.cs" />
+    <Compile Include="Test\TestPartPackage.cs" />
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestPackageDialog.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
@@ -448,6 +449,7 @@
     <Compile Include="URDFExport\FileNames.cs" />
     <Compile Include="URDFExport\LimitMateValues.cs" />
     <Compile Include="URDFExport\XacroOutput.cs" />
+    <Compile Include="URDFExport\PartPackage.cs" />
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
     <Compile Include="URDFExport\MeshFiles.cs" />
