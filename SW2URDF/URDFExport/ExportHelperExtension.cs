@@ -251,6 +251,9 @@ namespace SW2URDF.URDFExport
             ExportErrorWhy = "";
             URDFRobot = new Robot();
 
+            // Components that were lightweight when the exporter was made have been resolved since
+            UpdateReferenceGeometries();
+
             // A new run: forget the previous one and remember the joint names it starts with
             GeneratedFeatures.Clear();
             jointNames = JointNameSnapshot.Take(baseNode);
@@ -1890,68 +1893,35 @@ namespace SW2URDF.URDFExport
             return axis;
         }
 
-        // Creates a list of all the features of this type.
-        private Dictionary<string, List<Feature>> GetFeaturesOfType(string featureName, bool topLevelOnly)
+        // Adds the names of the reference geometry of one document, by feature type. The documents of several
+        // instances of a component are the same one, which is searched once.
+        private static void AddRefGeoNames(ModelDoc2 document, string componentName,
+            Dictionary<string, List<string>> names, Dictionary<string, Dictionary<string, List<string>>> searched)
         {
-            Dictionary<string, List<Feature>> features = new Dictionary<string, List<Feature>>();
-            GetFeaturesOfType(ActiveSWModel, featureName, topLevelOnly, "", features);
-            return features;
-        }
-
-        private void GetFeaturesOfType(ModelDoc2 modelDoc, string featureName,
-            bool topLevelOnly, string keyName, Dictionary<string, List<Feature>> features)
-        {
-            string fileName = (string.IsNullOrWhiteSpace(keyName)) ? modelDoc.GetTitle() : keyName;
-            logger.Info("Retrieving features of type [" + featureName + "] from " + fileName);
-
-            features[keyName] = new List<Feature>();
-
-            object[] featureObjects = modelDoc.FeatureManager.GetFeatures(false);
-            if (featureObjects == null)
+            string path = document.GetPathName();
+            Dictionary<string, List<string>> found;
+            if (string.IsNullOrEmpty(path) || !searched.TryGetValue(path, out found))
             {
-                logger.Info("No features found in " + modelDoc.GetTitle());
-                return;
-            }
-
-            logger.Info("Found " + featureObjects.Length + " in " + fileName);
-            foreach (Feature feat in featureObjects)
-            {
-                if (feat.GetTypeName2() == featureName)
+                found = names.Keys.ToDictionary(type => type, type => new List<string>());
+                object[] features = document.FeatureManager.GetFeatures(false);
+                foreach (Feature feature in features ?? new object[0])
                 {
-                    features[keyName].Add(feat);
-                }
-            }
-
-            logger.Info("Found " + features[keyName].Count + " features of type [" + featureName + "] in " + fileName);
-            if (!topLevelOnly && modelDoc.GetType() == (int)swDocumentTypes_e.swDocASSEMBLY)
-            {
-                logger.Info("Proceeding through assembly components");
-                AssemblyDoc assyDoc = (AssemblyDoc)modelDoc;
-
-                // Get top level components in an assembly. If the user wants to use a reference
-                // coordinate system or axis not located in the top level assembly, then it will
-                // need to be in a top level component. This will probably be ok because most
-                // users keep their reference geometry in the top level assembly as it is.
-                object[] components = assyDoc.GetComponents(true);
-
-                // If there are no components in an assembly, this object will be null.
-                if (components != null)
-                {
-                    logger.Info(components.Length + " components to check");
-                    foreach (Component2 comp in components)
+                    if (found.TryGetValue(feature.GetTypeName2(), out List<string> ofType))
                     {
-                        ModelDoc2 doc = comp.GetModelDoc2();
-                        if (doc != null)
-                        {
-                            //We already have all the components in an assembly, we don't want
-                            // to recur as we go through them. (topLevelOnly = true)
-                            GetFeaturesOfType(doc, featureName, true, comp.Name2, features);
-                        }
+                        ofType.Add(feature.Name);
                     }
                 }
+                if (!string.IsNullOrEmpty(path))
+                {
+                    searched[path] = found;
+                }
+            }
+            string suffix = componentName == "" ? "" : " <" + componentName + ">";
+            foreach (string type in found.Keys)
+            {
+                names[type].AddRange(found[type].Select(name => name + suffix));
             }
         }
-
         private static Dictionary<string, string> GetComponentRefGeoNames(string StringToParse)
         {
             string RefGeoName = StringToParse;
@@ -1976,39 +1946,51 @@ namespace SW2URDF.URDFExport
             return dict;
         }
 
-        private List<string> FindRefGeoNames(string FeatureName)
+        // The names of the reference geometry of the document and, in an assembly, of its components at every
+        // depth, by feature type. Those of a component are followed by its full name: "Axis1 <SUB-1/PART-1>".
+        private Dictionary<string, List<string>> FindRefGeoNames(params string[] types)
         {
-            Dictionary<string, List<Feature>> features = GetFeaturesOfType(FeatureName, false);
-            List<string> featureNames = new List<string>();
-            foreach (string key in features.Keys)
+            System.Diagnostics.Stopwatch time = System.Diagnostics.Stopwatch.StartNew();
+            Dictionary<string, List<string>> names = types.ToDictionary(type => type, type => new List<string>());
+            Dictionary<string, Dictionary<string, List<string>>> searched =
+                new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+            AddRefGeoNames(ActiveSWModel, "", names, searched);
+
+            int components = 0;
+            int withoutDocument = 0;
+            if (ActiveSWModel.GetType() == (int)swDocumentTypes_e.swDocASSEMBLY)
             {
-                foreach (Feature feat in features[key])
+                // False: not only the top level. Null when there are no components.
+                object[] all = ((AssemblyDoc)ActiveSWModel).GetComponents(false);
+                foreach (Component2 component in all ?? new object[0])
                 {
-                    if (String.IsNullOrWhiteSpace(key))
+                    components++;
+                    // Suppressed and lightweight components have no document.
+                    ModelDoc2 document = component.GetModelDoc2();
+                    if (document == null)
                     {
-                        featureNames.Add(feat.Name);
+                        withoutDocument++;
+                        continue;
                     }
-                    else
-                    {
-                        featureNames.Add(feat.Name + " <" + key + ">");
-                    }
+                    AddRefGeoNames(document, component.Name2, names, searched);
                 }
             }
-            return featureNames;
+            logger.Info("Reference geometry of " + components + " components (" + withoutDocument +
+                " without a document) found in " + time.ElapsedMilliseconds + " ms: " +
+                string.Join(", ", types.Select(type => names[type].Count + " " + type)));
+            return names;
         }
 
         public void UpdateReferenceGeometries()
         {
-            List<string> coordinateSystemNames = FindRefGeoNames("CoordSys");
-            List<string> axesNames = FindRefGeoNames("RefAxis");
+            Dictionary<string, List<string>> names = FindRefGeoNames("CoordSys", "RefAxis");
 
             ReferenceCoordinateSystemNames.Clear();
-            ReferenceCoordinateSystemNames.AddRange(coordinateSystemNames);
+            ReferenceCoordinateSystemNames.AddRange(names["CoordSys"]);
 
             ReferenceAxesNames.Clear();
-            ReferenceAxesNames.AddRange(axesNames);
+            ReferenceAxesNames.AddRange(names["RefAxis"]);
         }
-
         public List<string> GetRefCoordinateSystems()
         {
             return new List<string>(ReferenceCoordinateSystemNames);
