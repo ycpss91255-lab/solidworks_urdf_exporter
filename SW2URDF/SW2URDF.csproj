@@ -324,6 +324,7 @@
     <Compile Include="UI\MessageBoxHelper.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
     <Compile Include="Test\SWTestFixture.cs" />
+    <Compile Include="Test\TestAngleUnits.cs" />
     <Compile Include="Test\TestBoxPrecision.cs" />
     <Compile Include="Test\TestCommon.cs" />
     <Compile Include="Test\TestConfigurationFormat.cs" />
@@ -458,6 +459,7 @@
     <Compile Include="URDF\URDFElement.cs" />
     <Compile Include="URDF\URDFWriter.cs" />
     <Compile Include="URDF\Visual.cs" />
+    <Compile Include="UI\AngleUnits.cs" />
     <Compile Include="UI\UiLayout.cs" />
     <Compile Include="UI\UiText.cs" />
     <Compile Include="UI\ValueFormat.cs" />
