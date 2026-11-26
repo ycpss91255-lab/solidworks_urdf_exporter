@@ -322,6 +322,7 @@
     <Compile Include="Legacy\SerialNode.cs" />
     <Compile Include="UI\IMessageBox.cs" />
     <Compile Include="UI\MessageBoxHelper.cs" />
+    <Compile Include="UI\NumberBoxDisplay.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
     <Compile Include="Test\SWTestFixture.cs" />
     <Compile Include="Test\TestAngleUnits.cs" />
@@ -359,6 +360,7 @@
     <Compile Include="Test\TestPartSettings.cs" />
     <Compile Include="Test\TestPerConfiguration.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />
+    <Compile Include="Test\TestNumberBoxDisplay.cs" />
     <Compile Include="Test\TestPropertyManager.cs" />
     <Compile Include="Test\TestROSFIles.cs" />
     <Compile Include="Test\SolidWorksBinding.cs" />
