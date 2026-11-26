@@ -125,6 +125,19 @@ namespace SW2URDF.URDF
         }
 
         /// <summary>
+        /// Update for boxes that stand for two origins and show this one: the values the user edited are
+        /// also written to the other origin, whose remaining values stay exactly as they are.
+        /// </summary>
+        public void Update(TextBox boxX, TextBox boxY, TextBox boxZ,
+            TextBox boxRoll, TextBox boxPitch, TextBox boxYaw, Origin alsoEdited
+            )
+        {
+            Update(boxX, boxY, boxZ, boxRoll, boxPitch, boxYaw);
+            XYZAttribute.CopyEditedElements(new string[] { boxX.Text, boxY.Text, boxZ.Text }, alsoEdited.XYZAttribute);
+            RPYAttribute.CopyEditedElements(new string[] { boxRoll.Text, boxPitch.Text, boxYaw.Text }, alsoEdited.RPYAttribute);
+        }
+
+        /// <summary>
         /// Origin is a unique case in that its attributes are stored as double arrays.
         /// </summary>
         /// <param name="context"></param>

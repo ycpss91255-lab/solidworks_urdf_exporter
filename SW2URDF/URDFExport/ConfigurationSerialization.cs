@@ -11,7 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Windows.Forms;
+using System.Windows;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -29,6 +29,9 @@ namespace SW2URDF.URDFExport
     {
         private static readonly log4net.ILog logger = Logger.GetLogger();
 
+        /// <summary>Tests replace it, so they never show a window.</summary>
+        private static IMessageBox MessageBox { get { return URDFPackage.MessageBox; } }
+
         /// <summary>
         /// Current Serialization version
         /// </summary>
@@ -45,8 +48,8 @@ namespace SW2URDF.URDFExport
         /// SolidWorks configuration and is named after that configuration. The serialization format
         /// is the same as the shared attribute (<see cref="SerializationVersion"/>), only the
         /// storage location differs. Note: if a SolidWorks configuration is renamed its attribute no
-        /// longer matches and the exporter falls back to the shared attribute until the
-        /// configuration is saved again (the stale attribute is harmless and can be deleted).
+        /// longer matches; the exporter then offers to move the settings to the new name (see
+        /// <see cref="EnsureConfigurationAttributes"/>).
         /// </summary>
         private const string ConfigurationAttributeDefinitionName = "URDF Export Configuration Data";
 
@@ -72,9 +75,8 @@ namespace SW2URDF.URDFExport
         {
             ui = ui ?? new UiText(null);
             LogOrphanConfigurationAttributes(model);
-            string data = GetConfigTreeData(model, out double configVersion);
+            string data = GetConfigTreeData(model, out double configVersion, out string entryName);
 
-            LinkNode basenode;
             ConfigurationFormatKind kind = ConfigurationFormat.Classify(configVersion);
             if (kind == ConfigurationFormatKind.TooNew)
             {
@@ -83,16 +85,11 @@ namespace SW2URDF.URDFExport
                 return null;
             }
 
-            if (kind == ConfigurationFormatKind.DataContract)
+            error = !TryReadTree(data, configVersion, out LinkNode basenode);
+            if (error)
             {
-                basenode = DeserializeFromString(data);
+                MessageBox.Show(string.Format(ui.Get("The URDF settings stored in the feature tree entry \"{0}\" cannot be read. They are kept as they are and will not be overwritten."), entryName));
             }
-            else
-            {
-                basenode = LoadConfigFromStringXML(data);
-            }
-
-            error = false;
             return basenode;
         }
 
@@ -107,7 +104,13 @@ namespace SW2URDF.URDFExport
         public static void SaveConfigTreeXML(SldWorks swApp, ModelDoc2 model, LinkNode BaseNode, bool warnUser, UiText ui = null)
         {
             ui = ui ?? new UiText(null);
-            string oldData = GetConfigTreeData(model, out double version);
+            string oldData = GetConfigTreeData(model, out double version, out string entryName);
+            if (IsOverwrittenBySave(model, entryName) && !TryReadTree(oldData, version, out LinkNode oldTree))
+            {
+                logger.Error("The URDF settings were not saved: the stored ones cannot be read and are kept");
+                MessageBox.Show(string.Format(ui.Get("The URDF settings were not saved: the feature tree entry \"{0}\" holds settings that this exporter cannot read, and they are not overwritten. Delete that entry to store new settings."), entryName));
+                return;
+            }
             if (oldData.Length > 0 && ConfigurationFormat.NeedsUpgrade(version))
             {
                 MessageBox.Show(ui.Get("You have a URDF configuration with an outdated save format. It will automatically be upgraded to the latest version and saved for the active SolidWorks configuration. The old data is left in place and can be deleted at your convenience."));
@@ -125,7 +128,7 @@ namespace SW2URDF.URDFExport
                 if (!warnUser ||
                     (warnUser &&
                     MessageBox.Show(ui.Get("The configuration has changed, would you like to save?"),
-                    ui.Get("Save Export Configuration"), MessageBoxButtons.YesNo) == DialogResult.Yes))
+                    ui.Get("Save Export Configuration"), MessageBoxButton.YesNo) == MessageBoxResult.Yes))
                 {
                     if (SaveDataToModelDoc(swApp, model, newData, ui))
                     {
@@ -140,29 +143,26 @@ namespace SW2URDF.URDFExport
         /// the "URDF Export Configuration" feature tree folder, named like the configuration). Other
         /// configurations get theirs when the user switches to them and opens the exporter. A
         /// configuration without one gets a copy of the shared (legacy) data, or a blank attribute
-        /// when there is none. Existing attributes are never changed. A missing folder is rebuilt
+        /// when there is none. A configuration without settings is offered the ones of an attribute
+        /// that matches no configuration any more (the configuration was renamed); they are moved
+        /// when the user says yes. Other existing attributes are never changed. A missing folder is rebuilt
         /// around the attributes that exist. Returns true when anything was created or rebuilt
         /// (the document then needs saving).
         /// </summary>
-        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model)
+        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model, UiText ui = null)
         {
             string[] names = model.GetConfigurationNames() as string[];
             string active = GetActiveConfigurationName(model);
-            List<string> existing = new List<string>();
-            if (names != null)
-            {
-                foreach (string name in names)
-                {
-                    if (FindConfigurationAttributeFeature(model, name) != null)
-                    {
-                        existing.Add(name);
-                    }
-                }
-            }
+            HashSet<string> entries = GetEntryNames(model);
+            List<string> existing = (names ?? new string[0]).Where(entries.Contains).ToList();
 
             bool created = false;
             string[] toCreate = DocumentPersistence.NamesToCreate(names, active, existing.ToArray());
-            if (toCreate.Length > 0)
+            if (AdoptOrphan(swApp, model, names, active, ui ?? new UiText(null)))
+            {
+                created = true;
+            }
+            else if (toCreate.Length > 0 && !HasConfigurationAttribute(model))
             {
                 SolidWorks.Interop.sldworks.Attribute shared =
                     FindSWSaveAttribute(model, UrdfConfigurationSwAttributeName) ?? CheckForOldAttributes(model);
@@ -177,18 +177,14 @@ namespace SW2URDF.URDFExport
                 }
                 else
                 {
-                    int options = (int)swInConfigurationOpts_e.swThisConfiguration;
-                    att.GetParameter("data").SetStringValue2(init == AttributeInit.CopyShared ? sharedData : "", options, "");
-                    att.GetParameter("name").SetStringValue2("config1", options, "");
-                    att.GetParameter("date").SetStringValue2(AttributeDate(DateTimeOffset.Now), options, "");
-                    att.GetParameter("exporterVersion").SetDoubleValue2(
-                        init == AttributeInit.CopyShared ? sharedVersion : SerializationVersion, options, "");
+                    bool copy = init == AttributeInit.CopyShared;
+                    WriteAttribute(att, copy ? sharedData : "", copy ? sharedVersion : SerializationVersion);
                     created = true;
                 }
             }
 
             bool removed = RemoveMigratedSharedAttributes(model);
-            bool regrouped = RegroupFolder(model, active);
+            bool regrouped = RegroupFolder(model, active, ui);
             return created || regrouped || removed;
         }
 
@@ -196,6 +192,78 @@ namespace SW2URDF.URDFExport
         internal static string AttributeDate(DateTimeOffset time)
         {
             return time.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// When the active configuration has no settings of its own, asks whether it takes over the
+        /// settings of an attribute that matches no configuration. Attribute values belong to the
+        /// configuration they were written for and stay with it when it is renamed, so only an
+        /// attribute that holds data for the active configuration is offered. True when the settings
+        /// were moved.
+        /// </summary>
+        private static bool AdoptOrphan(SldWorks swApp, ModelDoc2 model, string[] names, string active, UiText ui)
+        {
+            if (names == null || string.IsNullOrEmpty(active) || !names.Contains(active))
+            {
+                return false;
+            }
+            Feature ownFeature = FindConfigurationAttributeFeature(model, active);
+            SolidWorks.Interop.sldworks.Attribute own = ownFeature == null ? null :
+                (SolidWorks.Interop.sldworks.Attribute)ownFeature.GetSpecificFeature2();
+            if (own != null && !string.IsNullOrEmpty(own.GetParameter("data").GetStringValue()))
+            {
+                return false;
+            }
+            List<SolidWorks.Interop.sldworks.Attribute> attributes = GetConfigurationAttributeFeatures(model)
+                .Select(feature => (SolidWorks.Interop.sldworks.Attribute)feature.GetSpecificFeature2())
+                .Where(att => att.GetName() != null && !IsSharedAttributeName(att.GetName())).ToList();
+            foreach (string orphan in OrphanAttributes.FindOrphans(attributes.Select(att => att.GetName()), names))
+            {
+                SolidWorks.Interop.sldworks.Attribute source = attributes.First(att => att.GetName() == orphan);
+                string data = source.GetParameter("data").GetStringValue();
+                if (string.IsNullOrEmpty(data))
+                {
+                    continue;
+                }
+                bool adopt = MessageBox.Show(
+                    string.Format(ui.Get("The configuration \"{0}\" has no URDF settings of its own. The settings stored under the name \"{1}\" belong to no configuration any more, which happens when a configuration is renamed. Use them for \"{0}\"?"), active, orphan),
+                    ui.Get("Configuration renamed"), MessageBoxButton.YesNo) == MessageBoxResult.Yes;
+                logger.Info("URDF settings of \"" + orphan + "\" offered to \"" + active + "\", accepted: " + adopt);
+                if (adopt)
+                {
+                    own = own ?? CreateConfigurationAttribute(swApp, model, active);
+                    return own != null && MoveSettings(source, own);
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The source is only emptied after the target holds its data.</summary>
+        private static bool MoveSettings(
+            SolidWorks.Interop.sldworks.Attribute source, SolidWorks.Interop.sldworks.Attribute target)
+        {
+            string data = source.GetParameter("data").GetStringValue();
+            double version = source.GetParameter("exporterVersion").GetDoubleValue();
+            WriteAttribute(target, data, version);
+            if (target.GetParameter("data").GetStringValue() != data ||
+                target.GetParameter("exporterVersion").GetDoubleValue() != version)
+            {
+                logger.Warn("The URDF settings of \"" + source.GetName() + "\" could not be moved, they are kept there");
+                return false;
+            }
+            source.GetParameter("data").SetStringValue2(
+                "", (int)swInConfigurationOpts_e.swThisConfiguration, "");
+            return true;
+        }
+
+        /// <summary>Writes the values of the active configuration.</summary>
+        private static void WriteAttribute(SolidWorks.Interop.sldworks.Attribute att, string data, double version)
+        {
+            int options = (int)swInConfigurationOpts_e.swThisConfiguration;
+            att.GetParameter("data").SetStringValue2(data, options, "");
+            att.GetParameter("name").SetStringValue2("config1", options, "");
+            att.GetParameter("date").SetStringValue2(AttributeDate(DateTimeOffset.Now), options, "");
+            att.GetParameter("exporterVersion").SetDoubleValue2(version, options, "");
         }
 
         /// <summary>
@@ -223,10 +291,7 @@ namespace SW2URDF.URDFExport
         {
             try
             {
-                ConfigurationFormatKind kind = ConfigurationFormat.Classify(version);
-                LinkNode node = kind == ConfigurationFormatKind.DataContract ? DeserializeFromString(data) :
-                    kind == ConfigurationFormatKind.LegacyXml ? LoadConfigFromStringXML(data) : null;
-                return node == null ? null : SerializeToString(node);
+                return TryReadTree(data, version, out LinkNode node) && node != null ? SerializeToString(node) : null;
             }
             catch (Exception e)
             {
@@ -238,6 +303,9 @@ namespace SW2URDF.URDFExport
         private sealed class ModelSharedAttributes : ISharedAttributeDocument
         {
             private readonly ModelDoc2 model;
+
+            // Read once: the cleanup asks for every configuration and creates no entry
+            private HashSet<string> entryNames;
 
             public ModelSharedAttributes(ModelDoc2 model)
             {
@@ -251,7 +319,8 @@ namespace SW2URDF.URDFExport
 
             public bool HasEntry(string configuration)
             {
-                return FindConfigurationAttributeFeature(model, configuration) != null;
+                entryNames = entryNames ?? GetEntryNames(model);
+                return entryNames.Contains(configuration);
             }
 
             public AttributeData GetEntry(string configuration)
@@ -428,7 +497,43 @@ namespace SW2URDF.URDFExport
         }
 
         /// <summary>
-        /// Read a URDF Link from a serialized string
+        /// Reads stored settings. False when there are settings that cannot be read: they must then
+        /// be kept. No data at all is readable and gives no tree.
+        /// </summary>
+        private static bool TryReadTree(string data, double version, out LinkNode node)
+        {
+            node = null;
+            if (string.IsNullOrWhiteSpace(data))
+            {
+                return true;
+            }
+            ConfigurationFormatKind kind = ConfigurationFormat.Classify(version);
+            if (kind == ConfigurationFormatKind.TooNew)
+            {
+                return false;
+            }
+            try
+            {
+                node = kind == ConfigurationFormatKind.DataContract ?
+                    DeserializeFromString(data) : LoadConfigFromStringXML(data);
+                return node != null;
+            }
+            catch (Exception e)
+            {
+                logger.Error("Reading the stored URDF settings failed", e);
+                logger.Error(data);
+                return false;
+            }
+        }
+
+        /// <summary>True when a save writes over the attribute the settings were read from.</summary>
+        private static bool IsOverwrittenBySave(ModelDoc2 model, string entryName)
+        {
+            return entryName == (GetActiveConfigurationName(model) ?? UrdfConfigurationSwAttributeName);
+        }
+
+        /// <summary>
+        /// Read a URDF Link from a serialized string. Throws when it cannot be read.
         /// </summary>
         /// <param name="data">Data string to read into a TreeView LinkNode</param>
         /// <returns>Deserialized LinkNode</returns>
@@ -442,26 +547,18 @@ namespace SW2URDF.URDFExport
                     DataContractSerializer ser =
                         new DataContractSerializer(typeof(Link));
 
-                    try
-                    {
-                        Link link = (Link)ser.ReadObject(stream);
+                    Link link = (Link)ser.ReadObject(stream);
 
-                        // By copying this link, we can ensure that all non-serialized properties are setup correctly
-                        Link copy = link.Clone();
-                        baseNode = new LinkNode(copy);
-                    }
-                    catch (SerializationException e)
-                    {
-                        logger.Error("Deserialization failed with exception, returning empty LinkNode", e);
-                        logger.Error(data);
-                    }
+                    // By copying this link, we can ensure that all non-serialized properties are setup correctly
+                    Link copy = link.Clone();
+                    baseNode = new LinkNode(copy);
                 }
             }
             return baseNode;
         }
 
         /// <summary>
-        /// Load from the deprecated XML serialized scheme
+        /// Load from the deprecated XML serialized scheme. Throws when it cannot be read.
         /// </summary>
         /// <param name="data">Data string to deserialize using XMLSerializer</param>
         /// <returns>TreeView LinkNode</returns>
@@ -471,13 +568,13 @@ namespace SW2URDF.URDFExport
             if (!string.IsNullOrWhiteSpace(data))
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(SerialNode));
-                XmlTextReader textReader = new XmlTextReader(new StringReader(data));
-                // Not reading external files, so this can set to prohibit. Resolves CA3075
-                textReader.DtdProcessing = DtdProcessing.Prohibit;
-                SerialNode sNode = (SerialNode)serializer.Deserialize(textReader);
-                textReader.Close();
-
-                baseNode = sNode.BuildLinkNodeFromSerialNode();
+                using (XmlTextReader textReader = new XmlTextReader(new StringReader(data)))
+                {
+                    // Not reading external files, so this can set to prohibit. Resolves CA3075
+                    textReader.DtdProcessing = DtdProcessing.Prohibit;
+                    SerialNode sNode = (SerialNode)serializer.Deserialize(textReader);
+                    baseNode = sNode.BuildLinkNodeFromSerialNode();
+                }
             }
             return baseNode;
         }
@@ -505,11 +602,13 @@ namespace SW2URDF.URDFExport
         /// </summary>
         /// <param name="model">ModelDoc model to load URDF configuration from</param>
         /// <param name="version">Output parameter of the serialization version</param>
+        /// <param name="entryName">Name of the attribute the data comes from, null when there is none</param>
         /// <returns>Serialized data string</returns>
-        private static string GetConfigTreeData(ModelDoc2 model, out double version)
+        private static string GetConfigTreeData(ModelDoc2 model, out double version, out string entryName)
         {
             string data = "";
             version = 0.0;
+            entryName = null;
 
             // Prefer the attribute stored for the active SolidWorks configuration
             Feature configFeature = FindConfigurationAttributeFeature(model, GetActiveConfigurationName(model));
@@ -522,6 +621,7 @@ namespace SW2URDF.URDFExport
                 {
                     logger.Info("URDF Configuration found for the active SolidWorks configuration\n" + configData);
                     version = configAtt.GetParameter("exporterVersion").GetDoubleValue();
+                    entryName = configAtt.GetName();
                     return configData;
                 }
             }
@@ -545,6 +645,7 @@ namespace SW2URDF.URDFExport
 
                 param = swAtt.GetParameter("exporterVersion");
                 version = param.GetDoubleValue();
+                entryName = swAtt.GetName();
             }
 
             return data;
@@ -633,6 +734,25 @@ namespace SW2URDF.URDFExport
                 ConfigurationFormat.PreviousSharedAttributeNames.Contains(name);
         }
 
+        /// <summary>
+        /// False, with a message, when another configuration was activated since the exporter was
+        /// opened for <paramref name="opened"/>: its settings must not be replaced by the ones of
+        /// that configuration. A configuration that was renamed meanwhile is still the same one.
+        /// </summary>
+        public static bool CheckSameConfiguration(ModelDoc2 model, string opened, UiText ui)
+        {
+            string active = GetActiveConfigurationName(model);
+            string[] names = model.GetConfigurationNames() as string[];
+            if (opened == null || active == null || active == opened || names == null || !names.Contains(opened))
+            {
+                return true;
+            }
+            logger.Warn("The exporter was opened for configuration \"" + opened + "\", now \"" + active +
+                "\" is active: nothing is saved or exported");
+            MessageBox.Show(string.Format(ui.Get("The exporter was opened for the configuration \"{0}\", but now \"{1}\" is active. Nothing was saved or exported, so that the settings of \"{1}\" are kept. Activate \"{0}\" again, or open the exporter again for \"{1}\"."), opened, active));
+            return false;
+        }
+
         public static string GetActiveConfigurationName(ModelDoc2 model)
         {
             try
@@ -674,6 +794,13 @@ namespace SW2URDF.URDFExport
             return result;
         }
 
+        /// <summary>The names of all attributes of the exporter, read in one walk of the tree.</summary>
+        private static HashSet<string> GetEntryNames(ModelDoc2 model)
+        {
+            return new HashSet<string>(GetConfigurationAttributeFeatures(model).Select(feature =>
+                ((SolidWorks.Interop.sldworks.Attribute)feature.GetSpecificFeature2()).GetName()));
+        }
+
         private static Feature FindConfigurationAttributeFeature(ModelDoc2 model, string configurationName)
         {
             if (string.IsNullOrEmpty(configurationName))
@@ -705,7 +832,7 @@ namespace SW2URDF.URDFExport
         {
             try
             {
-                if (RegroupFolder(model, GetActiveConfigurationName(model)))
+                if (RegroupFolder(model, GetActiveConfigurationName(model), ui))
                 {
                     PersistDocument(model, ui ?? new UiText(null));
                 }
@@ -716,7 +843,7 @@ namespace SW2URDF.URDFExport
             }
         }
 
-        private static bool RegroupFolder(ModelDoc2 model, string active)
+        private static bool RegroupFolder(ModelDoc2 model, string active, UiText ui)
         {
             bool changed = ResolveFolderNameCollision(model, out bool blocked);
             changed |= DeleteStrayFolders(model);
@@ -738,7 +865,27 @@ namespace SW2URDF.URDFExport
                 return changed;
             }
             TryGroupConfigurationAttributes(model, toShow);
+            if (toShow.Length > 0 && !ConfigurationFolderExists(model))
+            {
+                WarnFolderMissing(model, ui ?? new UiText(null));
+            }
             return true;
+        }
+
+        private static readonly HashSet<string> documentsWarnedAboutFolder = new HashSet<string>();
+
+        /// <summary>
+        /// The folder was deleted and SolidWorks did not create it again. The settings are still in
+        /// the entries and the next regroup tries again, so the user is told once per document.
+        /// </summary>
+        private static void WarnFolderMissing(ModelDoc2 model, UiText ui)
+        {
+            logger.Warn("The feature tree folder \"" + ConfigurationAttributeFolderName +
+                "\" is missing, its entries are kept in the feature tree");
+            if (documentsWarnedAboutFolder.Add(model.GetPathName() ?? ""))
+            {
+                MessageBox.Show(string.Format(ui.Get("SolidWorks could not create the feature tree folder \"{0}\". The URDF settings are kept in their entries in the feature tree. The exporter creates the folder the next time it is opened or the settings are saved."), ConfigurationAttributeFolderName));
+            }
         }
 
         /// <summary>Type and name of every feature in tree order (folder end tags included).</summary>
@@ -950,8 +1097,9 @@ namespace SW2URDF.URDFExport
         /// <summary>
         /// Appearance only: put all per-configuration attributes in one feature tree folder.
         /// SolidWorks cannot move a feature into an existing folder, so the old folder is deleted
-        /// (deleting a folder keeps its contents) and recreated around all attributes. Failures are
-        /// logged and never interrupt saving.
+        /// (deleting a folder keeps its contents) and recreated around all attributes, with a second
+        /// try when SolidWorks does not create it. Failures are logged and never interrupt saving;
+        /// the caller checks whether the folder exists.
         /// </summary>
         private static void TryGroupConfigurationAttributes(ModelDoc2 model, string[] namesToGroup)
         {
@@ -991,15 +1139,7 @@ namespace SW2URDF.URDFExport
                     return;
                 }
 
-                model.ClearSelection2(true);
-                bool append = false;
-                foreach (Feature feature in features)
-                {
-                    feature.Select2(append, 0);
-                    append = true;
-                }
-                Feature newFolder = model.FeatureManager.InsertFeatureTreeFolder2(
-                    (int)swFeatureTreeFolderType_e.swFeatureTreeFolder_Containing) as Feature;
+                Feature newFolder = InsertFolderAround(model, features) ?? InsertFolderAround(model, features);
                 if (newFolder != null)
                 {
                     try
@@ -1030,6 +1170,29 @@ namespace SW2URDF.URDFExport
                 logger.Warn("Grouping the URDF features into a folder failed", e);
             }
         }
+
+        /// <summary>The new folder, or null when SolidWorks does not create it. Never throws.</summary>
+        private static Feature InsertFolderAround(ModelDoc2 model, List<Feature> features)
+        {
+            try
+            {
+                model.ClearSelection2(true);
+                bool append = false;
+                foreach (Feature feature in features)
+                {
+                    feature.Select2(append, 0);
+                    append = true;
+                }
+                return model.FeatureManager.InsertFeatureTreeFolder2(
+                    (int)swFeatureTreeFolderType_e.swFeatureTreeFolder_Containing) as Feature;
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Inserting the URDF feature tree folder failed", e);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Builds a SW Attribute for saving our serialized data
         /// </summary>
@@ -1122,7 +1285,7 @@ namespace SW2URDF.URDFExport
             param = saveExporterAttribute.GetParameter("exporterVersion");
             param.SetDoubleValue2(SerializationVersion, ConfigurationOptions, "");
 
-            RegroupFolder(model, configurationName);
+            RegroupFolder(model, configurationName, ui);
             return true;
         }
 
@@ -1152,7 +1315,7 @@ namespace SW2URDF.URDFExport
             }
             if (action == PersistAction.WarnNotSaved || (action == PersistAction.Save && !saved))
             {
-                MessageBox.Show(DocumentPersistence.WarningText(ui), DocumentPersistence.WarningTitle(ui));
+                MessageBox.Show(DocumentPersistence.WarningText(ui), DocumentPersistence.WarningTitle(ui), MessageBoxButton.OK);
             }
             else if (action == PersistAction.Save)
             {
