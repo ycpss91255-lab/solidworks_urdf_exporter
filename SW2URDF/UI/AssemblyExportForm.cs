@@ -188,7 +188,9 @@ namespace SW2URDF.UI
             labelLimitSource.SizeChanged += delegate { FitHeader(); };
             labelConfigurationStatus.SizeChanged += delegate { FitHeader(); };
             grow.Capture();
-            Width -= Math.Min(grow.MaxShrink, Math.Max(0, widestTree - (int)Math.Round(TreeCompactWidth * scale)));
+            // Width of the window frame plus that of the layout with the compact tree.
+            Width = Math.Min(UiLayout.WorkingArea(this).Width, Width - ClientSize.Width + grow.BaseSize.Width -
+                Math.Min(grow.MaxShrink, Math.Max(0, widestTree - (int)Math.Round(TreeCompactWidth * scale))));
         }
 
         // The page headers: the joint page description wraps before the limit source text, and each

@@ -23,6 +23,13 @@ $assembly = [Reflection.Assembly]::LoadFrom($AssemblyPath)
 
 $flags = [Reflection.BindingFlags]'Instance,NonPublic,Public'
 
+# The forms are limited to the work area of the screen they are on. Give them a large one, so that the
+# result does not depend on the screen the test runs on. Windows still limits a window to about the size
+# of the real screen: the checks that need more are skipped, and each is listed.
+$areaField = $assembly.GetType('SW2URDF.UI.UiLayout', $true).GetField('TestWorkingArea', [Reflection.BindingFlags]'Static,NonPublic,Public')
+if ($areaField) { $areaField.SetValue($null, (New-Object System.Drawing.Rectangle(0, 0, 7680, 4320))) }
+$skipped = New-Object System.Collections.ArrayList
+
 function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi, $ui = $null) {
     $form = [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject($type)
     [void][System.Windows.Forms.Form].GetConstructor($flags, $null, [Type[]]@(), $null).Invoke($form, @())
@@ -407,6 +414,11 @@ function Get-Scrollers([System.Windows.Forms.Control]$root) {
 # and before and after the angle unit is chosen (the unit changes the captions).
 function Get-ProblemKey([string]$problem) { return ($problem -replace '\{[^}]*\}', '' -replace "'[^']*'", '') }
 
+# The size the layout of a form was made for, inside the window.
+$growOf = $assembly.GetType('SW2URDF.UI.GrowLayout')
+$baseSize = if ($growOf) { $growOf.GetField('baseSize', $flags) }
+$growOf = if ($growOf) { $growOf.GetMethod('Find', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+
 function Set-FormSize([System.Windows.Forms.Form]$form, [System.Drawing.Size]$size) {
     $form.Size = $size
     [System.Windows.Forms.Application]::DoEvents()
@@ -439,6 +451,10 @@ foreach ($typeName in $formTypes) {
                 # Windows does not make a window larger than its maximum tracking size (about the screen size).
                 $track = [System.Windows.Forms.SystemInformation]::MaxWindowTrackSize
                 $large = New-Object System.Drawing.Size([Math]::Min([int]($default.Width * 1.5), $track.Width), [Math]::Min([int]($default.Height * 1.3), $track.Height))
+                # The layout is higher than that: the whole page cannot be shown.
+                $grow = if ($growOf) { $growOf.Invoke($null, @([System.Windows.Forms.Form]$form)) }
+                $needed = if ($grow) { $baseSize.GetValue($grow).Height + $form.Height - $form.ClientSize.Height } else { $default.Height }
+                $limited = $default.Width -ge $track.Width -or $needed -ge $track.Height
                 foreach ($page in (Get-Pages $form)) {
                     $problems = New-Object System.Collections.ArrayList
                     $panel = $page[2]
@@ -488,9 +504,11 @@ foreach ($typeName in $formTypes) {
                         }
                         if ($size[0] -eq 'minimum' -and $tree -and $tree.Width -lt $treeMin - 1) { [void]$problems.Add("minimum: $($tree.Name) is $($tree.Width) px, narrower than $treeMin px") }
                         # At the default size the whole page is visible without scrolling (the footer
-                        # notes included), unless the screen is too small for the form.
-                        $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-                        if ($size[0] -eq 'default' -and $form.Height -lt $area.Height) {
+                        # notes included).
+                        if ($size[0] -eq 'default' -and $limited) {
+                            [void]$skipped.Add("$label $($page[0]) : default without scrolling: needs a window $needed high, this screen allows $($track.Height)")
+                        }
+                        if ($size[0] -eq 'default' -and -not $limited) {
                             foreach ($scroller in (Get-Scrollers $page[1])) {
                                 if ($scroller.VerticalScroll.Visible -or $scroller.HorizontalScroll.Visible) {
                                     [void]$problems.Add("default: $($scroller.Name) shows a scroll bar (content $($scroller.DisplayRectangle.Size) in $($scroller.ClientSize))")
@@ -504,7 +522,13 @@ foreach ($typeName in $formTypes) {
                                 }
                             }
                         }
-                        if ($size[0] -eq "large" -and $large.Width -gt $default.Width -and $large.Height -gt $default.Height) {
+                        $grow = if ($growOf) { $growOf.Invoke($null, @([System.Windows.Forms.Form]$form)) }
+                        $needs = if ($grow) { $baseSize.GetValue($grow) } else { $client }
+                        $roomy = $form.ClientSize.Width -gt $needs.Width -and $form.ClientSize.Height -gt $needs.Height
+                        if ($size[0] -eq "large" -and -not $roomy) {
+                            [void]$skipped.Add("$label $($page[0]) : large: needs a window with more than $($needs.Width)x$($needs.Height) inside, this screen allows $($form.ClientSize.Width)x$($form.ClientSize.Height)")
+                        }
+                        if ($size[0] -eq "large" -and $roomy) {
                             foreach ($n in $check.Trees) {
                                 $c = Find-One $page[1] $n
                                 if ($c -and ($c.Width -le $widths[$n].Width -or $c.Height -le $widths[$n].Height)) { [void]$problems.Add("large: tree $n does not grow: $($widths[$n]) -> $($c.Size)") }
@@ -919,6 +943,128 @@ if ($makeRoom) {
     }
 }
 
+# Small screens (issue #267). The work area is set for the test: a 1920 x 1080 screen with its taskbar
+# at 100-175 %, and a 1366 x 768 one. Both forms, in both languages, then
+#   - open no larger than the work area, with a minimum size that fits it, and inside it,
+#   - show the navigation buttons of every page and let every other control be scrolled into view,
+#   - do not scroll sideways while the tree can still give up width,
+#   - have every control where it was after the window was made smaller and back, scrolled or not,
+#   - use the same room as on a larger screen once the window has it: no scroll bar is left.
+function Get-Shown([System.Windows.Forms.Control]$parent) {
+    foreach ($c in $parent.Controls) {
+        if (-not (Test-Shown $c)) { continue }
+        $c
+        if ($c.Controls.Count -and -not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox])) { Get-Shown $c }
+    }
+}
+
+function Test-Reachable($form, [System.Windows.Forms.Control]$page, [string]$state, $problems) {
+    $client = New-Object System.Drawing.Rectangle([System.Drawing.Point]::Empty, $form.ClientSize)
+    foreach ($c in @(Get-Shown $page)) {
+        if ($c.Width -le 0 -or $c.Height -le 0) { continue }
+        $scroller = $c.Parent
+        while ($scroller -and $scroller -ne $form -and -not (($scroller -is [System.Windows.Forms.ScrollableControl]) -and $scroller.AutoScroll)) { $scroller = $scroller.Parent }
+        if (-not $scroller -or $scroller -eq $form) {
+            $r = Get-FormRect $form $c
+            $view = $client
+        } else {
+            $scroller.ScrollControlIntoView($c)
+            $r = Get-FormRect $form $c
+            $view = [System.Drawing.Rectangle]::Intersect($client, $form.RectangleToClient($scroller.RectangleToScreen($scroller.ClientRectangle)))
+            # A control larger than the panel is shown in parts; of a group, its controls are checked.
+            $r.Width = [Math]::Min($r.Width, $view.Width); $r.Height = [Math]::Min($r.Height, $view.Height)
+            if ($c.Controls.Count) { continue }
+        }
+        $view.Inflate(1, 1)
+        if (-not $view.Contains($r)) { [void]$problems.Add("${state}: $($c.Name) cannot be reached: $r in $view") }
+    }
+    foreach ($scroller in (Get-Scrollers $page)) { $scroller.AutoScrollPosition = New-Object System.Drawing.Point(0, 0) }
+}
+
+$smallScreens = @(@(1920, 1032, 1.0), @(1920, 1020, 1.25), @(1920, 1008, 1.5), @(1920, 996, 1.75), @(1366, 728, 1.0))
+if (-not $areaField) {
+    [void]$report.Add('small screen : the forms cannot be laid out for a work area of the test (UiLayout.TestWorkingArea is missing)'); $total++
+    $smallScreens = @()
+}
+$fitToWindow = $assembly.GetType('SW2URDF.UI.UiLayout', $true).GetMethod('FitButtonHeightsToWindow', [Reflection.BindingFlags]'Static,NonPublic,Public')
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($screen in $smallScreens) {
+            $scale = $screen[2]
+            # Off every real screen, like the windows of the other checks.
+            $area = New-Object System.Drawing.Rectangle(-30000, -30000, $screen[0], $screen[1])
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $areaField.SetValue($null, $area)
+            $form = New-Form $type $font ([single](96 * $scale)) $ui
+            $label = "$($type.Name) [small screen $($screen[0])x$($screen[1]) $language x$scale]"
+            $problems = New-Object System.Collections.ArrayList
+            try {
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(($area.Left + 600), ($area.Top + 300))
+                $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                [void]$fitToWindow.Invoke($null, @([System.Windows.Forms.Control]$form)); [System.Windows.Forms.Application]::DoEvents()
+                $default = $form.Size
+                if ($default.Width -gt $area.Width -or $default.Height -gt $area.Height) { [void]$problems.Add("opens at $default, larger than the work area $($area.Size)") }
+                elseif (-not $area.Contains($form.Bounds)) { [void]$problems.Add("opens at $($form.Bounds), not inside the work area $area") }
+                if ($form.MinimumSize.Width -gt $area.Width -or $form.MinimumSize.Height -gt $area.Height) { [void]$problems.Add("minimum size $($form.MinimumSize) is larger than the work area $($area.Size)") }
+                foreach ($page in (Get-Pages $form)) {
+                    $panel = $page[2]
+                    Set-FormSize $form $default
+                    if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                    if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                    [System.Windows.Forms.Application]::DoEvents()
+                    $check = $sizeChecks[$type.Name][$page[0]]
+                    $factor = $form.CurrentAutoScaleDimensions.Width / 6
+                    $tree = if ($check.Trees.Count) { Find-One $page[1] $check.Trees[0] } else { $null }
+                    $before = @{}; Get-AllBounds $page[1] '' $before
+                    $minimum = if ($form.MinimumSize.Width -gt 0) { $form.MinimumSize } else { New-Object System.Drawing.Size([int]($default.Width * 0.7), [int]($default.Height * 0.7)) }
+                    $lower = New-Object System.Drawing.Size($default.Width, [Math]::Max($minimum.Height, [int]($default.Height * 0.8)))
+                    foreach ($size in @(@('default', $default), @('lower', $lower), @('minimum', $minimum))) {
+                        Set-FormSize $form $size[1]
+                        Test-Reachable $form $page[1] "$($page[0]) $($size[0])" $problems
+                        if ($size[0] -eq 'minimum') { continue }
+                        foreach ($scroller in (Get-Scrollers $page[1])) {
+                            if ($scroller.HorizontalScroll.Visible -and (-not $tree -or $tree.Width -gt 200 * $factor + 2)) {
+                                $width = if ($tree) { ", the tree is $($tree.Width) px wide" }
+                                [void]$problems.Add("$($page[0]) $($size[0]): $($scroller.Name) scrolls sideways (content $($scroller.DisplayRectangle.Size) in $($scroller.ClientSize))$width")
+                            }
+                        }
+                    }
+                    # Resized while scrolled down: at the default size again nothing has moved.
+                    foreach ($scroller in (Get-Scrollers $page[1])) { $scroller.AutoScrollPosition = New-Object System.Drawing.Point(0, 10000) }
+                    Set-FormSize $form $default
+                    $after = @{}; Get-AllBounds $page[1] '' $after
+                    foreach ($key in $before.Keys) {
+                        if ($after[$key] -ne $before[$key]) { [void]$problems.Add("$($page[0]) default size again: $key moved from $($before[$key]) to $($after[$key])") }
+                    }
+                    # With the room the layout was made for, no scroll bar is left.
+                    $grow = if ($growOf) { $growOf.Invoke($null, @([System.Windows.Forms.Form]$form)) }
+                    if ($grow) {
+                        $base = $baseSize.GetValue($grow)
+                        $want = New-Object System.Drawing.Size(($base.Width + $form.Width - $form.ClientSize.Width), ($base.Height + $form.Height - $form.ClientSize.Height + 20))
+                        $track = [System.Windows.Forms.SystemInformation]::MaxWindowTrackSize
+                        if ($want.Width -gt $track.Width -or $want.Height -gt $track.Height) {
+                            [void]$skipped.Add("$label $($page[0]) : all of the room: needs a window of $($want.Width)x$($want.Height), this screen allows $($track.Width)x$($track.Height)")
+                        } else {
+                            Set-FormSize $form $want
+                            foreach ($scroller in (Get-Scrollers $page[1])) {
+                                if ($scroller.VerticalScroll.Visible -or $scroller.HorizontalScroll.Visible) { [void]$problems.Add("$($page[0]) with all of the room: $($scroller.Name) shows a scroll bar (content $($scroller.DisplayRectangle.Size) in $($scroller.ClientSize))") }
+                            }
+                        }
+                    }
+                }
+            } finally { $areaField.SetValue($null, $null); $form.Dispose(); $font.Dispose() }
+            foreach ($p in $problems) { [void]$report.Add("$label $p") }
+            $total += $problems.Count
+        }
+    }
+}
+
 $report | ForEach-Object { Write-Output $_ }
+$skipped | ForEach-Object { Write-Output "SKIPPED $_" }
+Write-Output "Skipped checks (the screen is too small for them): $($skipped.Count)"
 Write-Output "Layout problems: $total"
 if ($total -gt 0) { exit 1 }
