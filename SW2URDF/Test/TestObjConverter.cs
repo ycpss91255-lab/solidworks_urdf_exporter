@@ -408,6 +408,41 @@ public class TestObjConverter
         public void Report(double value) { values.Add(value); onReport(); }
     }
 
+    // An existing pair of files that is exported again with another colour while one file is open elsewhere,
+    // such as in a viewer.
+    static void ConvertWhileOpen(string dir, string openExtension, bool objExists)
+    {
+        string source = Path.Combine(dir, "pair.3dxml"), target = Path.Combine(dir, "pair.obj"), mtl = Path.Combine(dir, "pair.mtl");
+        Build3dxml(source, new[] { new Instance("1 0 0 0 1 0 0 0 1 0 0 0") }, new Options { FaceColor = new[] { 1.0, 0, 0, 1 } });
+        Convert(source, target, "link");
+        if (!objExists) File.Delete(target);
+        string oldObj = objExists ? File.ReadAllText(target) : null, oldMtl = File.ReadAllText(mtl);
+
+        Build3dxml(source, new[] { new Instance("1 0 0 0 1 0 0 0 1 0 0 0") }, new Options { FaceColor = new[] { 0, 0, 1.0, 1 } });
+        Exception error = null;
+        using (new FileStream(Path.ChangeExtension(target, openExtension), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            try { Convert(source, target, "link"); }
+            catch (Exception e) { error = e; }
+        }
+        Check(error is IOException || error is UnauthorizedAccessException, "the open file is reported: " + error);
+        Check(File.Exists(target) == objExists, "no OBJ without its MTL");
+        if (objExists) Check(File.ReadAllText(target) == oldObj, "the old OBJ was kept");
+        Check(File.ReadAllText(mtl) == oldMtl, "the old MTL was kept");
+        CheckNoLeftovers(dir);
+
+        // When the file is free the next export writes both.
+        Convert(source, target, "link");
+        Check(File.ReadAllText(mtl) != oldMtl, "the MTL is new");
+        Check(ReadObj(target).FaceMaterial.All(ReadMtl(mtl).ContainsKey), "the OBJ uses the materials of the MTL");
+        CheckNoLeftovers(dir);
+    }
+
+    static void CheckNoLeftovers(string dir)
+    {
+        string[] left = Directory.GetFiles(dir).Select(Path.GetFileName).Where(n => !n.StartsWith("pair.")).ToArray();
+        Check(left.Length == 0, "no temporary files: " + string.Join(", ", left));
+    }
 
     // ---- facts ----------------------------------------------------------------------
 
@@ -425,6 +460,9 @@ public class TestObjConverter
     [Fact] public void TestObjMaterialFields() { InTempDirectory(TestMaterialFields); }
     [Fact] public void TestObjRepeatableOutput() { InTempDirectory(TestRepeatableOutput); }
     [Fact] public void TestObjBackgroundAndProgress() { InTempDirectory(TestBackgroundAndProgress); }
+    [Fact] public void TestObjOpenObjKeepsThePair() { InTempDirectory(dir => ConvertWhileOpen(dir, ".obj", true)); }
+    [Fact] public void TestObjOpenMtlKeepsThePair() { InTempDirectory(dir => ConvertWhileOpen(dir, ".mtl", true)); }
+    [Fact] public void TestObjOpenMtlLeavesNoObjAlone() { InTempDirectory(dir => ConvertWhileOpen(dir, ".mtl", false)); }
     [Fact] public void TestObjFailuresKeepExistingOutput() { InTempDirectory(TestFailuresKeepExistingOutput); }
 }
 }

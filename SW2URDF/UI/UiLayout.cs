@@ -7,6 +7,12 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
+    /// <summary>A form that places captions next to their fields by measuring the caption text.</summary>
+    internal interface IAlignsFieldLabels
+    {
+        void AlignFieldLabels();
+    }
+
     /// <summary>
     /// Spends the room a form has beyond its default size. Each registered control moves right by a
     /// share of the extra width, grows by a share of it, and may grow by the extra height. Below the
@@ -267,6 +273,81 @@ namespace SW2URDF.UI
             return ScreenDpi();
         }
 
+        // WinForms lays a form out for the DPI of the primary screen (ScreenDpi). In a per-monitor DPI
+        // aware host the window can be drawn at another DPI (another monitor, or moved there), and
+        // nothing rescales it. Bring the layout to the DPI the window really has, then fit the buttons.
+        // layoutDpi is the DPI the form is currently laid out for; it is updated.
+        internal static void FollowWindowDpi(Form form, ref float layoutDpi)
+        {
+            float dpi = WindowDpi(form);
+            if (dpi > 0 && Math.Abs(dpi - layoutDpi) > 0.5f)
+            {
+                ScaleForDpi(form, layoutDpi, dpi);
+                layoutDpi = dpi;
+            }
+            else
+            {
+                FitButtonHeightsToWindow(form);
+            }
+        }
+
+        // Rescales an open form from one DPI to another: the form font and every font a control set
+        // for itself (bold titles) grow by the same factor, so all text keeps one size relation, and
+        // AutoScaleMode.Font scales the control bounds with the form font.
+        internal static void ScaleForDpi(Form form, float fromDpi, float toDpi)
+        {
+            if (fromDpi <= 0 || toDpi <= 0 || Math.Abs(toDpi - fromDpi) < 0.5f)
+            {
+                return;
+            }
+            GrowLayout grow = GrowLayout.Find(form);
+            if (grow != null)
+            {
+                grow.Suspend();
+            }
+            float factor = toDpi / fromDpi;
+            List<KeyValuePair<Control, Font>> own = new List<KeyValuePair<Control, Font>>();
+            CollectOwnFonts(form, own);
+            form.Font = Scaled(form.Font, factor);
+            foreach (KeyValuePair<Control, Font> pair in own)
+            {
+                pair.Key.Font = Scaled(pair.Value, factor);
+            }
+            int height = form.Height;
+            // Captions placed by measuring their text are placed again for the new text widths:
+            // scaling their old position can leave them a pixel into the box they describe.
+            IAlignsFieldLabels aligned = form as IAlignsFieldLabels;
+            if (aligned != null)
+            {
+                aligned.AlignFieldLabels();
+            }
+            RefitStatusBanner(form);
+            FitForm(form, toDpi);
+            if (grow != null)
+            {
+                grow.Resume(factor, form.Height - height);
+            }
+        }
+
+        // Controls whose font is their own rather than the one they inherit from their parent.
+        private static void CollectOwnFonts(Control parent, List<KeyValuePair<Control, Font>> own)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (!ReferenceEquals(c.Font, parent.Font))
+                {
+                    own.Add(new KeyValuePair<Control, Font>(c, c.Font));
+                }
+                CollectOwnFonts(c, own);
+            }
+        }
+
+        private static Font Scaled(Font font, float factor)
+        {
+            return new Font(font.FontFamily, font.SizeInPoints * factor, font.Style, GraphicsUnit.Point,
+                font.GdiCharSet, font.GdiVerticalFont);
+        }
+
         // Same fit, using the DPI the (already created) form really has.
         internal static void FitButtonHeightsToWindow(Control root)
         {
@@ -287,12 +368,9 @@ namespace SW2URDF.UI
             }
         }
 
-        // The banner height was measured when its text was set, possibly at another DPI than the one
-        // the window is really drawn at: measure again.
         /// <summary>
-        /// The edit boxes show numbers with their full precision, which is wider than the box. Show the
-        /// whole text in a tool tip while the mouse is over the box or it has the focus and the text does
-        /// not fit; the box itself scrolls to the rest of the text.
+        /// A box is often narrower than its value. It shows a number with the digits that fit, exponent
+        /// included (NumberBoxDisplay), and a tool tip shows the whole text while the mouse is over the box.
         /// </summary>
         internal static void ShowFullValueTips(Control root)
         {
@@ -305,28 +383,45 @@ namespace SW2URDF.UI
         {
             foreach (Control c in parent.Controls)
             {
-                TextBox box = c as TextBox;
-                if ((box != null && !box.Multiline) || c is UpDownBase)
+                TextBox box = EditBox(c);
+                if (box == null)
                 {
-                    Control edit = c;
-                    EventHandler refresh = delegate { SetFullValueTip(edit, tip); };
-                    edit.TextChanged += refresh;
-                    edit.SizeChanged += refresh;
-                    SetFullValueTip(edit, tip);
+                    AttachFullValueTips(c, tip);
+                    continue;
                 }
-                AttachFullValueTips(c, tip);
+                NumberBoxDisplay.Attach(box);
+                Control edit = c;
+                EventHandler refresh = delegate { tip.SetToolTip(edit, FullValueTip(edit)); };
+                edit.TextChanged += refresh;
+                edit.SizeChanged += refresh;
+                edit.FontChanged += refresh;
+                refresh(edit, EventArgs.Empty);
             }
         }
 
-        private static void SetFullValueTip(Control edit, ToolTip tip)
+        // The box a single-line value is typed in: the control itself, or the one inside a spin box.
+        private static TextBox EditBox(Control control)
         {
-            string text = edit.Text;
-            bool tooWide = !string.IsNullOrEmpty(text) &&
-                TextRenderer.MeasureText(text, edit.Font, new Size(int.MaxValue, 0),
-                    TextFormatFlags.NoPadding).Width > edit.ClientSize.Width - 6;
-            tip.SetToolTip(edit, tooWide ? text : null);
+            TextBox box = control as TextBox;
+            if (control is UpDownBase)
+            {
+                foreach (Control child in control.Controls)
+                {
+                    box = box ?? child as TextBox;
+                }
+            }
+            return box == null || box.Multiline ? null : box;
         }
 
+        /// <summary>The whole text of a box that cannot show all of it, null when the text fits.</summary>
+        internal static string FullValueTip(Control edit)
+        {
+            TextBox box = EditBox(edit);
+            return box == null || NumberBoxDisplay.Fits(box, edit.Text) ? null : edit.Text;
+        }
+
+        // The banner height was measured when its text was set, possibly at another DPI than the one
+        // the window is really drawn at: measure again.
         internal static void RefitStatusBanner(Control root)
         {
             Control[] found = root.Controls.Find("labelConfigurationStatus", true);
@@ -574,6 +669,12 @@ namespace SW2URDF.UI
                     }
                     int extra = IsField(above) && IsField(item)
                         ? Math.Max(0, gap - (tops[item] - (tops[above] + above.Height))) : 0;
+                    // A caption or panel right above a control keeps a gap of one pixel to it: with some fonts
+                    // (Chinese drawn through font linking) its lines are taller than the designer's.
+                    if (!IsField(above))
+                    {
+                        extra = Math.Max(extra, 1 - (tops[item] - (tops[above] + above.Height)));
+                    }
                     int growth;
                     grew.TryGetValue(above, out growth);
                     shift = Math.Max(shift, aboveShift + growth + extra);
@@ -642,12 +743,43 @@ namespace SW2URDF.UI
             return best;
         }
 
+        // Horizontal room a push button needs beyond its measured caption: the theme border, the focus
+        // rectangle and the text padding on both sides. A themed button draws its caption wider than
+        // TextRenderer measures it (about 12 px for a 160 px caption at 96 DPI), so the room is two
+        // lines of the button font, which scales with the font and the DPI.
+        internal static int ButtonHorizontalMargin(Font font)
+        {
+            return 2 * font.Height;
+        }
+
+        // A push button keeps its caption on one line: widen it when the caption (longer in another
+        // language or a larger font) does not fit. A button in a flow or table layout is placed by the
+        // layout; one anchored to the right grows to the left, any other one to the right.
+        private static void FitButtonWidth(Button button)
+        {
+            if (string.IsNullOrEmpty(button.Text))
+            {
+                return;
+            }
+            int needed = TextRenderer.MeasureText(button.Text, button.Font).Width + ButtonHorizontalMargin(button.Font);
+            int grow = needed - button.Width;
+            if (grow <= 0)
+            {
+                return;
+            }
+            bool placedByLayout = button.Parent is FlowLayoutPanel || button.Parent is TableLayoutPanel;
+            bool right = (button.Anchor & AnchorStyles.Right) != 0 && (button.Anchor & AnchorStyles.Left) == 0;
+            int left = !placedByLayout && right ? button.Left - grow : button.Left;
+            button.SetBounds(left, button.Top, needed, button.Height);
+        }
+
         // The designer gives push buttons a fixed height, but the visual theme clips the caption to
         // a rectangle smaller than the button, by a margin that grows with the DPI (and CJK fonts
         // are taller). A button that is too short shows its caption with the top of the glyphs
         // cut off, even when the button frame itself looks fine. Grow every button that is
         // too short for its text by the missing height, around its centre line.
         // Returns the largest height any single button gained (0 when nothing had to grow).
+        // Each button is first made wide enough for its caption (FitButtonWidth).
         internal static int FitButtonHeights(Control root, float dpi)
         {
             int gained = 0;
@@ -657,6 +789,7 @@ namespace SW2URDF.UI
                 Button button = child as Button;
                 if (button != null && !button.AutoSize)
                 {
+                    FitButtonWidth(button);
                     int text = Math.Max(button.Font.Height, TextRenderer.MeasureText(
                         button.Text, button.Font, new Size(Math.Max(1, button.Width - 8), 0),
                         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height);

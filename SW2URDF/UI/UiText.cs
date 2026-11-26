@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Globalization;
 using System.Resources;
 using System.Runtime.InteropServices;
@@ -38,6 +39,49 @@ namespace SW2URDF.UI
         public string ExportMenuPath { get { return Get("Export as URDF") + "@" + ToolsMenuCaption; } }
         public string ExportAssemblyHint { get { return Get("Export assembly as URDF file"); } }
         public string ExportPartHint { get { return Get("Export part as URDF file"); } }
+
+        // One font for every control of an export form, set on the form before InitializeComponent,
+        // so the designer's bold titles are derived from it too. Segoe UI 8.5 pt in both languages:
+        // its Latin letters and digits are compact, and Windows draws Chinese glyphs through font
+        // linking (Microsoft JhengHei UI on a Traditional Chinese system). Where Segoe UI is missing,
+        // a CJK UI font for Chinese and the designer font for English.
+        internal const string FormFontFamily = "Segoe UI";
+        internal const float FormFontSize = 8.5f;
+        private static readonly string[] ChineseFormFonts = { "Microsoft JhengHei UI", "Microsoft JhengHei" };
+
+        public Font CreateFormFont()
+        {
+            if (IsInstalled(FormFontFamily))
+            {
+                return new Font(FormFontFamily, FormFontSize, FontStyle.Regular, GraphicsUnit.Point);
+            }
+            if (Culture.Name != "en")
+            {
+                foreach (string name in ChineseFormFonts)
+                {
+                    if (IsInstalled(name))
+                    {
+                        return new Font(name, 9f, FontStyle.Regular, GraphicsUnit.Point);
+                    }
+                }
+            }
+            return new Font("Microsoft Sans Serif", 8.25f, FontStyle.Regular, GraphicsUnit.Point);
+        }
+
+        private static bool IsInstalled(string family)
+        {
+            try
+            {
+                using (new FontFamily(family))
+                {
+                    return true;
+                }
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
 
         public string Get(string english)
         {

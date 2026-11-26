@@ -35,15 +35,18 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class AssemblyExportForm : Form
+    public partial class AssemblyExportForm : Form, IAlignsFieldLabels
     {
         private static readonly log4net.ILog logger = Logger.GetLogger();
 
         public ExportHelper Exporter;
         private readonly UiText ui;
+        // DPI the layout is currently built for; the window may be drawn at another one.
+        private float layoutDpi = UiLayout.ScreenDpi();
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
+        private readonly string loadedConfiguration;
 
         private readonly SldWorks swApp;
         private readonly ModelDoc2 ActiveSWModel;
@@ -51,6 +54,91 @@ namespace SW2URDF.UI
         private readonly Control[] jointBoxes;
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
+
+        // Angles are shown in degrees or radians (issue #155); the model always holds radians.
+        private AngleDisplay angles;
+        private string captionJointType;
+        private bool choosingAngleUnit;
+
+        // Shows the angle boxes and captions in the given unit. Only the display changes.
+        private void SetAngleUnit(AngleUnit unit)
+        {
+            if (angles == null)
+            {
+                angles = new AngleDisplay(unit);
+            }
+            else
+            {
+                angles.SetUnit(unit);
+            }
+            bool degrees = unit == AngleUnit.Degrees;
+            choosingAngleUnit = true;
+            comboBoxAngleUnitJoint.SelectedIndex = degrees ? 1 : 0;
+            comboBoxAngleUnitLink.SelectedIndex = degrees ? 1 : 0;
+            choosingAngleUnit = false;
+            label6.Text = degrees ? ui.Get("Orientation (deg)") : ui.Get("Orientation (rad)");
+            label36.Text = degrees ? ui.Get("Origin (m, deg)") : ui.Get("Origin (m, rad)");
+            label23.Text = degrees ? ui.Get("Origin (m, deg)") : ui.Get("Origin (m, rad)");
+            SetJointCaptions(captionJointType);
+        }
+
+        private void AngleUnitChosen(object sender, EventArgs e)
+        {
+            if (choosingAngleUnit)
+            {
+                return;
+            }
+            AngleUnit unit = ((ComboBox)sender).SelectedIndex == 1 ? AngleUnit.Degrees : AngleUnit.Radians;
+            SetAngleUnit(unit);
+            new AngleUnitSetting().Save(unit);
+        }
+
+        // Unit captions of the limit, dynamics and safety boxes for a joint type (null: no joint).
+        private void SetJointCaptions(string jointType)
+        {
+            captionJointType = jointType;
+            bool degrees = angles != null && angles.Unit == AngleUnit.Degrees;
+            if (jointType == "revolute" || jointType == "continuous")
+            {
+                labelLowerLimit.Text = degrees ? ui.Get("lower (deg)") : ui.Get("lower (rad)");
+                labelLimitUpper.Text = degrees ? ui.Get("upper (deg)") : ui.Get("upper (rad)");
+                labelEffort.Text = ui.Get("effort (N-m)");
+                labelVelocity.Text = degrees ? ui.Get("velocity (deg/s)") : ui.Get("velocity (rad/s)");
+                labelFriction.Text = ui.Get("friction (N-m)");
+                labelDamping.Text = ui.Get("damping (N-m-s/rad)");
+                labelSoftLower.Text = degrees ? ui.Get("soft lower limit (deg)") : ui.Get("soft lower limit (rad)");
+                labelSoftUpper.Text = degrees ? ui.Get("soft upper limit (deg)") : ui.Get("soft upper limit (rad)");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            else if (jointType == "prismatic")
+            {
+                labelLowerLimit.Text = ui.Get("lower (m)");
+                labelLimitUpper.Text = ui.Get("upper (m)");
+                labelEffort.Text = ui.Get("effort (N)");
+                labelVelocity.Text = ui.Get("velocity (m/s)");
+                labelFriction.Text = ui.Get("friction (N)");
+                labelDamping.Text = ui.Get("damping (N-s/m)");
+                labelSoftLower.Text = ui.Get("soft lower limit (m)");
+                labelSoftUpper.Text = ui.Get("soft upper limit (m)");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            else if (jointType != null)
+            {
+                labelLowerLimit.Text = ui.Get("lower");
+                labelLimitUpper.Text = ui.Get("upper");
+                labelEffort.Text = ui.Get("effort");
+                labelVelocity.Text = ui.Get("velocity");
+                labelFriction.Text = ui.Get("friction");
+                labelDamping.Text = ui.Get("damping");
+                labelSoftLower.Text = ui.Get("soft lower limit");
+                labelSoftUpper.Text = ui.Get("soft upper limit");
+                labelKPosition.Text = ui.Get("k position");
+                labelKVelocity.Text = ui.Get("k velocity");
+            }
+            AlignFieldLabels();
+        }
 
         // Room beyond the default window size (issue #156). Joint page: the tree takes half of the
         // extra width and all of the extra height; the property columns move right by the other half
@@ -78,6 +166,10 @@ namespace SW2URDF.UI
             grow.Set(textBoxJointName, 0.5f, 0.5f, false);
             grow.Set(label62, 1f, 0f, false);
             grow.Set(comboBoxJointType, 1f, 0f, false);
+            grow.Set(labelAngleUnitJoint, 1f, 0f, false);
+            grow.Set(comboBoxAngleUnitJoint, 1f, 0f, false);
+            grow.Set(labelAngleUnitLink, 1f, 0f, false).SetShrink(labelAngleUnitLink, 1f, 0f);
+            grow.Set(comboBoxAngleUnitLink, 1f, 0f, false).SetShrink(comboBoxAngleUnitLink, 1f, 0f);
             grow.Set(comboBoxOrigin, 0.5f, 0.5f, false);
             grow.Set(comboBoxAxis, 0.5f, 0.5f, false);
 
@@ -106,8 +198,8 @@ namespace SW2URDF.UI
         // which gets taller when the window and so the header get narrower.
         private void FitHeader()
         {
-            // Not in the middle of a refit: controls are then at their default bounds. The layout runs
-            // this again when it resumes.
+            // Not in the middle of a rescale or a refit: controls are then partly scaled or at their
+            // default bounds. The layout runs this again when it resumes.
             GrowLayout grow = GrowLayout.Find(this);
             if (grow != null && grow.IsSuspended)
             {
@@ -115,8 +207,19 @@ namespace SW2URDF.UI
             }
             int gap = Math.Max(6, Font.Height / 2);
             SizeF scale = DesignerScale();
+            // The angle unit is a setting of the whole form: the same place at the top right of the
+            // header of both pages, at the right end of the property area. The banner and the limit
+            // source text end before it.
+            comboBoxAngleUnitLink.Left = groupBox5.Right - comboBoxAngleUnitLink.Width;
+            comboBoxAngleUnitJoint.Left = comboBoxAngleUnitLink.Left;
+            UiText.AlignLabel(labelAngleUnitJoint, comboBoxAngleUnitJoint);
+            UiText.AlignLabel(labelAngleUnitLink, comboBoxAngleUnitLink);
+            labelConfigurationStatus.Width = Math.Max(1, labelAngleUnitLink.Left - gap - labelConfigurationStatus.Left);
             // The limit source text starts where the property area starts, but never over the title.
             labelLimitSource.Left = Math.Max(label64.Left - (int)Math.Round(18 * scale.Width), label7.Right + gap);
+            labelLimitSource.MaximumSize = new Size(Math.Max(1, labelAngleUnitJoint.Left - gap - labelLimitSource.Left), 0);
+            // Room for the limit text above the parent link row, for the width it has now.
+            MakeJointHeaderRoom();
             int descriptionWidth = Math.Max(1, labelLimitSource.Left - gap - label69.Left);
             label69.MaximumSize = new Size(descriptionWidth, 0);
             // Measured, not read back: the label may not have resized to the new width yet.
@@ -152,8 +255,86 @@ namespace SW2URDF.UI
             }
         }
 
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
+
+        // The joint page header holds the limit source text, four lines when the limits come from a
+        // limit mate (one of them may wrap), to the right of the page description. Leave room for
+        // five lines, or for the text on display when it is longer, above the parent link row (moving
+        // the property area down when the font's lines are taller than the designer's), and let the
+        // description wrap before the limit text. Running it again changes nothing.
+        private void MakeJointHeaderRoom()
+        {
+            // Not in the middle of a rescale (see FitHeader).
+            GrowLayout layout = GrowLayout.Find(this);
+            if (layout != null && layout.IsSuspended)
+            {
+                return;
+            }
+            int gap = Math.Max(4, Font.Height / 3);
+            label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - gap - label69.Left), 0);
+            // Measured the way the label sizes itself, with a Chinese character too: Windows may draw
+            // it with a taller linked font.
+            int room;
+            using (Label sample = new Label { AutoSize = true, Font = labelLimitSource.Font, Padding = labelLimitSource.Padding,
+                Text = "極Ag\n極Ag\n極Ag\n極Ag\n極Ag" })
+            {
+                room = sample.PreferredHeight;
+            }
+            // The text on display counts when it is longer, but not while the label is squeezed to a
+            // width no real text fits in (during a layout change), where it would measure very tall.
+            if (labelLimitSource.MaximumSize.Width == 0 || labelLimitSource.MaximumSize.Width >= 12 * Font.Height)
+            {
+                room = Math.Max(room, labelLimitSource.PreferredHeight);
+            }
+            // The property area is moved by an amount that is set, not added to, so it can also move
+            // back; a font change (DPI rescale) has already scaled the earlier move.
+            float scale = CurrentAutoScaleDimensions.Height;
+            if (headerShiftScale > 0 && Math.Abs(headerShiftScale - scale) > 0.01f)
+            {
+                headerShift = (int)Math.Round(headerShift * scale / headerShiftScale);
+            }
+            headerShiftScale = scale;
+            int rowTop = label64.Top - headerShift;
+            int wanted = Math.Max(0, labelLimitSource.Top + room + gap - rowTop);
+            int move = wanted - headerShift;
+            if (move == 0)
+            {
+                return;
+            }
+            // Where the area begins before the move: the caption of the parent link is moved as well, and
+            // the controls after it would be compared with its new place and stay behind.
+            int areaTop = label64.Top - gap;
+            foreach (Control c in panelJointContent.Controls)
+            {
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= areaTop)
+                {
+                    c.Top += move;
+                }
+            }
+            headerShift = wanted;
+        }
+
+        private void PlaceBeside(Label value, Label caption)
+        {
+            value.Left = caption.Left + caption.PreferredWidth + Math.Max(4, Font.Height / 2);
+            value.Top = caption.Top + (caption.Height - value.Height) / 2;
+        }
+
+        // How far MakeJointHeaderRoom has moved the property area, and the layout scale (the form
+        // font's autoscale height) it was set for: a DPI rescale scales the move with that.
+        private int headerShift;
+        private float headerShiftScale;
+
         private void AlignFieldLabels()
         {
+            MakeJointHeaderRoom();
+            // The parent and child link names follow their captions on the same line: the designer
+            // left no room for a wider caption font.
+            PlaceBeside(labelParent, label64);
+            PlaceBeside(labelChild, label65);
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
             UiText.AlignLabel(label14, textBoxIxx);
@@ -207,6 +388,19 @@ namespace SW2URDF.UI
             UiText.PlaceAfter(label1, label54);
             UiText.PlaceAfter(AxisRequiredLabel, label60);
             UiText.PlaceAfter(LimitRequiredLabel, label68);
+            // The group titles of the Origin/Axis/Limit row sit right above the "Position (m)"
+            // caption; with the font's real line height they touch it. Lift the whole title row.
+            Label[] titles = { label54, label1, label60, AxisRequiredLabel, label68, LimitRequiredLabel };
+            int bottom = Math.Max(label54.Bottom, label1.Bottom);
+            int lift = bottom + Math.Max(2, Font.Height / 6) - label3.Top;
+            if (lift > 0)
+            {
+                foreach (Label title in titles)
+                {
+                    title.Top -= lift;
+                }
+            }
+            FitHeader();
         }
 
         public AssemblyExportForm(SldWorks SwApp, LinkNode node, ExportHelper exporter)
@@ -215,15 +409,17 @@ namespace SW2URDF.UI
                 new ThreadExceptionEventHandler(ExceptionHandler);
             AppDomain.CurrentDomain.UnhandledException +=
                 new UnhandledExceptionEventHandler(UnhandledException);
-            InitializeComponent();
             ui = UiText.FromSolidWorks(SwApp);
+            // One font for the whole form, chosen for the UI language (issue #157).
+            Font = ui.CreateFormFont();
+            InitializeComponent();
             ui.Apply(this);
             // The mesh format captions are bare names; what each format keeps is in the tooltip.
             var meshFormatTips = new ToolTip();
             meshFormatTips.SetToolTip(radioButtonStl, ui.Get("Geometry only, no colour."));
             meshFormatTips.SetToolTip(radioButton3dxml, ui.Get("Geometry with colour."));
             meshFormatTips.SetToolTip(radioButtonObj, ui.Get("Geometry with colour and materials, as .obj and .mtl files."));
-            meshFormatTips.SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro."));
+            meshFormatTips.SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .xacro file instead of a .urdf file. The launch files then expand it with xacro."));
             // Items show the localized caption; the stored/compared value is mapped back by ui.ComboValue.
             comboBoxJointType.Items.Clear();
             foreach (string type in SW2URDF.URDF.Joint.AvailableTypes)
@@ -239,12 +435,22 @@ namespace SW2URDF.UI
                 int room = comboBoxJointType.Parent.ClientSize.Width - comboBoxJointType.Left - 8;
                 comboBoxJointType.Width = Math.Min(needed, room);
             }
+            // Angle unit: remembered per user, radians unless the user chose degrees.
+            SetAngleUnit(new AngleUnitSetting().Load());
+            string angleTip = ui.Get("Angles are shown in this unit. The URDF and the saved settings always use radians.");
+            meshFormatTips.SetToolTip(comboBoxAngleUnitJoint, angleTip);
+            meshFormatTips.SetToolTip(comboBoxAngleUnitLink, angleTip);
+            comboBoxAngleUnitJoint.SelectedIndexChanged += AngleUnitChosen;
+            comboBoxAngleUnitLink.SelectedIndexChanged += AngleUnitChosen;
             AlignFieldLabels();
+            // A limit text longer than the room left for it moves the property area down further.
+            labelLimitSource.SizeChanged += delegate { MakeJointHeaderRoom(); };
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             swApp = SwApp;
             BaseNode = node;
             checkBoxXacro.Checked = BaseNode.Link.WriteXacro;
             ActiveSWModel = swApp.ActiveDoc;
+            loadedConfiguration = ConfigurationSerialization.GetActiveConfigurationName(ActiveSWModel);
             RefreshConfigurationStatus();
             SetUpGrowLayout();
             Exporter = exporter;
@@ -311,18 +517,16 @@ namespace SW2URDF.UI
         private void ExceptionHandler(object sender, ThreadExceptionEventArgs e)
         {
             logger.Error("Exception encountered in Assembly export form", e.Exception);
-            MessageBox.Show("There was a problem with the export form: \n\"" +
-                e.Exception.Message + "\"\nEmail your maintainer with the log file found at " +
-                Logger.GetFileName());
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
+            MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), e.Exception.Message));
         }
 
         private void UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             Exception ex = (Exception)e.ExceptionObject;
             logger.Error("Unhandled exception in Assembly Export form", ex);
-            MessageBox.Show("There was a problem with the export form: \n\"" +
-                ex.Message + "\"\nEmail your maintainer with the log file found at " +
-                Logger.GetFileName());
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
+            MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), ex.Message));
         }
 
         //Joint form configuration controls
@@ -332,7 +536,7 @@ namespace SW2URDF.UI
         {
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
-            UiLayout.FitButtonHeightsToWindow(this);
+            UiLayout.FollowWindowDpi(this, ref layoutDpi);
         }
 
         // Closing the preview in any way other than a completed export (Cancel, the window's close
@@ -351,7 +555,7 @@ namespace SW2URDF.UI
             base.WndProc(ref m);
             if (m.Msg == UiLayout.WM_DPICHANGED)
             {
-                UiLayout.FitButtonHeightsToWindow(this);
+                UiLayout.FollowWindowDpi(this, ref layoutDpi);
             }
         }
 
@@ -397,16 +601,17 @@ namespace SW2URDF.UI
             {
                 SaveJointDataFromPropertyBoxes(previouslySelectedNode.Link.Joint);
             }
-            previouslySelectedNode = null; // Need to clear this for the link properties page
 
             string errors = CheckJointsForErrors();
             if (!string.IsNullOrWhiteSpace(errors))
             {
-                string message = "The following joints are missing required fields, please " +
-                    "address them before continuing\r\n\r\n" + errors;
-                MessageBox.Show(message, ui.Get("URDF Joint Errors"));
+                string message = ui.Get("The following joints are missing required fields, please address them before continuing") +
+                    "\r\n\r\n" + errors;
+                ShowJointErrors(message);
                 return;
             }
+            // Only when the joint page is left: the joint it shows can still be corrected after the message.
+            previouslySelectedNode = null;
 
             while (treeViewJointTree.Nodes.Count > 0)
             {
@@ -414,11 +619,19 @@ namespace SW2URDF.UI
                 treeViewJointTree.Nodes.Remove(node);
                 BaseNode.Nodes.Add(node);
             }
+            // Moving the nodes selects a remaining joint; the link page would save its boxes into the link of it.
+            previouslySelectedNode = null;
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
 
             FillLinkTree();
             panelLinkProperties.Visible = true;
             Focus();
+        }
+
+        // Overridden by tests, which must not show a window.
+        internal virtual void ShowJointErrors(string message)
+        {
+            MessageBox.Show(message, ui.Get("URDF Joint Errors"));
         }
 
         private string CheckJointsForErrors()
@@ -428,14 +641,45 @@ namespace SW2URDF.UI
             {
                 CheckJointsForErrors(child, builder);
             }
+            CheckMimicLoops(builder);
             return builder.ToString();
+        }
+
+        private void CheckMimicLoops(StringBuilder builder)
+        {
+            List<Joint> joints = new List<Joint>();
+            AddJoints(treeViewJointTree.Nodes, joints);
+            foreach (Joint joint in joints)
+            {
+                if (joint.MimicsItself(joints))
+                {
+                    builder.Append(string.Format(ui.Get("{0}: its mimic leads back to itself"), joint.Name)).Append("\r\n");
+                }
+            }
+        }
+
+        private static void AddJoints(TreeNodeCollection nodes, List<Joint> joints)
+        {
+            foreach (LinkNode node in nodes)
+            {
+                joints.Add(node.Link.Joint);
+                AddJoints(node.Nodes, joints);
+            }
         }
 
         private StringBuilder CheckJointsForErrors(LinkNode node, StringBuilder builder)
         {
-            if (!node.Link.Joint.AreRequiredFieldsSatisfied())
+            if (!node.Link.Joint.AreRequiredFieldsSatisfied() || node.Link.Joint.IsAxisMissing())
             {
                 builder.Append(node.Link.Joint.Name).Append("\r\n");
+            }
+
+            // A joint that is not in the robot cannot be mimicked. Names are case sensitive in URDF.
+            string mimicked = node.Link.Joint.Mimic?.JointName;
+            if (mimicked != null && !Exporter.GetJointNames().Contains(mimicked))
+            {
+                builder.Append(string.Format(ui.Get("{0}: the joint it mimics, \"{1}\", is not in the robot"),
+                    node.Link.Joint.Name, mimicked)).Append("\r\n");
             }
 
             foreach (LinkNode child in node.Nodes)
@@ -488,6 +732,15 @@ namespace SW2URDF.UI
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
             FillJointTree();
             panelLinkProperties.Visible = false;
+
+            // Moving the nodes can select one of the link page, so this is cleared after it. The boxes
+            // still show a joint, so one is selected; nothing typed could be saved otherwise.
+            previouslySelectedNode = null;
+            treeViewJointTree.SelectedNode = null;
+            if (treeViewJointTree.Nodes.Count > 0)
+            {
+                treeViewJointTree.SelectedNode = treeViewJointTree.Nodes[0];
+            }
         }
 
         private void ButtonLinksFinishClick(object sender, EventArgs e)
@@ -502,8 +755,11 @@ namespace SW2URDF.UI
 
         private void FinishExport(bool exportSTL)
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(ActiveSWModel, loadedConfiguration, ui))
+            {
+                return;
+            }
             logger.Info("Completing URDF export");
-            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             // Saving selected node
             LinkNode node = (LinkNode)treeViewLinkProperties.SelectedNode;
@@ -511,6 +767,8 @@ namespace SW2URDF.UI
             {
                 SaveLinkDataFromPropertyBoxes(node.Link);
             }
+
+            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             Exporter.URDFRobot = CreateRobotFromTreeView(treeViewLinkProperties);
 
@@ -520,8 +778,8 @@ namespace SW2URDF.UI
             {
                 logger.Info("Link errors encountered:\n " + errors);
 
-                string message = "The following links contained errors in either their link or joint " +
-                    "properties. Please address before continuing\r\n\r\n" + errors;
+                string message = ui.Get("The following links contained errors in either their link or joint properties. Please address before continuing") +
+                    "\r\n\r\n" + errors;
                 MessageBox.Show(message, ui.Get("URDF Errors"));
                 return;
             }
@@ -532,8 +790,8 @@ namespace SW2URDF.UI
             {
                 logger.Info("Link warnings encountered:\r\n" + warnings);
 
-                string message = "The following links contained issues that may cause problems. " +
-                "Do you wish to proceed?\r\n\r\n" + warnings;
+                string message = ui.Get("The following links contained issues that may cause problems. Do you wish to proceed?") +
+                    "\r\n\r\n" + warnings;
                 DialogResult result =
                     MessageBox.Show(message, ui.Get("URDF Warnings"), MessageBoxButtons.YesNo);
 
@@ -544,9 +802,8 @@ namespace SW2URDF.UI
                 }
             }
 
-            SaveFileDialog saveFileDialog1 = new SaveFileDialog
+            PackageDialog saveFileDialog1 = new PackageDialog
             {
-                RestoreDirectory = true,
                 InitialDirectory = Exporter.SavePath,
                 FileName = Exporter.PackageName
             };
@@ -577,14 +834,39 @@ namespace SW2URDF.UI
                 {
                     meshFormat = MeshExportFormat.STL;
                 }
+                if (!exportSTL)
+                {
+                    List<string> linksWithoutMesh = Exporter.GetLinksWithoutMeshFile(meshFormat);
+                    MissingMeshChoice choice = MissingMeshPrompt.Ask(linksWithoutMesh, URDFPackage.MessageBox, ui);
+                    if (linksWithoutMesh.Count > 0)
+                    {
+                        logger.Warn("Links without a mesh file: " +
+                            MeshExportCheck.JoinLinkNames(linksWithoutMesh) + ". Choice: " + choice);
+                    }
+                    if (choice == MissingMeshChoice.Cancel)
+                    {
+                        return;
+                    }
+                    exportSTL = choice == MissingMeshChoice.ExportMeshes;
+                }
                 Exporter.URDFRobot.BaseLink.WriteXacro = checkBoxXacro.Checked;
-                Exporter.ExportRobot(exportSTL, meshFormat);
-                ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);
-
-                // A completed export keeps the generated features
-                exportCompleted = true;
-                Close();
+                ExportAndClose(exportSTL, meshFormat);
             }
+        }
+
+        private void ExportAndClose(bool exportSTL, MeshExportFormat meshFormat)
+        {
+            if (!Exporter.ExportRobot(exportSTL, meshFormat))
+            {
+                // Another format or name can be tried; closing the form discards the generated features
+                logger.Info("The package is not complete, the export form stays open");
+                return;
+            }
+            ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);
+
+            // A completed export keeps the generated features
+            exportCompleted = true;
+            Close();
         }
 
         private string CheckLinksForErrors(Link baseLink)

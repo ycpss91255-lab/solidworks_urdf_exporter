@@ -151,6 +151,10 @@
             this.textBoxJointName = new System.Windows.Forms.TextBox();
             this.label62 = new System.Windows.Forms.Label();
             this.comboBoxJointType = new System.Windows.Forms.ComboBox();
+            this.labelAngleUnitJoint = new System.Windows.Forms.Label();
+            this.comboBoxAngleUnitJoint = new System.Windows.Forms.ComboBox();
+            this.labelAngleUnitLink = new System.Windows.Forms.Label();
+            this.comboBoxAngleUnitLink = new System.Windows.Forms.ComboBox();
             this.textBoxAxisX = new System.Windows.Forms.TextBox();
             this.label58 = new System.Windows.Forms.Label();
             this.textBoxAxisY = new System.Windows.Forms.TextBox();
@@ -224,6 +228,8 @@
             // small screens); the buttons stay in a fixed panel below so they are always reachable.
             this.panelLinkContent.AutoScroll = true;
             this.panelLinkContent.Controls.Add(this.label2);
+            this.panelLinkContent.Controls.Add(this.labelAngleUnitLink);
+            this.panelLinkContent.Controls.Add(this.comboBoxAngleUnitLink);
             this.panelLinkContent.Controls.Add(this.labelConfigurationStatus);
             this.panelLinkContent.Controls.Add(this.label5);
             this.panelLinkContent.Controls.Add(this.groupBox5);
@@ -262,7 +268,7 @@
             this.checkBoxXacro.Name = "checkBoxXacro";
             this.checkBoxXacro.Size = new System.Drawing.Size(150, 17);
             this.checkBoxXacro.TabIndex = 2;
-            this.checkBoxXacro.Text = "Write xacro (.urdf.xacro)";
+            this.checkBoxXacro.Text = "Write xacro";
             this.checkBoxXacro.UseVisualStyleBackColor = true;
             this.checkBoxXacro.CheckedChanged += new System.EventHandler(this.CheckBoxXacroCheckedChanged);
             //
@@ -285,11 +291,10 @@
             // 
             this.buttonLinksExportUrdfOnly.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonLinksExportUrdfOnly.Location = new System.Drawing.Point(759, 7);
-            this.buttonLinksExportUrdfOnly.Margin = new System.Windows.Forms.Padding(2);
             this.buttonLinksExportUrdfOnly.Name = "buttonLinksExportUrdfOnly";
             this.buttonLinksExportUrdfOnly.Size = new System.Drawing.Size(150, 21);
             this.buttonLinksExportUrdfOnly.TabIndex = 94;
-            this.buttonLinksExportUrdfOnly.Text = "Export URDF Only...";
+            this.buttonLinksExportUrdfOnly.Text = "Export Model File Only...";
             this.buttonLinksExportUrdfOnly.UseVisualStyleBackColor = true;
             this.buttonLinksExportUrdfOnly.Click += new System.EventHandler(this.ButtonLinksExportUrdfOnlyClick);
             // 
@@ -314,7 +319,7 @@
             this.labelConfigurationStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.labelConfigurationStatus.Location = new System.Drawing.Point(360, 4);
             this.labelConfigurationStatus.Name = "labelConfigurationStatus";
-            this.labelConfigurationStatus.Size = new System.Drawing.Size(690, 40);
+            this.labelConfigurationStatus.Size = new System.Drawing.Size(560, 40);
             this.labelConfigurationStatus.TabIndex = 95;
             this.labelConfigurationStatus.Text = "";
             //
@@ -335,7 +340,7 @@
             this.buttonLinksFinish.Name = "buttonLinksFinish";
             this.buttonLinksFinish.Size = new System.Drawing.Size(150, 21);
             this.buttonLinksFinish.TabIndex = 91;
-            this.buttonLinksFinish.Text = "Export URDF and Meshes...";
+            this.buttonLinksFinish.Text = "Export Model File and Meshes...";
             this.buttonLinksFinish.UseVisualStyleBackColor = true;
             this.buttonLinksFinish.Click += new System.EventHandler(this.ButtonLinksFinishClick);
             // 
@@ -1323,6 +1328,48 @@
             this.label62.TabIndex = 187;
             this.label62.Text = "Joint Type";
             // 
+            // labelAngleUnitJoint
+            // 
+            this.labelAngleUnitJoint.AutoSize = true;
+            this.labelAngleUnitJoint.Location = new System.Drawing.Point(928, 10);
+            this.labelAngleUnitJoint.Name = "labelAngleUnitJoint";
+            this.labelAngleUnitJoint.Size = new System.Drawing.Size(58, 12);
+            this.labelAngleUnitJoint.TabIndex = 243;
+            this.labelAngleUnitJoint.Text = "Angle unit";
+            // 
+            // comboBoxAngleUnitJoint
+            // 
+            this.comboBoxAngleUnitJoint.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxAngleUnitJoint.FormattingEnabled = true;
+            this.comboBoxAngleUnitJoint.Items.AddRange(new object[] {
+            "rad",
+            "deg"});
+            this.comboBoxAngleUnitJoint.Location = new System.Drawing.Point(992, 6);
+            this.comboBoxAngleUnitJoint.Name = "comboBoxAngleUnitJoint";
+            this.comboBoxAngleUnitJoint.Size = new System.Drawing.Size(70, 20);
+            this.comboBoxAngleUnitJoint.TabIndex = 244;
+            // 
+            // labelAngleUnitLink
+            // 
+            this.labelAngleUnitLink.AutoSize = true;
+            this.labelAngleUnitLink.Location = new System.Drawing.Point(928, 10);
+            this.labelAngleUnitLink.Name = "labelAngleUnitLink";
+            this.labelAngleUnitLink.Size = new System.Drawing.Size(58, 12);
+            this.labelAngleUnitLink.TabIndex = 245;
+            this.labelAngleUnitLink.Text = "Angle unit";
+            // 
+            // comboBoxAngleUnitLink
+            // 
+            this.comboBoxAngleUnitLink.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxAngleUnitLink.FormattingEnabled = true;
+            this.comboBoxAngleUnitLink.Items.AddRange(new object[] {
+            "rad",
+            "deg"});
+            this.comboBoxAngleUnitLink.Location = new System.Drawing.Point(992, 6);
+            this.comboBoxAngleUnitLink.Name = "comboBoxAngleUnitLink";
+            this.comboBoxAngleUnitLink.Size = new System.Drawing.Size(70, 20);
+            this.comboBoxAngleUnitLink.TabIndex = 246;
+            // 
             // comboBoxJointType
             // 
             this.comboBoxJointType.FormattingEnabled = true;
@@ -1582,7 +1629,7 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(263, 12);
             this.label4.TabIndex = 230;
-            this.label4.Text = "Entries that are blank will not be written to URDF.";
+            this.label4.Text = "Blank entries are not written to the model file.";
             // 
             // label1
             // 
@@ -1773,6 +1820,8 @@
             this.panelJointContent.Controls.Add(this.label63);
             this.panelJointContent.Controls.Add(this.textBoxJointName);
             this.panelJointContent.Controls.Add(this.label62);
+            this.panelJointContent.Controls.Add(this.labelAngleUnitJoint);
+            this.panelJointContent.Controls.Add(this.comboBoxAngleUnitJoint);
             this.panelJointContent.Controls.Add(this.comboBoxJointType);
             this.panelJointContent.Controls.Add(this.textBoxAxisX);
             this.panelJointContent.Controls.Add(this.label58);
@@ -1989,6 +2038,10 @@
         private System.Windows.Forms.TextBox textBoxJointName;
         private System.Windows.Forms.Label label62;
         private System.Windows.Forms.ComboBox comboBoxJointType;
+        private System.Windows.Forms.Label labelAngleUnitJoint;
+        private System.Windows.Forms.ComboBox comboBoxAngleUnitJoint;
+        private System.Windows.Forms.Label labelAngleUnitLink;
+        private System.Windows.Forms.ComboBox comboBoxAngleUnitLink;
         private System.Windows.Forms.TextBox textBoxAxisX;
         private System.Windows.Forms.Label label58;
         private System.Windows.Forms.TextBox textBoxAxisY;

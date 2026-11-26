@@ -43,7 +43,7 @@ namespace SW2URDF.URDFExport
         /// <summary>
         /// Reads <paramref name="source"/> (3DXML) and writes <paramref name="target"/> (.obj) and the
         /// matching .mtl next to it. Output is written to temporary files first and only replaces
-        /// existing files when the whole conversion succeeded.
+        /// existing files when the whole conversion succeeded, both of them or none.
         /// </summary>
         public static ObjConversionResult Convert(string source, string target, ObjConversionOptions options)
         {
@@ -55,6 +55,7 @@ namespace SW2URDF.URDFExport
             string stamp = Guid.NewGuid().ToString("N");
             string objTemp = Path.Combine(directory, ".obj-" + stamp + ".tmp");
             string mtlTemp = Path.Combine(directory, ".mtl-" + stamp + ".tmp");
+            string objBackup = Path.Combine(directory, ".obj-" + stamp + ".bak");
             try
             {
                 options.CancellationToken.ThrowIfCancellationRequested();
@@ -70,8 +71,7 @@ namespace SW2URDF.URDFExport
                 }
                 if (result.Triangles == 0) throw new InvalidDataException("3DXML contains no triangles");
                 options.CancellationToken.ThrowIfCancellationRequested();
-                Replace(mtlTemp, mtlTarget);
-                Replace(objTemp, target);
+                ReplacePair(objTemp, target, objBackup, mtlTemp, mtlTarget);
                 Report(options, 1.0);
                 return result;
             }
@@ -87,9 +87,35 @@ namespace SW2URDF.URDFExport
             if (options.Progress != null) options.Progress.Report(fraction);
         }
 
-        private static void Replace(string temporary, string destination)
+        // The OBJ names materials of the MTL, so a new one must not be left next to an old one.
+        private static void ReplacePair(string objTemp, string obj, string objBackup, string mtlTemp, string mtl)
         {
-            if (File.Exists(destination)) File.Replace(temporary, destination, null);
+            bool objExisted = File.Exists(obj);
+            bool objReplaced = false;
+            try
+            {
+                Replace(objTemp, obj, objBackup);
+                objReplaced = true;
+                Replace(mtlTemp, mtl, null);
+            }
+            catch (Exception)
+            {
+                if (File.Exists(objBackup))
+                {
+                    Replace(objBackup, obj, null);
+                }
+                else if (objReplaced && !objExisted)
+                {
+                    TryDelete(obj);
+                }
+                throw;
+            }
+            TryDelete(objBackup);
+        }
+
+        private static void Replace(string temporary, string destination, string backup)
+        {
+            if (File.Exists(destination)) File.Replace(temporary, destination, backup);
             else File.Move(temporary, destination);
         }
 

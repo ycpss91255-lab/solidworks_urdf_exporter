@@ -47,6 +47,14 @@ namespace SW2URDF.URDFExport
         public List<SurfaceAppearance> Appearances = new List<SurfaceAppearance>();
     }
 
+    /// <summary>The mesh has an image texture, which the OBJ export does not support.</summary>
+    internal sealed class TextureNotSupportedException : NotSupportedException
+    {
+        public TextureNotSupportedException(string message) : base(message)
+        {
+        }
+    }
+
     /// <summary>One occurrence of a part: the full instance path and its accumulated transform.</summary>
     internal sealed class ThreeDxmlPlacement
     {
@@ -446,7 +454,7 @@ namespace SW2URDF.URDFExport
             MaterialInfo material = null;
             if (context.MaterialId != null) materials.TryGetValue(context.MaterialId, out material);
             if (context.HasUv && material != null && material.HasTexture)
-                throw new NotSupportedException(
+                throw new TextureNotSupportedException(
                     "Image textures and UV coordinates are not supported by the OBJ exporter; it writes solid colours only.");
             int offset = vertices.Count / 3;
             int vertexCount = context.Positions.Length / 3;
