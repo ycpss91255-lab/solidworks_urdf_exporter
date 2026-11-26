@@ -22,7 +22,7 @@ installed (the equivalence was NOT verified). Standard library only.
 Examples:
   python scripts/check_xacro_equivalence.py
   python scripts/check_xacro_equivalence.py --identity
-  python scripts/check_xacro_equivalence.py --pair robot.urdf robot.urdf.xacro
+  python scripts/check_xacro_equivalence.py --pair robot.urdf robot.xacro
   python scripts/check_xacro_equivalence.py --expanded robot.urdf robot_expanded.urdf --tolerance 1e-6
 """
 import argparse

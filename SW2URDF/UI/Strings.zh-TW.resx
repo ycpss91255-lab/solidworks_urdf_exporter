@@ -652,11 +652,11 @@
   <data xml:space="preserve" name="the value of the dimension cannot be read back">
     <value>無法讀回尺寸的值</value>
   </data>
-  <data xml:space="preserve" name="write xacro (.urdf.xacro)">
-    <value>輸出 xacro（.urdf.xacro）</value>
+  <data xml:space="preserve" name="write xacro">
+    <value>輸出 xacro</value>
   </data>
-  <data xml:space="preserve" name="write the robot as a .urdf.xacro file instead of a .urdf file. the launch files then expand it with xacro.">
-    <value>將機器人寫成 .urdf.xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
+  <data xml:space="preserve" name="write the robot as a .xacro file instead of a .urdf file. the launch files then expand it with xacro.">
+    <value>將機器人寫成 .xacro 檔，而不是 .urdf 檔。啟動檔會改用 xacro 展開。</value>
   </data>
   <data xml:space="preserve" name="angle unit">
     <value>角度單位</value>

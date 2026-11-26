@@ -342,7 +342,7 @@ is followed by the list of differences, each with its element path such as
 `robot[x]/link[base]/inertial/mass@value`), then a summary table, and can write `--json` and `--markdown`.
 
     python scripts/check_xacro_equivalence.py                          # every examples/**/urdf/*.urdf, expanded with xacro
-    python scripts/check_xacro_equivalence.py --pair a.urdf a.urdf.xacro   # a plain URDF against its xacro (repeatable)
+    python scripts/check_xacro_equivalence.py --pair a.urdf a.xacro        # a plain URDF against its xacro (repeatable)
     python scripts/check_xacro_equivalence.py --expanded a.urdf expanded.urdf   # against an already expanded file; no xacro needed
     python scripts/check_xacro_equivalence.py --identity               # each committed example against itself; no xacro needed
 

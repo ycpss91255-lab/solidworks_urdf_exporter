@@ -268,7 +268,7 @@
             this.checkBoxXacro.Name = "checkBoxXacro";
             this.checkBoxXacro.Size = new System.Drawing.Size(150, 17);
             this.checkBoxXacro.TabIndex = 2;
-            this.checkBoxXacro.Text = "Write xacro (.urdf.xacro)";
+            this.checkBoxXacro.Text = "Write xacro";
             this.checkBoxXacro.UseVisualStyleBackColor = true;
             this.checkBoxXacro.CheckedChanged += new System.EventHandler(this.CheckBoxXacroCheckedChanged);
             //
