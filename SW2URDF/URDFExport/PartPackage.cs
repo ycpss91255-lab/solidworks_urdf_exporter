@@ -1,10 +1,12 @@
+using SW2URDF.ROS;
 using SW2URDF.URDF;
 
 namespace SW2URDF.URDFExport
 {
     /// <summary>
     /// Names and package files of the part export. The part export names the robot and its URDF file
-    /// after the package, as the assembly export does. Files of earlier exports, such as a URDF named after the document title, are left as
+    /// after the package, as the assembly export does, and writes the same launch, config and CMake
+    /// files. Files of earlier exports, such as a URDF named after the document title, are left as
     /// they are.
     /// </summary>
     public static class PartPackage
@@ -22,6 +24,20 @@ namespace SW2URDF.URDFExport
         public static string RobotFileName(Robot robot, bool writeXacro)
         {
             return XacroOutput.RobotFileName(FileNames.SanitizeFileName(robot.Name, "robot"), writeXacro);
+        }
+
+        /// <summary>
+        /// Writes CMakeLists.txt, the joint names config and the display and Gazebo launch files that
+        /// the assembly export writes. The package directories must exist.
+        /// </summary>
+        public static void WriteRosFiles(Robot robot, URDFPackage package, bool writeXacro)
+        {
+            string robotFile = RobotFileName(robot, writeXacro);
+            package.CreateCMakeLists();
+            package.CreateConfigYAML(robot.GetJointNames(false));
+            new Rviz(package.PackageName, robotFile, writeXacro).WriteFiles(package.WindowsLaunchDirectory);
+            new Gazebo(robot.Name, package.PackageName, robotFile, writeXacro)
+                .WriteFile(package.WindowsLaunchDirectory);
         }
     }
 }

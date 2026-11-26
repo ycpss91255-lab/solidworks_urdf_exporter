@@ -730,6 +730,9 @@ namespace SW2URDF.URDFExport
             URDFRobot.WriteXacro = URDFRobot.BaseLink.WriteXacro;
             //mRobot.addLink(mLink);
             URDFRobot.WriteURDF(uWriter.writer);
+
+            //Writing the launch, config and CMake files of the assembly export
+            PartPackage.WriteRosFiles(URDFRobot, package, URDFRobot.BaseLink.WriteXacro);
         }
 
         // Waits for SolidWorks to release a binary STL, verifies that its triangle data is
