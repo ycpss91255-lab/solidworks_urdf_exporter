@@ -340,6 +340,7 @@
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
     <Compile Include="Test\TestLimitMateProbe.cs" />
+    <Compile Include="Test\TestLimitMateValues.cs" />
     <Compile Include="Test\TestObjConverter.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
@@ -395,6 +396,7 @@
     <Compile Include="URDFExport\ConfigurationSerialization.cs" />
     <Compile Include="URDFExport\ExportHelper.cs" />
     <Compile Include="URDFExport\FileNames.cs" />
+    <Compile Include="URDFExport\LimitMateValues.cs" />
     <Compile Include="URDFExport\XacroOutput.cs" />
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
