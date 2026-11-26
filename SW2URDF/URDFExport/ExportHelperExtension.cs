@@ -258,11 +258,12 @@ namespace SW2URDF.URDFExport
             GeneratedFeatures.Clear();
             jointNames = JointNameSnapshot.Take(baseNode);
 
-            progressBar.Start(0, CommonSwOperations.GetCount(baseNode.Nodes) + 1, "Building links");
+            UiText ui = UiText.FromSolidWorks(iSwApp);
+            progressBar.Start(0, CommonSwOperations.GetCount(baseNode.Nodes) + 1, ui.Get("Building links"));
             int count = 0;
 
             progressBar.UpdateProgress(count);
-            progressBar.UpdateTitle("Building link: " + baseNode.Name);
+            progressBar.UpdateTitle(string.Format(ui.Get("Building link: {0}"), baseNode.Name));
             
             Link baseLink = CreateLink(baseNode, 1);
             if (baseLink == null || !string.IsNullOrWhiteSpace(ExportErrorWhy))
@@ -312,7 +313,8 @@ namespace SW2URDF.URDFExport
         //Method which builds an entire link and iterates through.
         private Link CreateLink(LinkNode node, int count)
         {
-            progressBar.UpdateTitle("Building link: " + node.Name);
+            UiText ui = UiText.FromSolidWorks(iSwApp);
+            progressBar.UpdateTitle(string.Format(ui.Get("Building link: {0}"), node.Name));
             progressBar.UpdateProgress(count);
             Link link;
             if (node.IsBaseNode)
@@ -684,9 +686,9 @@ namespace SW2URDF.URDFExport
                 axisOfMateLimits = LimitsFromMate ? child.Joint.Axis.GetXYZ() : null;
                 if (EstimateFailed(inferred, child.Joint.Origin))
                 {
-                    ExportErrorWhy = string.Format("Inferring the joint geometry failed for the joint {0} " +
-                        "from link {1} to {2} failed. Check that the mates have not fully defined the " +
-                        "components in link {1} and that there is exactly one degree of freedom.",
+                    UiText ui = UiText.FromSolidWorks(iSwApp);
+                    ExportErrorWhy = string.Format(
+                        ui.Get("Inferring the joint geometry failed for joint {0} from link {1} to {2}. Check that the mates have not fully defined the components in link {1} and that there is exactly one degree of freedom."),
                         child.Joint.Name, child.Name, parent.Name);
                     return false;
                 }

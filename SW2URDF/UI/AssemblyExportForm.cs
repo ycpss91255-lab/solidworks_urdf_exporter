@@ -46,6 +46,7 @@ namespace SW2URDF.UI
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
+        private readonly string loadedConfiguration;
 
         private readonly SldWorks swApp;
         private readonly ModelDoc2 ActiveSWModel;
@@ -444,6 +445,7 @@ namespace SW2URDF.UI
             BaseNode = node;
             checkBoxXacro.Checked = BaseNode.Link.WriteXacro;
             ActiveSWModel = swApp.ActiveDoc;
+            loadedConfiguration = ConfigurationSerialization.GetActiveConfigurationName(ActiveSWModel);
             RefreshConfigurationStatus();
             SetUpGrowLayout();
             Exporter = exporter;
@@ -510,18 +512,16 @@ namespace SW2URDF.UI
         private void ExceptionHandler(object sender, ThreadExceptionEventArgs e)
         {
             logger.Error("Exception encountered in Assembly export form", e.Exception);
-            MessageBox.Show("There was a problem with the export form: \n\"" +
-                e.Exception.Message + "\"\nEmail your maintainer with the log file found at " +
-                Logger.GetFileName());
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
+            MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), e.Exception.Message));
         }
 
         private void UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             Exception ex = (Exception)e.ExceptionObject;
             logger.Error("Unhandled exception in Assembly Export form", ex);
-            MessageBox.Show("There was a problem with the export form: \n\"" +
-                ex.Message + "\"\nEmail your maintainer with the log file found at " +
-                Logger.GetFileName());
+            UiText ui = this.ui ?? new UiText(null);   // the constructor may have failed before it reads the language
+            MessageBox.Show(ui.ProblemMessage(ui.Get("There was a problem with the export form:"), ex.Message));
         }
 
         //Joint form configuration controls
@@ -600,8 +600,8 @@ namespace SW2URDF.UI
             string errors = CheckJointsForErrors();
             if (!string.IsNullOrWhiteSpace(errors))
             {
-                string message = "The following joints are missing required fields, please " +
-                    "address them before continuing\r\n\r\n" + errors;
+                string message = ui.Get("The following joints are missing required fields, please address them before continuing") +
+                    "\r\n\r\n" + errors;
                 ShowJointErrors(message);
                 return;
             }
@@ -750,8 +750,11 @@ namespace SW2URDF.UI
 
         private void FinishExport(bool exportSTL)
         {
+            if (!ConfigurationSerialization.CheckSameConfiguration(ActiveSWModel, loadedConfiguration, ui))
+            {
+                return;
+            }
             logger.Info("Completing URDF export");
-            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             // Saving selected node
             LinkNode node = (LinkNode)treeViewLinkProperties.SelectedNode;
@@ -759,6 +762,8 @@ namespace SW2URDF.UI
             {
                 SaveLinkDataFromPropertyBoxes(node.Link);
             }
+
+            SaveConfigTree(ActiveSWModel, BaseNode, false);
 
             Exporter.URDFRobot = CreateRobotFromTreeView(treeViewLinkProperties);
 
@@ -768,8 +773,8 @@ namespace SW2URDF.UI
             {
                 logger.Info("Link errors encountered:\n " + errors);
 
-                string message = "The following links contained errors in either their link or joint " +
-                    "properties. Please address before continuing\r\n\r\n" + errors;
+                string message = ui.Get("The following links contained errors in either their link or joint properties. Please address before continuing") +
+                    "\r\n\r\n" + errors;
                 MessageBox.Show(message, ui.Get("URDF Errors"));
                 return;
             }
@@ -780,8 +785,8 @@ namespace SW2URDF.UI
             {
                 logger.Info("Link warnings encountered:\r\n" + warnings);
 
-                string message = "The following links contained issues that may cause problems. " +
-                "Do you wish to proceed?\r\n\r\n" + warnings;
+                string message = ui.Get("The following links contained issues that may cause problems. Do you wish to proceed?") +
+                    "\r\n\r\n" + warnings;
                 DialogResult result =
                     MessageBox.Show(message, ui.Get("URDF Warnings"), MessageBoxButtons.YesNo);
 

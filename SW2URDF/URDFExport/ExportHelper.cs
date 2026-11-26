@@ -166,11 +166,12 @@ namespace SW2URDF.URDFExport
             textureFileNames.Clear();
             int progressBarBound = CommonSwOperations.GetCount(URDFRobot.BaseLink);
             iSwApp.GetUserProgressBar(out progressBar);
-            progressBar.Start(0, progressBarBound, "Creating package directories");
+            UiText ui = UiText.FromSolidWorks(iSwApp);
+            progressBar.Start(0, progressBarBound, ui.Get("Creating package directories"));
 
             //Creating package directories
             logger.Info("Creating package directories with name " + PackageName + " and save path " + SavePath);
-            URDFPackage package = new URDFPackage(PackageName, SavePath, UiText.FromSolidWorks(iSwApp));
+            URDFPackage package = new URDFPackage(PackageName, SavePath, ui);
             package.CreateDirectories();
             URDFRobot.Name = package.PackageName;
             bool writeXacro = URDFRobot.BaseLink.WriteXacro;
@@ -221,7 +222,6 @@ namespace SW2URDF.URDFExport
             ActiveSWModel.Extension.SelectAll();
             ActiveSWModel.HideComponent2();
 
-            UiText ui = UiText.FromSolidWorks(iSwApp);
             failedMeshLinks.Clear();
             texturedMeshLinks = new List<string>();
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
@@ -274,7 +274,7 @@ namespace SW2URDF.URDFExport
             ImportExport.WriteRobotToCSV(URDFRobot, windowsCSVFileName);
 
             logger.Info("Copying log file");
-            CopyLogFile(package);
+            CopyLogFile(package, ui);
 
             logger.Info("Resetting STL preferences");
             ResetUserPreferences();
@@ -323,7 +323,8 @@ namespace SW2URDF.URDFExport
         private void ExportFiles(Link link, URDFPackage package, int count, bool exportSTL = true, MeshExportFormat meshFormat = MeshExportFormat.STL)
         {
             progressBar.UpdateProgress(count);
-            progressBar.UpdateTitle("Exporting mesh: " + link.Name);
+            UiText ui = UiText.FromSolidWorks(iSwApp);
+            progressBar.UpdateTitle(string.Format(ui.Get("Exporting mesh: {0}"), link.Name));
             logger.Info("Exporting link: " + link.Name);
             // Iterate through each child and export its files
             logger.Info("Link " + link.Name + " has " + link.Children.Count + " children");
@@ -814,7 +815,7 @@ namespace SW2URDF.URDFExport
 
         #endregion Export Methods
 
-        private static void CopyLogFile(URDFPackage package)
+        private static void CopyLogFile(URDFPackage package, UiText ui)
         {
             string destination = package.WindowsPackageDirectory + "export.log";
             string log_filename = Logger.GetFileName();
@@ -823,8 +824,9 @@ namespace SW2URDF.URDFExport
             {
                 if (!File.Exists(log_filename))
                 {
-                    System.Windows.Forms.MessageBox.Show("The log file was expected to be located at " + log_filename +
-                        ", but it was not found. Please contact your maintainer with this error message.");
+                    URDFPackage.MessageBox.Show(string.Format(
+                        ui.Get("The log file was expected to be located at {0}, but it was not found. Please contact your maintainer with this error message."),
+                        log_filename));
                 }
                 else
                 {
