@@ -191,5 +191,37 @@ namespace SW2URDF.URDF
             Dynamics.SetElement(joint.Dynamics);
             Safety.SetElement(joint.Safety);
         }
+
+        /// <summary>Whether following the mimics by name, beginning with this joint, leads back to this joint.</summary>
+        public bool MimicsItself(ICollection<Joint> joints)
+        {
+            Joint current = this;
+            // A chain without this joint can still end in a loop of others, so it is not followed for ever.
+            for (int step = 0; step < joints.Count; step++)
+            {
+                string name = current.Mimic?.JointName;
+                List<Joint> named = new List<Joint>();
+                if (name != null)
+                {
+                    foreach (Joint joint in joints)
+                    {
+                        if (joint.Name == name)
+                        {
+                            named.Add(joint);
+                        }
+                    }
+                }
+                if (named.Count != 1)
+                {
+                    return false;
+                }
+                current = named[0];
+                if (current == this)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }
