@@ -1547,7 +1547,7 @@ namespace SW2URDF.URDFExport
             List<Component2> fixedComponents = FixComponents(parent);
 
             // Surpress Limit Mates to properly find degrees of freedom. They don't work with the API call
-            List<Mate2> limitMates = SuppressLimitMates(child.SWMainComponent);
+            List<Mate2> limitMates = SuppressLimitMates(parent, child);
             Boolean success = false;
             if (child.SWMainComponent != null)
             {
@@ -1625,7 +1625,7 @@ namespace SW2URDF.URDFExport
                 UnsuppressLimitMates(limitMates);
                 if (limitMates.Count > 0 && ComputeJointLimits)
                 {
-                    LimitsFromMate = AddLimits(child.Joint, limitMates, parent.SWMainComponent, child.SWMainComponent);
+                    LimitsFromMate = AddLimits(child.Joint, limitMates, parent, child);
                 }
             }
 
@@ -2292,42 +2292,36 @@ namespace SW2URDF.URDFExport
 
         //This method adds in the limits from a limit mate, to make a joint a revolute joint.
         // It really needs to checked for correctness.
-        private bool AddLimits(Joint Joint, List<Mate2> limitMates,
-            Component2 parentComponent, Component2 childComponent)
+        private bool AddLimits(Joint Joint, List<Mate2> limitMates, Link parent, Link child)
         {
             bool limitsWritten = false;
-            logger.Info("Parent SW Component: " + parentComponent.Name2);
-            logger.Info("Child SW Component: " + childComponent.Name2);
-            // The number of limit Mates should only be one. But for completeness, I cycle through
-            // every found limit mate.
+            Component2 childComponent = child.SWMainComponent;
+            logger.Info("Parent SW Components: " + ComponentNames(parent.SWComponents));
+            logger.Info("Child SW Components: " + ComponentNames(child.SWComponents));
+            // The number of limit Mates should only be one. Of several the first one is used, one between
+            // the main components of the links before the others.
+            Component2[] mainParent = { parent.SWMainComponent };
+            Component2[] mainChild = { child.SWMainComponent };
+            limitMates = limitMates.OrderBy(
+                mate => MateConnects(MateComponents(mate), mainParent, mainChild) ? 0 : 1).ToList();
             foreach (Mate2 swMate in limitMates)
             {
                 logger.Info("Determining limit mate eligibility ");
-                List<Component2> entities = new List<Component2>();
-                for (int i = 0; i < swMate.GetMateEntityCount(); i++)
+                List<List<Component2>> entities = MateComponents(swMate);
+                logger.Info("Limit mate " + ((Feature)swMate).Name + " is between: " +
+                    ComponentNames(entities.Select(components => components[0])));
+
+                if (!MateConnects(entities, parent.SWComponents, child.SWComponents))
                 {
-                    MateEntity2 entity = swMate.MateEntity(i);
-                    
-                    // Check if entity.ReferenceComponent is null and skip if so
-                    if (entity.ReferenceComponent == null)
-                    {
-                        logger.Warn("Mate entity has no reference component");
-                        continue;
-                    }
-                    
-                    entities.Add(entity.ReferenceComponent);
-                    logger.Info("Adding component entity: " + entity.ReferenceComponent.Name2);
-
-                    Component2 parent = entity.ReferenceComponent.GetParent();
-                    while (parent != null)
-                    {
-                        logger.Info("Adding component entity: " + parent.Name2);
-                        entities.Add(parent);
-                        parent = parent.GetParent();
-                    }
+                    logger.Info("Limit mate " + ((Feature)swMate).Name + " is not used: it is not between the parent link " +
+                        parent.Name + " and the child link " + child.Name);
                 }
-
-                if (entities.Contains(parentComponent) && entities.Contains(childComponent))
+                else if (limitsWritten)
+                {
+                    logger.Warn("Limit mate " + ((Feature)swMate).Name + " is not used: the limits of joint " +
+                        Joint.Name + " already come from limit mate " + Joint.LimitInfo.MateName);
+                }
+                else
                 {
                     // [TODO] This assumes the limit mate limits the right degree of freedom,
                     // it really should check that assumption
@@ -2387,13 +2381,45 @@ namespace SW2URDF.URDFExport
                             Joint.Type = "revolute";
                         }
                     }
+                    else
+                    {
+                        logger.Warn("Limit mate " + ((Feature)swMate).Name + " is not used: its type does not fit the " +
+                            Joint.Type + " joint " + Joint.Name);
+                    }
                 }
             }
             return limitsWritten;
         }
 
-        // Suppresses limit mates to make it easier to find the free degree of freedom in a joint
-        private static List<Mate2> SuppressLimitMates(IComponent2 component)
+        // Suppresses limit mates to make it easier to find the free degree of freedom in a joint: the ones of
+        // the main component of the child, and the ones other components of it have with the parent
+        private static List<Mate2> SuppressLimitMates(Link parent, Link child)
+        {
+            List<Mate2> limitMates = LimitMates(child.SWMainComponent);
+            foreach (Component2 component in child.SWComponents)
+            {
+                foreach (Mate2 mate in LimitMates(component))
+                {
+                    if (!limitMates.Contains(mate) &&
+                        MateConnects(MateComponents(mate), parent.SWComponents, child.SWComponents))
+                    {
+                        limitMates.Add(mate);
+                    }
+                }
+            }
+
+            foreach (Mate2 swMate in limitMates)
+            {
+                Feature feat = (Feature)swMate;
+                feat.Select(false);
+                feat.SetSuppression2((int)swFeatureSuppressionAction_e.swSuppressFeature,
+                    (int)swInConfigurationOpts_e.swThisConfiguration, null);
+            }
+
+            return limitMates;
+        }
+
+        private static List<Mate2> LimitMates(IComponent2 component)
         {
             List<Mate2> limitMates = new List<Mate2>();
 
@@ -2414,14 +2440,6 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            foreach (Mate2 swMate in limitMates)
-            {
-                Feature feat = (Feature)swMate;
-                feat.Select(false);
-                feat.SetSuppression2((int)swFeatureSuppressionAction_e.swSuppressFeature,
-                    (int)swInConfigurationOpts_e.swThisConfiguration, null);
-            }
-
             return limitMates;
         }
 
@@ -2434,6 +2452,64 @@ namespace SW2URDF.URDFExport
                 feat.SetSuppression2((int)swFeatureSuppressionAction_e.swUnSuppressFeature,
                     (int)swInConfigurationOpts_e.swThisConfiguration, null);
             }
+        }
+
+        /// <summary>
+        /// True when a mate is between the parent and the child link. For each entity of the mate: its
+        /// component and the sub-assemblies it is in, from the inside out; the innermost one that belongs to
+        /// one of the links tells which link the entity is on. Free of SolidWorks calls so it can be tested.
+        /// </summary>
+        public static bool MateConnects<T>(IEnumerable<List<T>> entities, ICollection<T> parent, ICollection<T> child)
+        {
+            bool onParent = false;
+            bool onChild = false;
+            foreach (List<T> components in entities)
+            {
+                foreach (T component in components)
+                {
+                    bool inChild = child.Contains(component);
+                    bool inParent = !inChild && parent.Contains(component);
+                    onChild |= inChild;
+                    onParent |= inParent;
+                    if (inChild || inParent)
+                    {
+                        break;
+                    }
+                }
+            }
+            return onParent && onChild;
+        }
+
+        // For each entity of a mate: its component and the sub-assemblies it is in, from the inside out
+        private static List<List<Component2>> MateComponents(Mate2 swMate)
+        {
+            List<List<Component2>> entities = new List<List<Component2>>();
+            for (int i = 0; i < swMate.GetMateEntityCount(); i++)
+            {
+                MateEntity2 entity = swMate.MateEntity(i);
+
+                // Check if entity.ReferenceComponent is null and skip if so
+                if (entity.ReferenceComponent == null)
+                {
+                    logger.Warn("Mate entity has no reference component");
+                    continue;
+                }
+
+                List<Component2> components = new List<Component2>();
+                Component2 component = entity.ReferenceComponent;
+                while (component != null)
+                {
+                    components.Add(component);
+                    component = component.GetParent();
+                }
+                entities.Add(components);
+            }
+            return entities;
+        }
+
+        private static string ComponentNames(IEnumerable<Component2> components)
+        {
+            return string.Join(", ", components.Select(c => c.Name2));
         }
 
         //Unfixes components that were fixed to find the free degree of freedom
