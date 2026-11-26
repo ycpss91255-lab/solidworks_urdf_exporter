@@ -39,6 +39,7 @@ namespace SW2URDF.UI
         public void FillLinkPropertyBoxes(Link Link)
         {
             FillBlank(linkBoxes);
+            angles.Forget(linkBoxes);
             if (!Link.isFixedFrame)
             {
                 //R: round-trip format, shows the full precision of the stored value
@@ -77,6 +78,10 @@ namespace SW2URDF.UI
                                                      domainUpDownAlpha,
                                                      "R");
 
+                // Display only: the boxes hold radians, shown in the chosen unit.
+                ShowRpy(Link.Visual.Origin, textBoxVisualOriginRoll, textBoxVisualOriginPitch, textBoxVisualOriginYaw);
+                ShowRpy(Link.Inertial.Origin, textBoxInertialOriginRoll, textBoxInertialOriginPitch, textBoxInertialOriginYaw);
+
             }
         }
 
@@ -84,6 +89,7 @@ namespace SW2URDF.UI
         public void FillJointPropertyBoxes(Joint joint)
         {
             FillBlank(jointBoxes);
+            angles.Forget(jointBoxes);
             labelLimitSource.Text = "";
             AutoUpdatingForm = true;
             if (joint != null) //For the base_link or if none is selected
@@ -151,45 +157,20 @@ namespace SW2URDF.UI
                 }
             }
 
-            if (joint != null && (joint.Type == "revolute" || joint.Type == "continuous"))
+            if (joint != null)
             {
-                labelLowerLimit.Text = ui.Get("lower (rad)");
-                labelLimitUpper.Text = ui.Get("upper (rad)");
-                labelEffort.Text = ui.Get("effort (N-m)");
-                labelVelocity.Text = ui.Get("velocity (rad/s)");
-                labelFriction.Text = ui.Get("friction (N-m)");
-                labelDamping.Text = ui.Get("damping (N-m-s/rad)");
-                labelSoftLower.Text = ui.Get("soft lower limit (rad)");
-                labelSoftUpper.Text = ui.Get("soft upper limit (rad)");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
+                // Display only: the boxes hold radians, shown in the chosen unit.
+                ShowRpy(joint.Origin, textBoxJointRoll, textBoxJointPitch, textBoxJointYaw);
+                if (joint.Type == "revolute" || joint.Type == "continuous")
+                {
+                    angles.Show(textBoxLimitLower, () => joint.Limit.Lower);
+                    angles.Show(textBoxLimitUpper, () => joint.Limit.Upper);
+                    angles.Show(textBoxLimitVelocity, () => joint.Limit.Velocity);
+                    angles.Show(textBoxSoftLower, () => joint.Safety.SoftLower);
+                    angles.Show(textBoxSoftUpper, () => joint.Safety.SoftUpper);
+                }
             }
-            else if (joint != null && joint.Type == "prismatic")
-            {
-                labelLowerLimit.Text = ui.Get("lower (m)");
-                labelLimitUpper.Text = ui.Get("upper (m)");
-                labelEffort.Text = ui.Get("effort (N)");
-                labelVelocity.Text = ui.Get("velocity (m/s)");
-                labelFriction.Text = ui.Get("friction (N)");
-                labelDamping.Text = ui.Get("damping (N-s/m)");
-                labelSoftLower.Text = ui.Get("soft lower limit (m)");
-                labelSoftUpper.Text = ui.Get("soft upper limit (m)");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
-            }
-            else
-            {
-                labelLowerLimit.Text = ui.Get("lower");
-                labelLimitUpper.Text = ui.Get("upper");
-                labelEffort.Text = ui.Get("effort");
-                labelVelocity.Text = ui.Get("velocity");
-                labelFriction.Text = ui.Get("friction");
-                labelDamping.Text = ui.Get("damping");
-                labelSoftLower.Text = ui.Get("soft lower limit");
-                labelSoftUpper.Text = ui.Get("soft upper limit");
-                labelKPosition.Text = ui.Get("k position");
-                labelKVelocity.Text = ui.Get("k velocity");
-            }
+            SetJointCaptions(joint == null ? "" : joint.Type);
             comboBoxOrigin.Items.Clear();
             List<string> originNames = Exporter.GetRefCoordinateSystems();
             comboBoxOrigin.Items.AddRange(originNames.ToArray());
@@ -230,6 +211,14 @@ namespace SW2URDF.UI
             AutoUpdatingForm = false;
         }
 
+        // Shows the angle boxes of an origin in the chosen unit, from the exact values it holds.
+        private void ShowRpy(Origin origin, TextBox roll, TextBox pitch, TextBox yaw)
+        {
+            angles.Show(roll, () => origin.Roll);
+            angles.Show(pitch, () => origin.Pitch);
+            angles.Show(yaw, () => origin.Yaw);
+        }
+
         public static void FillBlank(Control[] boxes)
         {
             foreach (Control box in boxes)
@@ -240,6 +229,20 @@ namespace SW2URDF.UI
 
         //Converts the text boxes back into values for the link
         public void SaveLinkDataFromPropertyBoxes(Link Link)
+        {
+            // The model reads radians: angle boxes shown in degrees are converted back first.
+            angles.Restore();
+            try
+            {
+                SaveLinkBoxes(Link);
+            }
+            finally
+            {
+                angles.ShowAgain();
+            }
+        }
+
+        private void SaveLinkBoxes(Link Link)
         {
             if (!Link.isFixedFrame)
             {
@@ -279,6 +282,20 @@ namespace SW2URDF.UI
 
         //Saves data from text boxes back into a joint
         public void SaveJointDataFromPropertyBoxes(Joint Joint)
+        {
+            // The model reads radians: angle boxes shown in degrees are converted back first.
+            angles.Restore();
+            try
+            {
+                SaveJointBoxes(Joint);
+            }
+            finally
+            {
+                angles.ShowAgain();
+            }
+        }
+
+        private void SaveJointBoxes(Joint Joint)
         {
             Joint.Update(textBoxJointName, comboBoxJointType, ui);
 
