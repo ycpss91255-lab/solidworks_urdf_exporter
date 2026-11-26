@@ -35,12 +35,14 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class AssemblyExportForm : Form
+    public partial class AssemblyExportForm : Form, IAlignsFieldLabels
     {
         private static readonly log4net.ILog logger = Logger.GetLogger();
 
         public ExportHelper Exporter;
         private readonly UiText ui;
+        // DPI the layout is currently built for; the window may be drawn at another one.
+        private float layoutDpi = UiLayout.ScreenDpi();
         public bool AutoUpdatingForm;
         private bool exportCompleted;
         public AttributeDef saveConfigurationAttributeDef;
@@ -52,8 +54,77 @@ namespace SW2URDF.UI
         private readonly Control[] linkBoxes;
         private readonly LinkNode BaseNode;
 
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
+
+        // The joint page header holds the limit source text, four lines when the limits come from a
+        // limit mate (one of them may wrap), to the right of the page description. Leave room for
+        // five lines, or for the text on display when it is longer, above the parent link row (moving
+        // the property area down when the font's lines are taller than the designer's), and let the
+        // description wrap before the limit text. Running it again changes nothing.
+        private void MakeJointHeaderRoom()
+        {
+            int gap = Math.Max(4, Font.Height / 3);
+            label69.MaximumSize = new Size(Math.Max(1, labelLimitSource.Left - gap - label69.Left), 0);
+            // Measured the way the label sizes itself, with a Chinese character too: Windows may draw
+            // it with a taller linked font.
+            int room;
+            using (Label sample = new Label { AutoSize = true, Font = labelLimitSource.Font, Padding = labelLimitSource.Padding,
+                Text = "極Ag\n極Ag\n極Ag\n極Ag\n極Ag" })
+            {
+                room = sample.PreferredHeight;
+            }
+            // The text on display counts when it is longer, but not while the label is squeezed to a
+            // width no real text fits in (during a layout change), where it would measure very tall.
+            if (labelLimitSource.MaximumSize.Width == 0 || labelLimitSource.MaximumSize.Width >= 12 * Font.Height)
+            {
+                room = Math.Max(room, labelLimitSource.PreferredHeight);
+            }
+            // The property area is moved by an amount that is set, not added to, so it can also move
+            // back; a font change (DPI rescale) has already scaled the earlier move.
+            float scale = CurrentAutoScaleDimensions.Height;
+            if (headerShiftScale > 0 && Math.Abs(headerShiftScale - scale) > 0.01f)
+            {
+                headerShift = (int)Math.Round(headerShift * scale / headerShiftScale);
+            }
+            headerShiftScale = scale;
+            int rowTop = label64.Top - headerShift;
+            int wanted = Math.Max(0, labelLimitSource.Top + room + gap - rowTop);
+            int move = wanted - headerShift;
+            if (move == 0)
+            {
+                return;
+            }
+            foreach (Control c in panelJointContent.Controls)
+            {
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= label64.Top - gap)
+                {
+                    c.Top += move;
+                }
+            }
+            headerShift = wanted;
+        }
+
+        private void PlaceBeside(Label value, Label caption)
+        {
+            value.Left = caption.Left + caption.PreferredWidth + Math.Max(4, Font.Height / 2);
+            value.Top = caption.Top + (caption.Height - value.Height) / 2;
+        }
+
+        // How far MakeJointHeaderRoom has moved the property area, and the layout scale (the form
+        // font's autoscale height) it was set for: a DPI rescale scales the move with that.
+        private int headerShift;
+        private float headerShiftScale;
+
         private void AlignFieldLabels()
         {
+            MakeJointHeaderRoom();
+            // The parent and child link names follow their captions on the same line: the designer
+            // left no room for a wider caption font.
+            PlaceBeside(labelParent, label64);
+            PlaceBeside(labelChild, label65);
             label63.Left = textBoxJointName.Left;
             label62.Left = comboBoxJointType.Left;
             UiText.AlignLabel(label14, textBoxIxx);
@@ -107,6 +178,18 @@ namespace SW2URDF.UI
             UiText.PlaceAfter(label1, label54);
             UiText.PlaceAfter(AxisRequiredLabel, label60);
             UiText.PlaceAfter(LimitRequiredLabel, label68);
+            // The group titles of the Origin/Axis/Limit row sit right above the "Position (m)"
+            // caption; with the font's real line height they touch it. Lift the whole title row.
+            Label[] titles = { label54, label1, label60, AxisRequiredLabel, label68, LimitRequiredLabel };
+            int bottom = Math.Max(label54.Bottom, label1.Bottom);
+            int lift = bottom + Math.Max(2, Font.Height / 6) - label3.Top;
+            if (lift > 0)
+            {
+                foreach (Label title in titles)
+                {
+                    title.Top -= lift;
+                }
+            }
         }
 
         public AssemblyExportForm(SldWorks SwApp, LinkNode node, ExportHelper exporter)
@@ -115,8 +198,10 @@ namespace SW2URDF.UI
                 new ThreadExceptionEventHandler(ExceptionHandler);
             AppDomain.CurrentDomain.UnhandledException +=
                 new UnhandledExceptionEventHandler(UnhandledException);
-            InitializeComponent();
             ui = UiText.FromSolidWorks(SwApp);
+            // One font for the whole form, chosen for the UI language (issue #157).
+            Font = ui.CreateFormFont();
+            InitializeComponent();
             ui.Apply(this);
             // The mesh format captions are bare names; what each format keeps is in the tooltip.
             var meshFormatTips = new ToolTip();
@@ -140,6 +225,8 @@ namespace SW2URDF.UI
                 comboBoxJointType.Width = Math.Min(needed, room);
             }
             AlignFieldLabels();
+            // A limit text longer than the room left for it moves the property area down further.
+            labelLimitSource.SizeChanged += delegate { MakeJointHeaderRoom(); };
             UiLayout.FitForm(this, UiLayout.ScreenDpi());
             swApp = SwApp;
             BaseNode = node;
@@ -231,7 +318,7 @@ namespace SW2URDF.UI
         {
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
-            UiLayout.FitButtonHeightsToWindow(this);
+            UiLayout.FollowWindowDpi(this, ref layoutDpi);
         }
 
         // Closing the preview in any way other than a completed export (Cancel, the window's close
@@ -250,7 +337,7 @@ namespace SW2URDF.UI
             base.WndProc(ref m);
             if (m.Msg == UiLayout.WM_DPICHANGED)
             {
-                UiLayout.FitButtonHeightsToWindow(this);
+                UiLayout.FollowWindowDpi(this, ref layoutDpi);
             }
         }
 

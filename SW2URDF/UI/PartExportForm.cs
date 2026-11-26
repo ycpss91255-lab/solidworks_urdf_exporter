@@ -28,12 +28,19 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
-    public partial class PartExportForm : Form
+    public partial class PartExportForm : Form, IAlignsFieldLabels
     {
         public ExportHelper Exporter;
         private readonly UiText ui;
+        // DPI the layout is currently built for; the window may be drawn at another one.
+        private float layoutDpi = UiLayout.ScreenDpi();
         private static readonly log4net.ILog logger = SW2URDF.Utilities.Logger.GetLogger();
         private string loadedConfiguration;
+
+        void IAlignsFieldLabels.AlignFieldLabels()
+        {
+            AlignFieldLabels();
+        }
 
         private void AlignFieldLabels()
         {
@@ -72,8 +79,10 @@ namespace SW2URDF.UI
 
         public PartExportForm(SldWorks iSwApp)
         {
-            InitializeComponent();
             ui = UiText.FromSolidWorks(iSwApp);
+            // One font for the whole form, chosen for the UI language (issue #157).
+            Font = ui.CreateFormFont();
+            InitializeComponent();
             ui.Apply(this);
             new ToolTip().SetToolTip(checkBoxXacro, ui.Get("Write the robot as a .urdf.xacro file instead of a .urdf file. The launch files then expand it with xacro."));
             AlignFieldLabels();
@@ -87,7 +96,7 @@ namespace SW2URDF.UI
         {
             base.OnShown(e);
             UiLayout.ShowFullValueTips(this);
-            UiLayout.FitButtonHeightsToWindow(this);
+            UiLayout.FollowWindowDpi(this, ref layoutDpi);
         }
 
         protected override void WndProc(ref Message m)
@@ -95,7 +104,7 @@ namespace SW2URDF.UI
             base.WndProc(ref m);
             if (m.Msg == UiLayout.WM_DPICHANGED)
             {
-                UiLayout.FitButtonHeightsToWindow(this);
+                UiLayout.FollowWindowDpi(this, ref layoutDpi);
             }
         }
 

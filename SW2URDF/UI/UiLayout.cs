@@ -6,6 +6,12 @@ using System.Windows.Forms;
 
 namespace SW2URDF.UI
 {
+    /// <summary>A form that places captions next to their fields by measuring the caption text.</summary>
+    internal interface IAlignsFieldLabels
+    {
+        void AlignFieldLabels();
+    }
+
     /// <summary>Layout corrections applied once the designer layout is built.</summary>
     internal static class UiLayout
     {
@@ -44,6 +50,71 @@ namespace SW2URDF.UI
                 }
             }
             return ScreenDpi();
+        }
+
+        // WinForms lays a form out for the DPI of the primary screen (ScreenDpi). In a per-monitor DPI
+        // aware host the window can be drawn at another DPI (another monitor, or moved there), and
+        // nothing rescales it. Bring the layout to the DPI the window really has, then fit the buttons.
+        // layoutDpi is the DPI the form is currently laid out for; it is updated.
+        internal static void FollowWindowDpi(Form form, ref float layoutDpi)
+        {
+            float dpi = WindowDpi(form);
+            if (dpi > 0 && Math.Abs(dpi - layoutDpi) > 0.5f)
+            {
+                ScaleForDpi(form, layoutDpi, dpi);
+                layoutDpi = dpi;
+            }
+            else
+            {
+                FitButtonHeightsToWindow(form);
+            }
+        }
+
+        // Rescales an open form from one DPI to another: the form font and every font a control set
+        // for itself (bold titles) grow by the same factor, so all text keeps one size relation, and
+        // AutoScaleMode.Font scales the control bounds with the form font.
+        internal static void ScaleForDpi(Form form, float fromDpi, float toDpi)
+        {
+            if (fromDpi <= 0 || toDpi <= 0 || Math.Abs(toDpi - fromDpi) < 0.5f)
+            {
+                return;
+            }
+            float factor = toDpi / fromDpi;
+            List<KeyValuePair<Control, Font>> own = new List<KeyValuePair<Control, Font>>();
+            CollectOwnFonts(form, own);
+            form.Font = Scaled(form.Font, factor);
+            foreach (KeyValuePair<Control, Font> pair in own)
+            {
+                pair.Key.Font = Scaled(pair.Value, factor);
+            }
+            // Captions placed by measuring their text are placed again for the new text widths:
+            // scaling their old position can leave them a pixel into the box they describe.
+            IAlignsFieldLabels aligned = form as IAlignsFieldLabels;
+            if (aligned != null)
+            {
+                aligned.AlignFieldLabels();
+            }
+            RefitStatusBanner(form);
+            FitForm(form, toDpi);
+        }
+
+        // Controls whose font is their own rather than the one they inherit from their parent.
+        private static void CollectOwnFonts(Control parent, List<KeyValuePair<Control, Font>> own)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (!ReferenceEquals(c.Font, parent.Font))
+                {
+                    own.Add(new KeyValuePair<Control, Font>(c, c.Font));
+                }
+                CollectOwnFonts(c, own);
+            }
+        }
+
+        private static Font Scaled(Font font, float factor)
+        {
+            return new Font(font.FontFamily, font.SizeInPoints * factor, font.Style, GraphicsUnit.Point,
+                font.GdiCharSet, font.GdiVerticalFont);
         }
 
         // Same fit, using the DPI the (already created) form really has.
@@ -254,6 +325,12 @@ namespace SW2URDF.UI
                     }
                     int extra = IsField(above) && IsField(item)
                         ? Math.Max(0, gap - (tops[item] - (tops[above] + above.Height))) : 0;
+                    // A caption or panel right above a control keeps a gap of one pixel to it: with some fonts
+                    // (Chinese drawn through font linking) its lines are taller than the designer's.
+                    if (!IsField(above))
+                    {
+                        extra = Math.Max(extra, 1 - (tops[item] - (tops[above] + above.Height)));
+                    }
                     int growth;
                     grew.TryGetValue(above, out growth);
                     shift = Math.Max(shift, aboveShift + growth + extra);
