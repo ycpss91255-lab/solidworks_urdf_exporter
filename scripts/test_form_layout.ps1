@@ -712,6 +712,46 @@ foreach ($typeName in $formTypes) {
                 $font = New-Object System.Drawing.Font($f[0], [single]($f[1] * $scale), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
                 $form = New-Form $type $font ([single](96 * $scale))
                 $fonts2 = @($font)
+                try {
+                    $ui = [Activator]::CreateInstance($uiTextType, @(, [string]$language))
+                    $ui.Apply($form)
+                    [void]$fitForm.Invoke($null, @($form, [single](96 * $scale)))
+                    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                    $panel = @($form.Controls.Find('panelLinkProperties', $false))
+                    $size = $form.Size
+                    foreach ($state in 'default', 'large', 'small', 'dpi') {
+                        switch ($state) {
+                            'large' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 1.3), [int]($size.Height * 1.2)) }
+                            'small' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 0.8), [int]($size.Height * 0.8)) }
+                            'dpi' {
+                                # The window moves to a monitor with the next larger scaling: the font, and with
+                                # it the layout, grows and the buttons are fitted again.
+                                $form.Size = $size
+                                $to = $scale + 0.25
+                                $fonts2 += New-Object System.Drawing.Font($f[0], [single]($f[1] * $to), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
+                                $form.Font = $fonts2[-1]
+                                [void]$fitForm.Invoke($null, @($form, [single](96 * $to)))
+                            }
+                        }
+                        foreach ($page in $(if ($panel.Count -eq 1) { 'joint page', 'link page' } else { 'form' })) {
+                            if ($panel.Count -eq 1) {
+                                $panel[0].Visible = $page -eq 'link page'
+                                foreach ($c in $form.Controls) { if ($c -ne $panel[0]) { $c.Visible = $page -eq 'joint page' } }
+                            }
+                            [System.Windows.Forms.Application]::DoEvents()
+                            $problems = New-Object System.Collections.ArrayList
+                            Test-ButtonRow $form $page "$($type.Name) [$language $($f[0]) $($f[1])pt x$scale $state]" $problems
+                            foreach ($p in $problems) { [void]$report.Add($p) }
+                            $total += $problems.Count
+                        }
+                    }
+                } finally { $form.Dispose(); foreach ($old in $fonts2) { $old.Dispose() } }
+            }
+        }
+    }
+}
+
 # Boxes that show a number: every single-line text box and spin box except those holding a name or a path.
 $textBoxNames = 'textBoxJointName', 'textBoxTexture', 'textBox_texture', 'textBox_save_as'
 function Get-NumberBoxes([System.Windows.Forms.Control]$parent) {
@@ -804,38 +844,6 @@ foreach ($typeName in $formTypes) {
                     $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
                     $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
                     $panel = @($form.Controls.Find('panelLinkProperties', $false))
-                    $size = $form.Size
-                    foreach ($state in 'default', 'large', 'small', 'dpi') {
-                        switch ($state) {
-                            'large' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 1.3), [int]($size.Height * 1.2)) }
-                            'small' { $form.Size = New-Object System.Drawing.Size([int]($size.Width * 0.8), [int]($size.Height * 0.8)) }
-                            'dpi' {
-                                # The window moves to a monitor with the next larger scaling: the font, and with
-                                # it the layout, grows and the buttons are fitted again.
-                                $form.Size = $size
-                                $to = $scale + 0.25
-                                $fonts2 += New-Object System.Drawing.Font($f[0], [single]($f[1] * $to), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Point)
-                                $form.Font = $fonts2[-1]
-                                [void]$fitForm.Invoke($null, @($form, [single](96 * $to)))
-                            }
-                        }
-                        foreach ($page in $(if ($panel.Count -eq 1) { 'joint page', 'link page' } else { 'form' })) {
-                            if ($panel.Count -eq 1) {
-                                $panel[0].Visible = $page -eq 'link page'
-                                foreach ($c in $form.Controls) { if ($c -ne $panel[0]) { $c.Visible = $page -eq 'joint page' } }
-                            }
-                            [System.Windows.Forms.Application]::DoEvents()
-                            $problems = New-Object System.Collections.ArrayList
-                            Test-ButtonRow $form $page "$($type.Name) [$language $($f[0]) $($f[1])pt x$scale $state]" $problems
-                            foreach ($p in $problems) { [void]$report.Add($p) }
-                            $total += $problems.Count
-                        }
-                    }
-                } finally { $form.Dispose(); foreach ($old in $fonts2) { $old.Dispose() } }
-            }
-        }
-    }
-}
                     $pages = if ($panel.Count -eq 1) { 'joint page', 'link page' } else { 'form' }
                     foreach ($page in $pages) {
                         $root = $form
@@ -868,6 +876,48 @@ foreach ($typeName in $formTypes) {
     }
 }
 $wideForm.Dispose()
+
+# The property area moves as one piece (issue #267). A longer limit source text moves it down and a
+# shorter one back up: each move keeps the distance of every control to the parent link caption, so
+# that the parent and child link names stay on the lines of their captions.
+$assemblyForm = $assembly.GetType('SW2URDF.UI.AssemblyExportForm', $true)
+$makeRoom = $assemblyForm.GetMethod('MakeJointHeaderRoom', $flags)
+if ($makeRoom) {
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($scale in $fontScales) {
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $form = New-Form $assemblyForm $font ([single](96 * $scale)) $ui
+            try {
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                $form.ShowInTaskbar = $false; $form.Show()
+                @($form.Controls.Find('panelLinkProperties', $false))[0].Visible = $false
+                [System.Windows.Forms.Application]::DoEvents()
+                $content = @($form.Controls.Find('panelJointContent', $true))[0]
+                $caption = @($form.Controls.Find('label64', $true))[0]
+                $tree = @($form.Controls.Find('treeViewJointTree', $true))[0]
+                $source = @($form.Controls.Find('labelLimitSource', $true))[0]
+                $area = @($content.Controls | Where-Object { $_.Left -ge $tree.Right -and $_.Top -ge $caption.Top -and $_ -ne $source -and (Test-Shown $_) })
+                $start = $caption.Top
+                $distance = @{}; foreach ($c in $area) { $distance[$c.Name] = $c.Top - $caption.Top }
+                $problems = New-Object System.Collections.ArrayList
+                foreach ($lines in 8, 12, 1, 9, 1) {
+                    $source.Text = (1..$lines | ForEach-Object { "limit source line $_" }) -join "`n"
+                    [void]$makeRoom.Invoke($form, @())
+                    [System.Windows.Forms.Application]::DoEvents()
+                    if ($lines -gt 5 -and $caption.Top -le $start) { [void]$problems.Add("$lines lines: the parent link row does not move down") }
+                    if ($lines -eq 1 -and $caption.Top -ne $start) { [void]$problems.Add("$lines lines: the parent link row moves from $start to $($caption.Top)") }
+                    foreach ($c in $area) {
+                        if ($c.Top - $caption.Top -ne $distance[$c.Name]) { [void]$problems.Add("$lines lines: $($c.Name) is $($c.Top - $caption.Top) px below the parent link caption instead of $($distance[$c.Name])") }
+                    }
+                }
+                foreach ($p in $problems) { [void]$report.Add("AssemblyExportForm [header room $language x$scale] joint page : $p") }
+                $total += $problems.Count
+            } finally { $form.Dispose(); $font.Dispose() }
+        }
+    }
+}
 
 $report | ForEach-Object { Write-Output $_ }
 Write-Output "Layout problems: $total"

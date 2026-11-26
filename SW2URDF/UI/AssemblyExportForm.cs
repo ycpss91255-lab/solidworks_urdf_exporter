@@ -302,9 +302,12 @@ namespace SW2URDF.UI
             {
                 return;
             }
+            // Where the area begins before the move: the caption of the parent link is moved as well, and
+            // the controls after it would be compared with its new place and stay behind.
+            int areaTop = label64.Top - gap;
             foreach (Control c in panelJointContent.Controls)
             {
-                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= label64.Top - gap)
+                if (c != labelLimitSource && c.Left >= treeViewJointTree.Right && c.Top >= areaTop)
                 {
                     c.Top += move;
                 }
