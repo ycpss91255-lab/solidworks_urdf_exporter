@@ -115,7 +115,11 @@ SCENARIOS = {
     "mesh_yes": ("LIM_HINGE", tree(), None, opened(("next",), ("answer", "Yes"), MODEL_ONLY, ("asked", "once"))),
     "mesh_no": ("LIM_HINGE", tree(), None, opened(("next",), ("answer", "No"), MODEL_ONLY, ("asked", "once"))),
     "mesh_cancel": ("LIM_HINGE", tree(), None, opened(("next",), ("answer", "Cancel"), MODEL_ONLY, ("asked", "once"))),
-    "mesh_present": ("LIM_HINGE", tree(), None, PLAIN + opened(("next",), ("answer", "Cancel"), MODEL_ONLY, ("asked", "after"))),
+    "mesh_present": ("LIM_HINGE", tree(), None, PLAIN + opened(("next",), ("answer", "Cancel"), MODEL_ONLY, ("asked", "after"), ("overwritten", "after"))),
+    # an export into the package of an earlier export: asked first; No writes nothing and keeps the form, Yes exports
+    "overwrite_no": ("LIM_HINGE", tree(), None, PLAIN + opened(
+        ("next",), ("snapshot", "before", PACKAGE), ("overwrite", "No"), FULL[0], ("form", "refused"), ("overwritten", "refused"),
+        ("snapshot", "refused", PACKAGE), ("overwrite", "Yes"), FULL[0], ("overwritten", "accepted"), ("snapshot", "accepted", PACKAGE))),
     # 3DXML and the part form
     "multi_3dxml": ("FORM_MULTI", form.MULTI_TREE, None, opened(("next",), ("radio", "radioButton3dxml")) + FULL),
     "part_stl": ("FORM_BLOCK", tree(), None, [("part",), ("export_part", "stl", PACKAGE)]),
@@ -403,9 +407,25 @@ def evaluate(check, cases, measured, guard):
                         "asked %s, names both links: %s, robot file: %s, meshes %s" % (case.values.get("asked.once"), "arm" in question and "base_link" in question,
                                                                                       case.robot_file() is not None, case.files("meshes")), case.proof)
 
-    @add("mesh_present.result", "Export Model File Only after a full export into the same package: nothing is asked")
+    @add("mesh_present.result", "Export Model File Only after a full export into the same package: nothing is asked about meshes")
     def mesh_present(ident, title):
         check.equal(ident, title, "0", cases["mesh_present"].values.get("asked.after"), cases["mesh_present"].proof)
+
+    # ---- an export into an existing package
+    @add("mesh_present.overwrite", "Export Model File Only into the package of an earlier export: asked once whether to overwrite it, naming its folder")
+    def mesh_present_overwrite(ident, title):
+        v = cases["mesh_present"].values
+        check.equal(ident, title, "asked 1, names the folder: True",
+                    "asked %s, names the folder: %s" % (v.get("overwrite.after"), "\\" + PACKAGE in v.get("overwrites", "")), cases["mesh_present"].proof)
+
+    @add("overwrite.refused", "export into an existing package, answer No: nothing written, the form stays open; answer Yes: the package is written and the form closes")
+    def overwrite_refused(ident, title):
+        v = cases["overwrite_no"].values
+        check.equal(ident, title, "asked 1 then 2, files kept: True, form open, written after Yes: True, form closed: True",
+                    "asked %s then %s, files kept: %s, form %s, written after Yes: %s, form closed: %s" % (
+                        v.get("overwrite.refused"), v.get("overwrite.accepted"), v.get("snapshot.before") == v.get("snapshot.refused") != "none",
+                        v.get("form.refused"), v.get("snapshot.accepted") != v.get("snapshot.refused"), v.get("export.%s.closed" % PACKAGE)),
+                    cases["overwrite_no"].proof)
 
     # ---- 3DXML
     @add("3dxml.files", "3DXML: one mesh per link and nothing else, each a 3DXML archive with geometry")
@@ -488,6 +508,8 @@ def changes(proofs):
         "mesh_no.result": lambda c: c.tsv("mesh_no", asked__once="0"),
         "mesh_cancel.result": lambda c: c.tsv("mesh_cancel", asked__once="0"),
         "mesh_present.result": lambda c: c.tsv("mesh_present", asked__after="1"),
+        "mesh_present.overwrite": lambda c: c.tsv("mesh_present", overwrite__after="0"),
+        "overwrite.refused": lambda c: c.tsv("overwrite_no", snapshot__refused="9 files 00000000"),
         "part_stl.files": remove_mesh("part_stl", PACKAGE + ".STL"),
         "part_obj.files": remove_mesh("part_obj", PACKAGE + ".mtl"),
         "type_hinge_revolute.urdf": limit("type_hinge_revolute", "arm_joint", "lower"),
