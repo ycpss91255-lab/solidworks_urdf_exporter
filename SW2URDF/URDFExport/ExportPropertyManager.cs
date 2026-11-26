@@ -157,8 +157,6 @@ namespace SW2URDF.URDFExport
             int controlType = 0;
             int alignment = 0;
 
-            ActiveSWModel.ShowConfiguration2("URDF Export");
-
             #region Create and instantiate components of PM page
 
             //Set the variables for the page

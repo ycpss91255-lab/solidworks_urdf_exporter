@@ -43,6 +43,12 @@ namespace SW2URDF.URDF
             set => VelocityAttribute.Value = value;
         }
 
+        /// <summary>True when both the lower and the upper limit have a value; Lower and Upper can only be read then.</summary>
+        public bool HasRange()
+        {
+            return LowerAttribute.IsSet() && UpperAttribute.IsSet();
+        }
+
         public Limit() : base("limit", false)
         {
             EffortAttribute = new URDFAttribute("effort", true, null);
@@ -77,10 +83,24 @@ namespace SW2URDF.URDF
                 // If all text boxes are empty and this element isn't required, then leave blank
                 return;
             }
-            LowerAttribute.SetDoubleValueFromString(boxLower.Text);
-            UpperAttribute.SetDoubleValueFromString(boxUpper.Text);
-            EffortAttribute.SetDoubleValueFromString(boxEffort.Text);
-            VelocityAttribute.SetDoubleValueFromString(boxVelocity.Text);
+            SetValue(LowerAttribute, boxLower.Text);
+            SetValue(UpperAttribute, boxUpper.Text);
+            SetValue(EffortAttribute, boxEffort.Text);
+            SetValue(VelocityAttribute, boxVelocity.Text);
+        }
+
+        // A blank box of a joint that needs limits leaves the value unset, which is reported as a missing
+        // required field; a 0 nobody typed would be exported as a limit.
+        private void SetValue(URDFAttribute attribute, string text)
+        {
+            if (IsRequired() && string.IsNullOrWhiteSpace(text))
+            {
+                attribute.Value = null;
+            }
+            else
+            {
+                attribute.SetDoubleValueFromString(text);
+            }
         }
 
         public override void SetRequired(bool required)
@@ -96,6 +116,43 @@ namespace SW2URDF.URDF
             UpperAttribute.SetRequired(IsRequired());
             LowerAttribute.SetRequired(IsRequired());
             return base.AreRequiredFieldsSatisfied();
+        }
+
+        // The type of the joint decides what is exported. The values that are not exported stay, so they
+        // are still there when the joint gets its earlier type again. Not serialized.
+        private string jointType;
+
+        public void SetJointType(string type)
+        {
+            jointType = type;
+        }
+
+        protected override bool WritesAttribute(URDFAttribute attribute)
+        {
+            bool range = attribute == LowerAttribute || attribute == UpperAttribute;
+            return jointType != "fixed" && !(range && jointType == "continuous");
+        }
+
+        public override bool ElementContainsData()
+        {
+            return Attributes.Exists(attribute => attribute.Value != null && WritesAttribute(attribute));
+        }
+
+        /// <summary>Clears the values of blank boxes, for a joint that can do without limits.</summary>
+        public void UnsetBlank(TextBox boxLower, TextBox boxUpper, TextBox boxEffort, TextBox boxVelocity)
+        {
+            UnsetBlank(LowerAttribute, boxLower);
+            UnsetBlank(UpperAttribute, boxUpper);
+            UnsetBlank(EffortAttribute, boxEffort);
+            UnsetBlank(VelocityAttribute, boxVelocity);
+        }
+
+        private static void UnsetBlank(URDFAttribute attribute, TextBox box)
+        {
+            if (string.IsNullOrWhiteSpace(box.Text))
+            {
+                attribute.Value = null;
+            }
         }
     }
 }

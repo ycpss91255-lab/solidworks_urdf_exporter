@@ -345,7 +345,7 @@ namespace SW2URDF.SW
 
             try
             {
-                if (ConfigurationSerialization.EnsureConfigurationAttributes((SldWorks)SwApp, modeldoc))
+                if (ConfigurationSerialization.EnsureConfigurationAttributes((SldWorks)SwApp, modeldoc, ui))
                 {
                     ConfigurationSerialization.PersistDocument(modeldoc, ui);
                 }

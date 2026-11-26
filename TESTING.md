@@ -74,9 +74,11 @@ manual checklist for the user interface.
 
 The same applies to assemblies and parts (the part exporter stores the inertial, visual and collision values
 this way). Details and versioning rules: `CONFIGURATION_FORMAT.md`.
-Renaming a SolidWorks configuration does not rename its attribute: the settings are then not found for the new
-name (the legacy fallback applies, else "new settings") and the old attribute is reported in the log as an
-orphan. Nothing is deleted or blocked. The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
+Renaming a SolidWorks configuration does not rename its attribute. When the exporter opens with the renamed
+configuration active, and it has no settings of its own, it asks whether to use the settings of the old name.
+*Yes* moves them to the new name (the old entry stays, empty). *No* changes nothing: the legacy fallback
+applies, else "new settings", the old attribute is reported in the log as an orphan, and the question comes
+again until the new name has settings (a copy of the legacy ones counts). The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
 
 ### 1. Unit tests (no SolidWorks needed)
 
@@ -143,10 +145,11 @@ data; they are saved to this configuration on the next save."* or *"... New sett
 1. Non-ASCII: name the link `連桿_底座` and save. Reopen the exporter and the model. Expect the name unchanged
    (no `?` and no empty name). Also create a configuration named `配置_甲`, save a link there and switch back
    and forth.
-1. Rename a configuration (`CFG_RED_ONLY` to `CFG_RENAMED`). Open the exporter: expect the legacy data or
-   *new settings* for `CFG_RENAMED`, no error dialog. In the log expect a warning "URDF configuration
+1. Rename a configuration (`CFG_RED_ONLY` to `CFG_RENAMED`). Open the exporter with `CFG_RENAMED` active: expect
+   the question whether to use the settings of `CFG_RED_ONLY`. Answer *No*: expect the legacy data or *new
+   settings*, no error dialog. Without legacy data: cancel, open again and answer *Yes*: expect the tree of `CFG_RED_ONLY` and
+   *Stored for this configuration*. Open again: expect no question. After the *No*, in the log expect a warning "URDF configuration
    attributes that match no SolidWorks configuration (a configuration may have been renamed): CFG_RED_ONLY".
-   Save once to give the new name its own settings.
 1. Suppressed part: with `CFG_RED_ONLY` active and a link that holds the blue box (saved under the shared
    data), expect the missing-component warning only in that configuration.
 
@@ -274,9 +277,9 @@ Checks per exported package (`PASS` or `FAIL` each):
 * repeat: the second export into the same folder is the same (OBJ, MTL and the rest byte for byte, URDF and CSV
   equal to 1e-9 relative, because SolidWorks' mass properties carry noise near 1e-19);
 * cancel: a cancelled export keeps the previous output byte for byte and leaves no temporary file;
-* texture: no exception, a message in the SolidWorks language that names the link, no URDF, OBJ, MTL or CSV
-  written into a fresh folder, the failure marker written, an existing OBJ, MTL and URDF kept byte for byte, and
-  the converter's own message for the left-over 3DXML says that image textures are not supported.
+* texture: no exception, a message in the SolidWorks language that names the link, the texture as the reason and
+  what can be done (STL, 3DXML or no texture), no URDF, OBJ, MTL or CSV written into a fresh folder, the failure
+  marker written, an existing OBJ, MTL and URDF kept byte for byte, and the converter's own message for the left-over 3DXML says that image textures are not supported.
 
 How the host drives the export: it makes the same calls as the add-in (`ConfigurationSerialization`,
 `ExportHelper`, `ObjConverter`, the progress dialog class). Two things the property page does before exporting have
@@ -322,8 +325,8 @@ Observations (`INFO`, not failures):
 * Every export shows the "Creating URDF Package ... at ..." message box of the exporter (the host records it).
 * A cancelled assembly export shows the generic "Exporting the URDF failed unexpectedly" message, not one that
   says it was cancelled; the previous output is kept as required.
-* The failed texture export tells the user that the mesh could not be exported and points to the log; the reason
-  (image textures are not supported) is only in the converter's message and the log.
+* In this run the failed texture export told the user only that the mesh could not be exported; the reason was in
+  the converter's message and the log. Since issue 206 the message names the texture.
 * A host that does not generate the base frame before building the robot gets the base link's inertia in the
   global frame while the mesh is in the link frame (the `TWO_BOXES` centre of mass then differs from SolidWorks'
   by a 90 degree turn). The add-in's property page generates the frame first, so the add-in itself is not
@@ -342,7 +345,7 @@ is followed by the list of differences, each with its element path such as
 `robot[x]/link[base]/inertial/mass@value`), then a summary table, and can write `--json` and `--markdown`.
 
     python scripts/check_xacro_equivalence.py                          # every examples/**/urdf/*.urdf, expanded with xacro
-    python scripts/check_xacro_equivalence.py --pair a.urdf a.urdf.xacro   # a plain URDF against its xacro (repeatable)
+    python scripts/check_xacro_equivalence.py --pair a.urdf a.xacro        # a plain URDF against its xacro (repeatable)
     python scripts/check_xacro_equivalence.py --expanded a.urdf expanded.urdf   # against an already expanded file; no xacro needed
     python scripts/check_xacro_equivalence.py --identity               # each committed example against itself; no xacro needed
 
@@ -423,6 +426,119 @@ change the flag there.
 Not covered: limit mates on advanced hinge/slider mates, joints whose parent is itself moving, limit mates
 inside sub-assemblies (the dimension is looked up in the top-level document), several limit mates on one joint.
 
+
+## Limit mates driven by equations (`scripts/test_limit_equations_live.py`)
+
+`scripts/make_limit_equation_fixture.py` builds the minimal `LIMIT_EQUATIONS` model: a fixed plate, a hinge arm
+with an angle limit mate (60 .. 180 deg) and a slide block with a distance limit mate (5 .. 30 mm). The global
+variables `base_angle` and `base_dist` drive the value of each limit mate (`"D1@HINGE_LIMIT" = "base_angle"`,
+`"D1@SLIDE_LIMIT" = "base_dist"`) and have their own values in the configurations `CFG_A` (90 deg, 10 mm) and
+`CFG_B` (120 deg, 20 mm).
+
+`scripts/test_limit_equations_live.py` builds the model in a temporary folder, compiles
+`scripts/LimitEquationsLiveProbe.cs` against a built `SW2URDF.dll` and runs it. The probe reads each mate with the
+exporter's own `ReadLimitMateValues` and compares the variations exactly with `(limit - value) * pi / 180` (or
+`/ 1000` for mm) computed from the typed numbers, for: the global variables of `CFG_A`; plain equations
+(`"base_angle" * 0.75 + 10.2`, `"base_dist" * 1.25`); a change of both variables followed by a rebuild; `CFG_B`;
+`CFG_A` again. Usage: `python scripts/test_limit_equations_live.py --dll <folder> --launcher <launcher>` or
+`--pid <pid>` of an instance you own with no open documents.
+
+What the live run showed:
+
+* When an equation or a global variable sets the value of an angle limit mate, SOLIDWORKS stores the evaluated
+  value rounded to about 15 significant digits: 90 deg is stored as `1.5707963267949` rad, not pi/2. Without
+  handling this, the limits were off in the 15th digit (`1.57079632679489` instead of `1.5707963267949`). Such a
+  value is now put back on its decimal like a typed one. Distances came back exact.
+* The feature data holds the new value right after a global variable changes, before the rebuild, so the
+  exporter does not need to rebuild before it reads the limits.
+* A limit mate has one dimension only, its value (`D1`). SOLIDWORKS rejects equations for the maximum and the
+  minimum (`"D2@<mate>"`, `"$UPPERLIMIT_ANGLE@<mate>"`), and changing them through the feature data changes every
+  configuration. Only a design table can give them other values per configuration, so the fixture types them.
+## Export form, end to end (`scripts/test_form_e2e.py`)
+
+One command that runs the manual export form checks without a person: it builds small models, opens the real
+`AssemblyExportForm` with the real `ExportHelper`, switches units, types, changes pages and joints, exports through
+the form's buttons and the Save As dialog, and checks the written files. Needs Windows, SolidWorks, Python 3 with
+`pywin32`, the .NET Framework `csc.exe` and a folder with a built `SW2URDF.dll`.
+
+    python scripts/test_form_e2e.py --dll <folder> --launcher <launch_solidworks.py> --out <new folder>
+    python scripts/test_form_e2e.py --dll <folder> --pid <pid of your own empty SolidWorks> --out <new folder>
+    python scripts/test_form_e2e.py --evaluate <folder of a run>     # check the recorded files again, no SolidWorks
+    python scripts/test_form_e2e.py --prove <folder of a run>        # prove that the checks can fail, no SolidWorks
+
+Output: a table on the console, `result.md` / `result.json` (check, expected, actual, result, proof file), and the
+recorded files of every scenario (`probe.tsv`, `steps.txt`, the exported package). Exit code `0` nothing failed, `1` at
+least one check failed, `3` the time limit was reached. A check that needs a feature the build does not have (angle
+unit, `.xacro` name, 12 digit boxes; found by reflection) or a tool that is not installed (`xacro`) is `SKIPPED`.
+
+Parts:
+
+| File | Role |
+|------|------|
+| `make_form_fixtures.py` | the parts and the assemblies without mates |
+| `FormE2eProbe.cs` | the host: adds and measures the mates (with `LimitLiveProbe.cs`), carries out the steps of a scenario in the form, reads the reference values from SolidWorks. Decides nothing |
+| `test_form_e2e.py` | scenarios, expectations, result. All expectations come from the typed inputs, the measured motion of the arm, and SolidWorks mass properties and transforms, never from the exporter |
+| `form_e2e_joints.py` | more scenarios and checks of `test_form_e2e.py`: limit mates, joint types, blank boxes, Cancel, 3DXML, the part form |
+| `form_e2e_proofs.py` | one change per check that must make that check fail (those of `form_e2e_joints.py` are in that file) |
+
+The models: a hinge with an angle limit mate (60 to 180 degrees, value 90), a slide with a distance limit mate (0 to
+30 mm, value 10), the same slide without its limit mate, the hinge placed so that the arm lies on the assembly origin,
+and an assembly with both, a fixed post and an L shaped block that is turned in the assembly and has a link frame that
+is turned in another way. Further models are a hinge whose arm is locked to a block that comes first in the link, a hinge
+whose arm is in a sub-assembly, an arm on the assembly origin that is fully defined, without a mate, or free in a plane,
+an arm that can turn and slide, with a reference axis that has a Chinese name, and two instances of a sub-assembly with a
+part that has an axis and a coordinate system of its own. All of them are made in the folder of
+the run; only copies are exported.
+
+Nothing appears on the user's desktop. The host runs on a Windows desktop of its own and refuses to run on another
+one; every dialog there is answered by a watcher, recorded, and reported as a failure unless it is the Save As dialog.
+The host has a time limit per scenario, the script one for the whole run. `HKCU\Software\SW2URDF\AngleUnit` is written
+to `angle_unit_before.json`, cleared before each scenario and put back at the end (also after a time limit). The
+exporter log goes to a scratch folder. `--exe-hook` runs a command on the host program after it is compiled.
+
+A run takes about 25 minutes, and SolidWorks grows with every model; use a fresh instance for every run. The script
+stops when Windows has less than `--min-free-gb` (4) of memory left, so that other programs do not run out of it. With
+little memory, run a few scenarios at a time with `--scenario` (repeatable) into one folder per run, copy the scenario
+folders of all runs into the first one, and check them together with `--evaluate`. A new run builds the models again;
+the checks compare within one scenario or between scenarios of the same geometry, so that this gives the same result.
+
+A process on another desktop cannot see the Running Object Table of the user's desktop. The script binds to
+`SolidWorks_PID_<pid>` and hands the interface over marshalled in a file; the host checks the process id again.
+
+What it checks:
+
+* hinge and slide: exact limit text in the URDF with the form untouched and left in degrees; the page texts in both
+  units; the direction of the limits against the measured motion;
+* no edit: untouched twice, pages and joints visited and the unit switched, form left in degrees: the same package.
+  Joint elements are compared as text; masses and inertias within 2e-15 relative or 1e-18, because SolidWorks itself
+  returns different last digits for two opened copies (a 12 digit rounding would be 1000 times larger);
+* edits: typed with key presses, in degrees and radians; exact radian text in the URDF, and the page after unit switches
+  and after the link page;
+* several joints: boxes kept while switching, an edit of one joint changes only that joint in the URDF;
+* slide: m stays m, only roll, pitch and yaw are converted;
+* the unit is remembered by the next form;
+* xacro: file name, content, launch files (the expansion only when the `xacro` tool is installed);
+* Export Model File Only writes no mesh; the full export one per link (STL; OBJ and MTL; 3DXML);
+* limit mates on the second component of the child link and inside a sub-assembly; a child on the assembly origin;
+* the joint type the user chose against what the mates allow: the URDF, or a message and no preview;
+* blank limit boxes and the axis 0 0 0: one message, and the page stays; what is typed after the message counts;
+* a joint made fixed, and made revolute again; Cancel on both pages and a new preview;
+* an axis with a Chinese name: page, URDF, settings of the document and of the saved file;
+* axis and coordinate system of a part inside a sub-assembly, for both instances of it (STL, OBJ, 3DXML);
+* going between the two pages several times, with links and joints selected on the way: no value moves to another link;
+* Export Model File Only when mesh files are missing: the question and its three answers; none when they exist;
+* a mesh origin typed on the link page moves the visual and the collision mesh in the link frame (STL, OBJ, 3DXML);
+* an OBJ export that is refused because of a texture, and STL in the same form;
+* saved settings: a value of the link on display, another configuration activated while the form is open, a configuration
+  that was renamed;
+* the part form (STL and OBJ) against SolidWorks;
+* the URDF against SolidWorks, for every link: frame through the URDF joints, mass, center of mass, inertia tensor
+  (put together from principal moments and axes, which have no sign convention), corners and bounding box of the
+  visual and the collision mesh placed by the URDF; the joint axis against the boss it turns about.
+
+Not covered, still for a person: whether the form looks good, dragging it between real monitors with different scaling,
+the form inside the SolidWorks process (the PropertyManager page, its window as a child of SolidWorks), opening and
+saving of the model around the export, and real mouse input.
 
 ## Known limitations
 

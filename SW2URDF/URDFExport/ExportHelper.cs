@@ -65,14 +65,17 @@ namespace SW2URDF.URDFExport
 
         private UserProgressBar progressBar;
 
-        // File names already used for meshes and textures in the current export. Two links or textures
-        // must never end up in the same file (issue 62); the names inside the URDF are not affected.
-        private readonly HashSet<string> usedMeshFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // File names of the meshes and textures of the current export. Two links or textures must never
+        // end up in the same file (issue 62); the names inside the URDF are not affected.
+        private readonly Dictionary<Link, MeshFile> meshFiles = new Dictionary<Link, MeshFile>();
         private readonly HashSet<string> usedTextureFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> textureFileNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         // Links whose mesh could not be written in the current export (issue 61).
         private readonly List<string> failedMeshLinks = new List<string>();
+
+        // Those of them that the OBJ export refused because of a texture (issue 206).
+        private List<string> texturedMeshLinks;
 
         [XmlIgnore]
         public ModelDoc2 ActiveSWModel;
@@ -114,8 +117,9 @@ namespace SW2URDF.URDFExport
             SavePath = System.Environment.ExpandEnvironmentVariables("%HOMEDRIVE%%HOMEPATH%");
             PackageName = ActiveSWModel.GetTitle();
 
-            ReferenceCoordinateSystemNames = FindRefGeoNames("CoordSys");
-            ReferenceAxesNames = FindRefGeoNames("RefAxis");
+            ReferenceCoordinateSystemNames = new List<string>();
+            ReferenceAxesNames = new List<string>();
+            UpdateReferenceGeometries();
 
             ComputeInertialValues = true;
             ComputeVisualCollision = true;
@@ -157,7 +161,7 @@ namespace SW2URDF.URDFExport
         {
             //Setting up the progress bar
             logger.Info("Beginning the export process");
-            usedMeshFileNames.Clear();
+            meshFiles.Clear();
             usedTextureFileNames.Clear();
             textureFileNames.Clear();
             int progressBarBound = CommonSwOperations.GetCount(URDFRobot.BaseLink);
@@ -219,11 +223,16 @@ namespace SW2URDF.URDFExport
             ActiveSWModel.HideComponent2();
 
             failedMeshLinks.Clear();
+            texturedMeshLinks = new List<string>();
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
             bool success = false;
             try
             {
                 logger.Info("Beginning individual files export");
+                foreach (MeshFile meshFile in MeshFiles.ForRobot(URDFRobot.BaseLink, package, meshFormat))
+                {
+                    meshFiles[meshFile.Link] = meshFile;
+                }
                 ExportFiles(URDFRobot.BaseLink, package, 0, exportSTL, meshFormat);
                 success = true;
             }
@@ -254,7 +263,7 @@ namespace SW2URDF.URDFExport
                 logger.Error("Mesh export failed for: " + failed + ". The URDF was not written.");
                 MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, failedMeshLinks);
                 progressBar.End();
-                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failed));
+                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failedMeshLinks, texturedMeshLinks));
                 return;
             }
 
@@ -272,9 +281,24 @@ namespace SW2URDF.URDFExport
             progressBar.End();
         }
 
+        /// <summary>
+        /// Names of the links whose mesh file the URDF would refer to but that does not exist in the package.
+        /// </summary>
+        public List<string> GetLinksWithoutMeshFile(MeshExportFormat meshFormat)
+        {
+            return MeshFiles.LinksWithoutFile(
+                URDFRobot.BaseLink, new URDFPackage(PackageName, SavePath), meshFormat);
+        }
+
         public List<string> GetJointNames()
         {
-            List<string> jointNames = new List<string>();
+            return GetJoints().ConvertAll(joint => joint.Name);
+        }
+
+        /// <summary>The joints of the robot, without the one of the base link.</summary>
+        public List<Joint> GetJoints()
+        {
+            List<Joint> joints = new List<Joint>();
 
             Queue<Link> queue = new Queue<Link>();
             queue.Enqueue(URDFRobot.BaseLink);
@@ -283,7 +307,7 @@ namespace SW2URDF.URDFExport
                 Link current = queue.Dequeue();
                 if (current.Parent != null)
                 {
-                    jointNames.Add(current.Joint.Name);
+                    joints.Add(current.Joint);
                 }
 
                 foreach (Link child in current.Children)
@@ -292,7 +316,7 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            return jointNames;
+            return joints;
         }
 
         //Recursive method for exporting each link (and writing it to the URDF)
@@ -334,33 +358,9 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            // Create the mesh filenames. Link names may hold characters that are not allowed in file names
-            // (SolidWorks likes to use /), so the file name is derived from the name; the link name itself is kept.
-            string linkName = FileNames.UniqueFileName(link.Name, usedMeshFileNames);
-            string meshFilename = package.MeshesDirectory + linkName;
-            string windowsMeshFileName = package.WindowsMeshesDirectory + linkName;
-            switch(meshFormat)
-            {
-                case MeshExportFormat.STL:
-                    meshFilename += ".STL";
-                    windowsMeshFileName += ".STL";
-                    break;
-
-                case MeshExportFormat.OBJ:
-                    meshFilename += ".obj";
-                    windowsMeshFileName += ".obj";
-                    break;
-
-                case MeshExportFormat.THREEDXML:
-                    meshFilename += ".3dxml";
-                    windowsMeshFileName += ".3dxml";
-                    break;
-
-                default:
-                    meshFilename += ".STL";
-                    windowsMeshFileName += ".STL";
-                    break;
-            }
+            MeshFile meshFile = meshFiles[link];
+            string meshFilename = meshFile.Filename;
+            string windowsMeshFileName = meshFile.WindowsFilename;
             // Export STL
             if (exportSTL)
             {
@@ -391,6 +391,10 @@ namespace SW2URDF.URDFExport
                 {
                     logger.Error("Exporting the mesh of link " + link.Name + " failed", e);
                     exported = false;
+                    if (e is TextureNotSupportedException)
+                    {
+                        texturedMeshLinks.Add(link.Name);
+                    }
                 }
                 if (!exported)
                 {
@@ -425,13 +429,7 @@ namespace SW2URDF.URDFExport
 
             MathTransform frame = GetCoordinateSystemTransform(coordsysName);
             if (frame == null) throw new InvalidOperationException("Missing OBJ link frame: " + coordsysName);
-            Matrix<double> inverse = MathOps.GetTransformation(frame).Inverse();
-            foreach (Origin origin in new[] { link.Visual.Origin, link.Collision.Origin })
-            {
-                Matrix<double> local = MathOps.GetTransformation(origin.GetXYZ(), origin.GetRPY()) * inverse;
-                origin.SetXYZ(MathOps.GetXYZ(local));
-                origin.SetRPY(MathOps.GetRPY(local));
-            }
+            PlaceGlobalMesh(link, frame);
 
             CommonSwOperations.ShowComponents(ActiveSWModel, link.SWComponents);
             try
@@ -440,6 +438,19 @@ namespace SW2URDF.URDFExport
                 SaveNative3dxml(ActiveSWModel, source);
             }
             finally { CommonSwOperations.HideComponents(ActiveSWModel, link.SWComponents); }
+        }
+
+        // For vertices in the frame of the assembly: first into the frame of the link, then moved there by the
+        // origin of the link page. STL vertices are written in the frame of the link, so both agree with it.
+        private static void PlaceGlobalMesh(Link link, MathTransform frame)
+        {
+            Matrix<double> inverse = MathOps.GetTransformation(frame).Inverse();
+            foreach (Origin origin in new[] { link.Visual.Origin, link.Collision.Origin })
+            {
+                Matrix<double> local = MathOps.GetTransformation(origin.GetXYZ(), origin.GetRPY()) * inverse;
+                origin.SetXYZ(MathOps.GetXYZ(local));
+                origin.SetRPY(MathOps.GetRPY(local));
+            }
         }
 
         private static void SaveNative3dxml(ModelDoc2 model, string source)
@@ -468,6 +479,14 @@ namespace SW2URDF.URDFExport
 
             logger.Info(link.Name + ": Reference geometry name " + names["component"]);
 
+            // The vertices are in the frame of the assembly, also for a coordinate system in a component.
+            MathTransform frame = null;
+            if (!string.IsNullOrWhiteSpace(coordsysName))
+            {
+                frame = GetCoordinateSystemTransform(coordsysName);
+                if (frame == null) throw new InvalidOperationException("Missing 3DXML link frame: " + coordsysName);
+            }
+
             CommonSwOperations.ShowComponents(ActiveSWModel, link.SWComponents);
 
             int saveOptions = (int)swSaveAsOptions_e.swSaveAsOptions_Silent |
@@ -478,58 +497,13 @@ namespace SW2URDF.URDFExport
 
             // === 3dxml Localize Link === //
 
-            // Remove suffix from coordinate-system name.
-            // ex. "Joint Origin <Arm_link-1>" -> "Joint Origin"
-            // Suffix is included when coordinate is inside sub-assembly.
-            string linkModelName = names["component"];
-            string linkModelSuffix = " <" + linkModelName + ">";
-            if(coordsysName.Contains(linkModelSuffix))
+            // A link without a coordinate system keeps the frame of the assembly.
+            if (frame != null)
             {
-                coordsysName = coordsysName.Replace(linkModelSuffix, "");
-                logger.Info($"Suffix of {linkModelName} was removed from coordsysName : {coordsysName}");
-            }
-
-            // Get the model document of the link.
-            ModelDoc2 linkModel;
-            bool isBaseLink = linkModelName == "";
-            if (isBaseLink)
-            {
-                linkModel = ActiveDoc;
-            }
-            else
-            {
-                if (link.SWMainComponent != null)
-                {
-                    linkModel = link.SWMainComponent.GetModelDoc2();
-                }
-                else
-                {
-                    logger.Warn("Could not get linkModel because SWMainComponent was null");
-                    linkModel = null;
-                }
-            }
-
-            // Localize the link to the certain place.
-            if (linkModel != null)
-            {
-                MathTransform coordSysTransform =
-                    linkModel.Extension.GetCoordinateSystemTransformByName(coordsysName);
-                if (coordSysTransform != null)
-                {
-                    logger.Info("Localizing Link : " + coordsysName);
-                    Matrix<double> GlobalTransform = MathOps.GetTransformation(coordSysTransform);
-                    // Assembly inertial properties are already expressed in the link frame.
-                    // Only the 3dxml geometry needs this placement correction.
-                    LocalizeMeshOrigins(link, GlobalTransform);
-                }
-                else
-                {
-                    logger.Warn("coordSysTransform was null : " + coordsysName);
-                }
-            }
-            else
-            { 
-                logger.Warn("Link model was null.");
+                logger.Info("Localizing Link : " + coordsysName);
+                // Assembly inertial properties are already expressed in the link frame.
+                // Only the 3dxml geometry needs this placement correction.
+                PlaceGlobalMesh(link, frame);
             }
             // === 3dxml Localize Link === //
 
@@ -545,11 +519,22 @@ namespace SW2URDF.URDFExport
             return MeshSaveSucceeded(link, saved, errors, windowsMeshFilename);
         }
 
-        private static string MeshFailureMessage(UiText ui, string failedLinks)
+        private static string MeshFailureMessage(UiText ui, ICollection<string> failedLinks, ICollection<string> texturedLinks)
         {
             string text = ui.Get("The mesh of these links could not be exported: {0}. The URDF was not written and the package is incomplete (see {1}). Check the log and the output folder, then export again.");
-            return string.Format(text, failedLinks, MeshExportCheck.FailureMarkerFileName) + "\n" +
-                string.Format(ui.Get("Email your maintainer with the log file found at {0}"), Logger.GetFileName());
+            string message = string.Format(text, MeshExportCheck.JoinLinkNames(failedLinks), MeshExportCheck.FailureMarkerFileName);
+            if (texturedLinks.Count > 0)
+            {
+                message += "\n" + string.Format(
+                    ui.Get("The OBJ export does not support textures, and these links have one: {0}. Export as STL or 3DXML, or remove the texture."),
+                    MeshExportCheck.JoinLinkNames(texturedLinks));
+            }
+            // A texture needs no maintainer.
+            if (texturedLinks.Count < failedLinks.Count)
+            {
+                message += "\n" + string.Format(ui.Get("Email your maintainer with the log file found at {0}"), Logger.GetFileName());
+            }
+            return message;
         }
 
         // A mesh counts as exported only when SolidWorks says so, reports no error and the file exists.
@@ -678,6 +663,7 @@ namespace SW2URDF.URDFExport
             int errors = 0;
             int warnings = 0;
             bool meshExported = true;
+            bool textured = false;
 
             try
             {
@@ -702,14 +688,16 @@ namespace SW2URDF.URDFExport
             {
                 logger.Error("Exporting the mesh of link " + URDFRobot.BaseLink.Name + " failed", e);
                 meshExported = false;
+                textured = e is TextureNotSupportedException;
             }
             finally { ResetUserPreferences(); }
 
             if (!meshExported)
             {
                 UiText ui = UiText.FromSolidWorks(iSwApp);
-                MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, new[] { URDFRobot.BaseLink.Name });
-                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, URDFRobot.BaseLink.Name));
+                string[] failed = { URDFRobot.BaseLink.Name };
+                MeshExportCheck.WriteFailureMarker(package.WindowsPackageDirectory, failed);
+                URDFPackage.MessageBox.Show(MeshFailureMessage(ui, failed, textured ? failed : new string[0]));
                 return;
             }
             MeshExportCheck.RemoveFailureMarker(package.WindowsPackageDirectory);
