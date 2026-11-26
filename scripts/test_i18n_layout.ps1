@@ -9,7 +9,7 @@
 #   - fixed-size label whose text no longer fits.
 # Problems that exist in English already belong to the form layout, not to the translation,
 # and are reported as a count only. Scaling is simulated by enlarging the form font, which is
-# what AutoScaleMode.Font reacts to (100%, 125%, 150%).
+# what AutoScaleMode.Font reacts to (100%, 125%, 150%, 175%).
 # Pure PowerShell: only signed scripts and signed assemblies run.
 param(
     [string]$AssemblyPath = "$PSScriptRoot/../SW2URDF/bin/x64/Debug/SW2URDF.dll",
@@ -156,7 +156,7 @@ function Test-XacroCheckBox($form, [string]$label) {
 
 $formTypes = @('SW2URDF.UI.AssemblyExportForm', 'SW2URDF.UI.PartExportForm')
 $fonts = @(@('Microsoft Sans Serif', 8.25), @('Microsoft JhengHei UI', 9))
-$scales = @(1.0, 1.25, 1.5)
+$scales = @(1.0, 1.25, 1.5, 1.75)
 $translated = [Activator]::CreateInstance($uiType, @(, [string]$Language))
 $newProblems = New-Object System.Collections.ArrayList
 $baselineCount = 0; $checked = 0

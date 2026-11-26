@@ -29,7 +29,7 @@ namespace SW2URDF.URDF
         }
 
         /// <summary>
-        /// Declares the xacro namespace on the robot element, for a file that is written as .urdf.xacro.
+        /// Declares the xacro namespace on the robot element, for a file that is written as .xacro.
         /// Nothing else changes in the file.
         /// </summary>
         public bool WriteXacro;

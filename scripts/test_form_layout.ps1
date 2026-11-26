@@ -23,7 +23,7 @@ $assembly = [Reflection.Assembly]::LoadFrom($AssemblyPath)
 
 $flags = [Reflection.BindingFlags]'Instance,NonPublic,Public'
 
-function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
+function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi, $ui = $null) {
     $form = [System.Runtime.Serialization.FormatterServices]::GetUninitializedObject($type)
     [void][System.Windows.Forms.Form].GetConstructor($flags, $null, [Type[]]@(), $null).Invoke($form, @())
     if ($font) { $form.Font = $font }
@@ -31,12 +31,25 @@ function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
     $events = [System.ComponentModel.Component].GetProperty('Events', $flags).GetValue($form, @())
     $loadKey = [System.Windows.Forms.Form].GetField('EVENT_LOAD', [Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
     $events.RemoveHandler($loadKey, $events[$loadKey])
+    # Translated the way the constructors translate, before the layout is fitted below.
+    if ($ui) {
+        $field = $type.GetField('ui', $flags)
+        if ($field) { $field.SetValue($form, $ui) }
+        $ui.Apply($form)
+        $align = $type.GetMethod('AlignFieldLabels', $flags)
+        if ($align) { [void]$align.Invoke($form, @()) }
+    }
     # The constructors also grow too-short push buttons (UiLayout); check that state at the DPI being simulated.
     $layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
-    $fit = if ($layoutType) { $layoutType.GetMethod('FitButtonHeights', [Reflection.BindingFlags]'Static,NonPublic,Public') }
-    if ($fit) { [void]$fit.Invoke($null, @($form, $dpi)) }
-    $space = if ($layoutType) { $layoutType.GetMethod('SpaceRows', [Reflection.BindingFlags]'Static,NonPublic,Public') }
-    if ($space) { [void]$space.Invoke($null, @($form, $dpi)) }
+    # FitForm is what the constructors call: it fits the buttons, spaces the rows and makes the form
+    # taller by what that added.
+    $fitForm = if ($layoutType) { $layoutType.GetMethod('FitForm', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+    if ($fitForm) { [void]$fitForm.Invoke($null, @($form, $dpi)) } else {
+        $fit = if ($layoutType) { $layoutType.GetMethod('FitButtonHeights', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+        if ($fit) { [void]$fit.Invoke($null, @($form, $dpi)) }
+        $space = if ($layoutType) { $layoutType.GetMethod('SpaceRows', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+        if ($space) { [void]$space.Invoke($null, @($form, $dpi)) }
+    }
     # Banner with the active configuration: the text is only known at run time, so check the longest case.
     $banner = $form.Controls.Find('labelConfigurationStatus', $true) | Select-Object -First 1
     $layoutHelper = $assembly.GetType('SW2URDF.UI.UiLayout')
@@ -54,6 +67,9 @@ function New-Form([Type]$type, [System.Drawing.Font]$font, [single]$dpi) {
             $stack.Push($c)
         }
     }
+    # Last step of the constructors: what the form does with room beyond its default size.
+    $grow = $type.GetMethod('SetUpGrowLayout', $flags)
+    if ($grow) { [void]$grow.Invoke($form, @()) }
     return $form
 }
 
@@ -177,6 +193,490 @@ foreach ($typeName in $formTypes) {
         }
     }
 }
+
+# Form font (issue #157). The checks above hand the form a font; the real constructors let the form
+# choose its own font for the UI language (UiText.CreateFormFont, set before InitializeComponent).
+# Build the forms that way, in English and Traditional Chinese, and check that
+#   - every control that shows text uses the form's font family and character set (no control
+#     falls back to another face, which in Chinese mixes serif and sans-serif glyphs),
+#   - both languages use Segoe UI 8.5 pt (Windows draws Chinese glyphs through font linking),
+#   - the joint page header has room for a four-line limit source text above the parent link row,
+#   - the layout has no overlap, clipping or touching captions at 100-175 %, both when the form is
+#     built at that scale and when an open form is moved to a monitor with that scale
+#     (UiLayout.ScaleForDpi, what WM_DPICHANGED does in a per-monitor DPI aware host).
+# Without CreateFormFont the form keeps the default font, which is what the forms did before.
+$uiType = $assembly.GetType('SW2URDF.UI.UiText', $true)
+$layoutType = $assembly.GetType('SW2URDF.UI.UiLayout')
+$formFamily = 'Segoe UI'; $formSize = 8.5
+$createFont = $uiType.GetMethod('CreateFormFont', $flags)
+$scaleForDpi = if ($layoutType) { $layoutType.GetMethod('ScaleForDpi', [Reflection.BindingFlags]'Static,NonPublic,Public') }
+
+function Get-FormFont($ui, [double]$scale) {
+    $base = if ($createFont) { $createFont.Invoke($ui, @()) } else { [System.Windows.Forms.Control]::DefaultFont }
+    return New-Object System.Drawing.Font($base.FontFamily, [single]($base.SizeInPoints * $scale), $base.Style, [System.Drawing.GraphicsUnit]::Point, $base.GdiCharSet)
+}
+
+function Test-FormFonts([System.Windows.Forms.Form]$form, [string]$language, $problems) {
+    $family = $form.Font.FontFamily.GetName(1033)
+    $charset = $form.Font.GdiCharSet
+    if ($family -ne $formFamily) { [void]$problems.Add("form font: $family, expected $formFamily") }
+    $stack = New-Object System.Collections.Stack; $stack.Push($form)
+    while ($stack.Count -gt 0) {
+        $parent = $stack.Pop()
+        foreach ($c in $parent.Controls) {
+            $shows = $c -is [System.Windows.Forms.TextBoxBase] -or $c -is [System.Windows.Forms.ComboBox] -or
+                $c -is [System.Windows.Forms.UpDownBase] -or $c -is [System.Windows.Forms.TreeView] -or
+                (-not [string]::IsNullOrEmpty($c.Text) -and ($c -is [System.Windows.Forms.Label] -or
+                    $c -is [System.Windows.Forms.ButtonBase] -or $c -is [System.Windows.Forms.GroupBox]))
+            if ($shows -and ($c.Font.FontFamily.GetName(1033) -ne $family -or $c.Font.GdiCharSet -ne $charset)) {
+                [void]$problems.Add("font: $($c.Name) $($c.Font.FontFamily.GetName(1033)) charset $($c.Font.GdiCharSet) vs form $family charset $charset")
+            }
+            if (-not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox])) { $stack.Push($c) }
+        }
+    }
+}
+
+# Captions stacked in a column (a group title and the caption under it) must not touch.
+function Test-Touching([System.Windows.Forms.Control]$parent, [string]$path, $problems) {
+    $labels = @($parent.Controls | Where-Object { ($_ -is [System.Windows.Forms.Label]) -and (Test-Shown $_) -and -not [string]::IsNullOrEmpty($_.Text) })
+    for ($i = 0; $i -lt $labels.Count; $i++) {
+        for ($j = 0; $j -lt $labels.Count; $j++) {
+            if ($i -eq $j) { continue }
+            $a = Get-Box $labels[$i]; $b = Get-Box $labels[$j]
+            $sideBySide = [Math]::Min($a.Right, $b.Right) - [Math]::Max($a.Left, $b.Left)
+            $gap = $b.Top - $a.Bottom
+            if ($a.Top -le $b.Top -and $sideBySide -gt 1 -and $gap -lt 1 -and $gap -gt -2) {
+                [void]$problems.Add("touching ${path}: $($labels[$i].Name) '$($labels[$i].Text)' $a above $($labels[$j].Name) '$($labels[$j].Text)' $b")
+            }
+        }
+    }
+    foreach ($c in $parent.Controls) {
+        if ($c.Controls.Count -gt 0 -and -not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox]) -and -not ($c -is [System.Windows.Forms.TreeView])) {
+            Test-Touching $c "$path/$($c.Name)" $problems
+        }
+    }
+}
+
+$fontScales = @(1.0, 1.25, 1.5, 1.75)
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($scale in $fontScales) {
+            foreach ($how in @('built', 'moved')) {
+                if ($how -eq 'moved' -and $scale -eq 1.0) { continue }
+                $script:baseFont = $null
+                if ($how -eq 'built') {
+                    $font = Get-FormFont $ui $scale
+                    $form = New-Form $type $font ([single](96 * $scale)) $ui
+                } else {
+                    # Built for a 100 % monitor, then moved to one with this scale.
+                    $font = Get-FormFont $ui 1.0
+                    $form = New-Form $type $font ([single]96) $ui
+                }
+                $label = "$($type.Name) [form font $language x$scale $how]"
+                if ($how -eq 'built' -and $scale -eq 1.0) {
+                    $made = $createFont.Invoke($ui, @())
+                    if ($made.FontFamily.GetName(1033) -ne $formFamily -or [Math]::Abs($made.SizeInPoints - $formSize) -gt 0.01) { [void]$report.Add("$label : CreateFormFont gives $($made.FontFamily.GetName(1033)) $($made.SizeInPoints)pt, expected $formFamily $($formSize)pt"); $total++ }
+                }
+                # A joint with a limit mate shows a four-line limit source text in the joint page header.
+                $source = @($form.Controls.Find('labelLimitSource', $true)) | Select-Object -First 1
+                if ($source) {
+                    $source.Text = [string]::Format($ui.Get('Limit mate {0} ({1})'), 'LimitAngle1', $ui.Get('angle limit mate')) + "`n" +
+                        [string]::Format($ui.Get('SolidWorks range {0} to {1}, reference {2}'), '60 deg', '180 deg', '90 deg') + "`n" +
+                        [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), '-90 deg', '30 deg', '-1.5708 rad', '0.5236 rad') + "`n" +
+                        $ui.Get('Direction: measured on the model')
+                }
+                # The parent and child link names are shown next to their captions, on the same line.
+                foreach ($pair in @(@('label64', 'labelParent', 'base_link'), @('label65', 'labelChild', 'shoulder_upper_arm_link'))) {
+                    $value = @($form.Controls.Find($pair[1], $true)) | Select-Object -First 1
+                    if ($value) { $value.Text = $pair[2] }
+                }
+                try {
+                    $problems = New-Object System.Collections.ArrayList
+                    foreach ($pair in @(@('label64', 'labelParent'), @('label65', 'labelChild'))) {
+                        $caption = @($form.Controls.Find($pair[0], $true)) | Select-Object -First 1; $value = @($form.Controls.Find($pair[1], $true)) | Select-Object -First 1
+                        if ($caption -and $value -and $type.Name -eq 'AssemblyExportForm') {
+                            if ($value.Left -lt $caption.Right) { [void]$problems.Add("$($pair[1]) starts at $($value.Left), inside its caption $($pair[0]) ending at $($caption.Right)") }
+                            if ([Math]::Abs(($value.Top + $value.Height / 2) - ($caption.Top + $caption.Height / 2)) -gt 2) { [void]$problems.Add("$($pair[1]) is not on the line of its caption $($pair[0]): $($value.Bounds) vs $($caption.Bounds)") }
+                        }
+                    }
+                    if ($how -eq 'moved') {
+                        if (-not $scaleForDpi) { [void]$problems.Add('no per-monitor DPI rescale: UiLayout.ScaleForDpi is missing') }
+                        else {
+                            $before = $form.Font.SizeInPoints
+                            [void]$scaleForDpi.Invoke($null, @($form, [single]96, [single](96 * $scale)))
+                            if ([Math]::Abs($form.Font.SizeInPoints - $before * $scale) -gt 0.05) {
+                                [void]$problems.Add("form font is $($form.Font.SizeInPoints)pt after the move, expected $($before * $scale)pt")
+                            }
+                        }
+                    }
+                    Test-FormFonts $form $language $problems
+                    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                    $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                    foreach ($page in (Get-Pages $form)) {
+                        $panel = $page[2]
+                        if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                        if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                        [System.Windows.Forms.Application]::DoEvents()
+                        $pageProblems = New-Object System.Collections.ArrayList
+                        Test-Container $page[1] ($page[0]) $false $pageProblems
+                        Test-Touching $page[1] ($page[0]) $pageProblems
+                        foreach ($p in $pageProblems) { [void]$problems.Add($p) }
+                        if ($ScreenshotDirectory) {
+                            $bmp = New-Object System.Drawing.Bitmap($form.Width, $form.Height)
+                            $form.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+                            $name = ("{0}_formfont_{1}_{2}_{3}_{4}" -f $type.Name, $language, $scale, $how, ($page[0] -replace ' ', ''))
+                            $bmp.Save((Join-Path $ScreenshotDirectory "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+                            $bmp.Dispose()
+                        }
+                    }
+                    foreach ($p in $problems) { [void]$report.Add("$label : $p") }
+                    $total += $problems.Count
+                } finally { $form.Dispose(); $font.Dispose() }
+            }
+        }
+    }
+}
+
+# Window size (issue #156). Each form page is checked at the minimum, the default and a large window
+# size, in English and Traditional Chinese at 100-175 %:
+#   - no overlap, clipping, touching captions or control outside a non-scrolling container that the
+#     page does not already have at its default size (the window size must not add any),
+#   - at the large size the tree views are wider and taller and the boxes that hold names and paths
+#     are wider than at the default size; the navigation buttons keep their distance to the bottom
+#     edge (and the right edge for the buttons on the right),
+#   - the form opens compact (the tree 300 px wide at the designer scale); a narrower window takes
+#     width from the tree first while the property area keeps its width, down to a 200 px tree,
+#   - back at the default size every control is exactly where it was (nothing drifts).
+$sizeChecks = @{
+    'AssemblyExportForm' = @{
+        'joint page' = @{ Trees = @('treeViewJointTree'); Names = @('textBoxJointName', 'comboBoxOrigin', 'comboBoxAxis'); Keep = @('textBoxJointName', 'comboBoxOrigin', 'comboBoxAxis', 'comboBoxJointType', 'textBoxJointX', 'textBoxLimitLower'); Scroller = 'panelJointContent' }
+        'link page' = @{ Trees = @('treeViewLinkProperties'); Names = @('textBoxTexture'); Keep = @('groupBox5', 'groupBox4', 'textBoxTexture'); Scroller = 'panelLinkContent' }
+    }
+    'PartExportForm' = @{
+        'form' = @{ Trees = @(); Names = @('textBox_save_as', 'textBox_texture') }
+    }
+}
+$navigation = 'Cancel|Finish|Next|Previous|ExportUrdfOnly|button_finish|button_cancel'
+
+function Get-AllBounds([System.Windows.Forms.Control]$parent, [string]$path, $into) {
+    foreach ($c in $parent.Controls) {
+        # The scroll position is not part of the layout: compare at the top-left scroll position.
+        if (($c -is [System.Windows.Forms.ScrollableControl]) -and $c.AutoScroll) { $c.AutoScrollPosition = New-Object System.Drawing.Point(0, 0) }
+        $into["$path/$($c.Name)"] = $c.Bounds
+        if (-not ($c -is [System.Windows.Forms.UpDownBase]) -and -not ($c -is [System.Windows.Forms.ComboBox])) { Get-AllBounds $c "$path/$($c.Name)" $into }
+    }
+}
+
+# Rectangle of a control in the form's client coordinates.
+function Get-FormRect([System.Windows.Forms.Form]$form, [System.Windows.Forms.Control]$c) {
+    return $form.RectangleToClient($c.Parent.RectangleToScreen($c.Bounds))
+}
+
+function Find-One([System.Windows.Forms.Control]$root, [string]$name) {
+    return @($root.Controls.Find($name, $true)) | Select-Object -First 1
+}
+
+function Get-NavButtons([System.Windows.Forms.Control]$root) {
+    $found = New-Object System.Collections.ArrayList
+    $stack = New-Object System.Collections.Stack; $stack.Push($root)
+    while ($stack.Count -gt 0) {
+        foreach ($c in $stack.Pop().Controls) {
+            if (($c -is [System.Windows.Forms.Button]) -and $c.Name -match $navigation -and (Test-Shown $c)) { [void]$found.Add($c) }
+            if (Test-Shown $c) { $stack.Push($c) }
+        }
+    }
+    return ,$found
+}
+
+# Scrolling containers shown on a page.
+function Get-Scrollers([System.Windows.Forms.Control]$root) {
+    $found = New-Object System.Collections.ArrayList
+    $stack = New-Object System.Collections.Stack; $stack.Push($root)
+    while ($stack.Count -gt 0) {
+        $c = $stack.Pop()
+        if (($c -is [System.Windows.Forms.ScrollableControl]) -and $c.AutoScroll -and -not ($c -is [System.Windows.Forms.Form])) { [void]$found.Add($c) }
+        foreach ($child in $c.Controls) { if ((Test-Shown $child) -and -not ($child -is [System.Windows.Forms.UpDownBase])) { $stack.Push($child) } }
+    }
+    return ,$found
+}
+
+# A problem without the bounds and captions it names, to compare problems at different window sizes
+# and before and after the angle unit is chosen (the unit changes the captions).
+function Get-ProblemKey([string]$problem) { return ($problem -replace '\{[^}]*\}', '' -replace "'[^']*'", '') }
+
+function Set-FormSize([System.Windows.Forms.Form]$form, [System.Drawing.Size]$size) {
+    $form.Size = $size
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+foreach ($typeName in $formTypes) {
+    $type = $assembly.GetType($typeName, $true)
+    foreach ($language in @('en', 'chinese')) {
+        $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+        foreach ($scale in $fontScales) {
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $form = New-Form $type $font ([single](96 * $scale)) $ui
+            $label = "$($type.Name) [window size $language x$scale]"
+            # A joint with a limit mate shows a four-line limit source text in the joint page header,
+            # which must stay clear of the page description and the tree at every size.
+            $source = Find-One $form 'labelLimitSource'
+            if ($source) {
+                $source.Text = [string]::Format($ui.Get('Limit mate {0} ({1})'), 'LimitMate_shoulder_pitch', $ui.Get('angle limit mate')) + "`n" +
+                    [string]::Format($ui.Get('SolidWorks range {0} to {1}, reference {2}'), ("-120.5" + [char]176), ("135.25" + [char]176), ("7.375" + [char]176)) + "`n" +
+                    [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), ("-127.875" + [char]176), ("127.875" + [char]176), '-2.23183', '2.23183') + "`n" +
+                    [string]::Format($ui.Get('Direction: taken from the mate type rule ({0})'), $ui.Get('the dimension is controlled by an equation or a global variable'))
+            }
+            try {
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                $default = $form.Size
+                $minimum = if ($form.MinimumSize.Width -gt 0) { $form.MinimumSize } else { New-Object System.Drawing.Size([int]($default.Width * 0.7), [int]($default.Height * 0.7)) }
+                # Windows does not make a window larger than its maximum tracking size (about the screen size).
+                $track = [System.Windows.Forms.SystemInformation]::MaxWindowTrackSize
+                $large = New-Object System.Drawing.Size([Math]::Min([int]($default.Width * 1.5), $track.Width), [Math]::Min([int]($default.Height * 1.3), $track.Height))
+                foreach ($page in (Get-Pages $form)) {
+                    $problems = New-Object System.Collections.ArrayList
+                    $panel = $page[2]
+                    Set-FormSize $form $default
+                    if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                    if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                    [System.Windows.Forms.Application]::DoEvents()
+                    $check = $sizeChecks[$type.Name][$page[0]]
+                    # What the page already has at the default size is not caused by the window size.
+                    $baseline = New-Object System.Collections.ArrayList
+                    Test-Container $page[1] ($page[0]) $false $baseline
+                    Test-Touching $page[1] ($page[0]) $baseline
+                    $known = @{}; foreach ($p in $baseline) { $known[(Get-ProblemKey $p)] = $true }
+                    $before = @{}; Get-AllBounds $page[1] '' $before
+                    $client = $form.ClientSize
+                    $nav = @{}
+                    foreach ($b in (Get-NavButtons $page[1])) { $r = Get-FormRect $form $b; $nav[$b.Name] = @($r, ($client.Width - $r.Right), ($client.Height - $r.Bottom), ($r.Left + $r.Width / 2 -gt $client.Width / 2)) }
+                    $widths = @{}
+                    foreach ($n in @($check.Trees + $check.Names + $check.Keep | Where-Object { $_ })) { $c = Find-One $page[1] $n; if ($c) { $widths[$n] = $c.Size } else { [void]$problems.Add("missing control $n") } }
+                    # The tree is the part that gives: the form opens with a compact tree (300 px at
+                    # the designer scale), and a narrower window takes width from the tree first, while
+                    # the property area keeps its width, down to a tree of 200 px; only then scroll bars.
+                    # Relative to the designer font (AutoScaleDimensions 6 x 12 in the designer; WinForms overwrites the property once it has scaled the form).
+                    $factor = $form.CurrentAutoScaleDimensions.Width / 6
+                    $treeCompact = [int][Math]::Round(300 * $factor); $treeMin = [int][Math]::Round(200 * $factor)
+                    $tree = if ($check.Trees.Count) { Find-One $page[1] $check.Trees[0] } else { $null }
+                    $sizes = @(,@('large', $large))
+                    if ($tree) {
+                        if ($tree.Width -gt $treeCompact + 2) { [void]$problems.Add("default: $($tree.Name) opens $($tree.Width) px wide, wider than the compact $treeCompact px") }
+                        $sizes += ,@('narrow', (New-Object System.Drawing.Size(($default.Width - [int](($tree.Width - $treeMin) / 2)), $default.Height)))
+                    }
+                    $sizes += ,@('minimum', $minimum); $sizes += ,@('default', $default)
+                    foreach ($size in $sizes) {
+                        Set-FormSize $form $size[1]
+                        $sizeProblems = New-Object System.Collections.ArrayList
+                        Test-Container $page[1] ($page[0]) $false $sizeProblems
+                        Test-Touching $page[1] ($page[0]) $sizeProblems
+                        foreach ($p in $sizeProblems) { if ($known[(Get-ProblemKey $p)]) { continue }; [void]$problems.Add("$($size[0]) $($form.Size.Width)x$($form.Size.Height): $p") }
+                        if ($size[0] -eq 'narrow') {
+                            if ($tree.Width -ge $widths[$tree.Name].Width) { [void]$problems.Add("narrow: $($tree.Name) does not give up width: $($widths[$tree.Name].Width) -> $($tree.Width)") }
+                            foreach ($n in $check.Keep) {
+                                $c = Find-One $page[1] $n
+                                if ($c -and $c.Width -ne $widths[$n].Width) { [void]$problems.Add("narrow: $n changes width $($widths[$n].Width) -> $($c.Width) before the tree reaches its minimum") }
+                            }
+                            $scroller = Find-One $form $check.Scroller
+                            if ($scroller -and $scroller.HorizontalScroll.Visible) { [void]$problems.Add("narrow: $($check.Scroller) scrolls sideways while the tree is still $($tree.Width) px wide") }
+                        }
+                        if ($size[0] -eq 'minimum' -and $tree -and $tree.Width -lt $treeMin - 1) { [void]$problems.Add("minimum: $($tree.Name) is $($tree.Width) px, narrower than $treeMin px") }
+                        # At the default size the whole page is visible without scrolling (the footer
+                        # notes included), unless the screen is too small for the form.
+                        $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+                        if ($size[0] -eq 'default' -and $form.Height -lt $area.Height) {
+                            foreach ($scroller in (Get-Scrollers $page[1])) {
+                                if ($scroller.VerticalScroll.Visible -or $scroller.HorizontalScroll.Visible) {
+                                    [void]$problems.Add("default: $($scroller.Name) shows a scroll bar (content $($scroller.DisplayRectangle.Size) in $($scroller.ClientSize))")
+                                }
+                                foreach ($c in $scroller.Controls) {
+                                    if (-not (Test-Shown $c)) { continue }
+                                    $b = Get-Box $c
+                                    if ($b.Bottom -gt $scroller.ClientSize.Height + 1 -or $b.Right -gt $scroller.ClientSize.Width + 1) {
+                                        [void]$problems.Add("default: $($c.Name) needs scrolling in $($scroller.Name): $b in $($scroller.ClientSize)")
+                                    }
+                                }
+                            }
+                        }
+                        if ($size[0] -eq "large" -and $large.Width -gt $default.Width -and $large.Height -gt $default.Height) {
+                            foreach ($n in $check.Trees) {
+                                $c = Find-One $page[1] $n
+                                if ($c -and ($c.Width -le $widths[$n].Width -or $c.Height -le $widths[$n].Height)) { [void]$problems.Add("large: tree $n does not grow: $($widths[$n]) -> $($c.Size)") }
+                            }
+                            foreach ($n in $check.Names) {
+                                $c = Find-One $page[1] $n
+                                if ($c -and $c.Width -le $widths[$n].Width) { [void]$problems.Add("large: $n does not widen: $($widths[$n].Width) -> $($c.Width)") }
+                            }
+                            $now = $form.ClientSize
+                            foreach ($b in (Get-NavButtons $page[1])) {
+                                $was = $nav[$b.Name]; if (-not $was) { continue }
+                                $r = Get-FormRect $form $b
+                                if ([Math]::Abs(($now.Height - $r.Bottom) - $was[2]) -gt 1) { [void]$problems.Add("large: $($b.Name) does not stay at the bottom edge") }
+                                if ($was[3] -and [Math]::Abs(($now.Width - $r.Right) - $was[1]) -gt 1) { [void]$problems.Add("large: $($b.Name) does not stay at the right edge") }
+                            }
+                        }
+                        if ($ScreenshotDirectory) {
+                            $bmp = New-Object System.Drawing.Bitmap($form.Width, $form.Height)
+                            $form.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+                            $name = ("{0}_size_{1}_{2}_{3}_{4}" -f $type.Name, $language, $scale, $size[0], ($page[0] -replace ' ', ''))
+                            $bmp.Save((Join-Path $ScreenshotDirectory "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+                            $bmp.Dispose()
+                        }
+                    }
+                    $after = @{}; Get-AllBounds $page[1] '' $after
+                    foreach ($key in $before.Keys) {
+                        if ($after[$key] -ne $before[$key]) { [void]$problems.Add("default size again: $key moved from $($before[$key]) to $($after[$key])") }
+                    }
+                    foreach ($p in $problems) { [void]$report.Add("$label $($page[0]) : $p") }
+                    $total += $problems.Count
+                }
+            } finally { $form.Dispose(); $font.Dispose() }
+        }
+    }
+}
+
+# The limit source text shares the header of the joint page: a long one, as a limit mate shows.
+function Set-LongLimitText([System.Windows.Forms.Form]$target, $ui) {
+    $source = Find-One $target 'labelLimitSource'
+    if ($source) {
+        $source.Text = [string]::Format($ui.Get('Limit mate {0} ({1})'), 'LimitMate_shoulder_pitch', $ui.Get('angle limit mate')) + "`n" +
+            [string]::Format($ui.Get('SolidWorks range {0} to {1}, reference {2}'), ("-120.5" + [char]176), ("135.25" + [char]176), ("7.375" + [char]176)) + "`n" +
+            [string]::Format($ui.Get('URDF (relative): {0} to {1} = {2} to {3}'), ("-127.875" + [char]176), ("127.875" + [char]176), '-2.23183', '2.23183') + "`n" +
+            [string]::Format($ui.Get('Direction: taken from the mate type rule ({0})'), $ui.Get('the dimension is controlled by an equation or a global variable'))
+    }
+    # What the constructor does when the text changes size.
+    $align = $target.GetType().GetMethod('AlignFieldLabels', $flags)
+    if ($align) { [void]$align.Invoke($target, @()) }
+}
+
+# Pages are compared from the top of their content.
+function Reset-Scrolling([System.Windows.Forms.Control]$root) {
+    foreach ($c in $root.Controls) {
+        if (($c -is [System.Windows.Forms.ScrollableControl]) -and $c.AutoScroll) { $c.AutoScrollPosition = New-Object System.Drawing.Point(0, 0) }
+        if (-not ($c -is [System.Windows.Forms.UpDownBase])) { Reset-Scrolling $c }
+    }
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+# Problems of each page of a form, without bounds, keyed by page.
+function Get-PageProblems([System.Windows.Forms.Form]$form) {
+    $found = @{}
+    $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+    $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+    $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+    foreach ($page in (Get-Pages $form)) {
+        $panel = $page[2]
+        if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+        if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+        [System.Windows.Forms.Application]::DoEvents()
+        Reset-Scrolling $page[1]
+        $pageProblems = New-Object System.Collections.ArrayList
+        Test-Container $page[1] ($page[0]) $false $pageProblems
+        Test-Touching $page[1] ($page[0]) $pageProblems
+        foreach ($p in $pageProblems) { $found["$($page[0]): $(Get-ProblemKey $p)"] = $true }
+    }
+    return $found
+}
+
+# Angle unit (issue #155). The assembly form has an angle unit choice on the joint page and on the
+# link page. With degrees chosen and the captions of a revolute joint, in English and Traditional
+# Chinese at 100-175 %: the angle captions name the unit (deg / deg/s, or rad / rad/s), the linear
+# captions keep theirs, and choosing the unit adds no overlap, clipping or touching captions to the
+# pages (what a page already has with the designer captions is left to the other checks, except
+# anything that involves the angle unit choice or the limit source text, which ends before it).
+$angleType = $assembly.GetType('SW2URDF.UI.AngleUnit')
+$angleCaptions = @{
+    'Degrees' = @{ label6 = '(deg)'; labelLowerLimit = '(deg)'; labelLimitUpper = '(deg)'; labelVelocity = '(deg/s)'; labelSoftLower = '(deg)'; labelSoftUpper = '(deg)'; label36 = 'deg'; label23 = 'deg'; labelEffort = '(N'; label3 = '(m)' }
+    'Radians' = @{ label6 = '(rad)'; labelLowerLimit = '(rad)'; labelLimitUpper = '(rad)'; labelVelocity = '(rad/s)'; labelSoftLower = '(rad)'; labelSoftUpper = '(rad)'; label36 = 'rad'; label23 = 'rad'; labelEffort = '(N'; label3 = '(m)' }
+}
+$type = $assembly.GetType('SW2URDF.UI.AssemblyExportForm', $true)
+$setUnit = $type.GetMethod('SetAngleUnit', $flags)
+$setCaptions = $type.GetMethod('SetJointCaptions', $flags)
+foreach ($language in @('en', 'chinese')) {
+    $ui = [Activator]::CreateInstance($uiType, @(, [string]$language))
+    foreach ($scale in $fontScales) {
+        foreach ($unit in @('Degrees', 'Radians')) {
+            $script:baseFont = $null
+            $font = Get-FormFont $ui $scale
+            $script:jointChoice = $null
+            $form = New-Form $type $font ([single](96 * $scale)) $ui
+            $label = "$($type.Name) [angle unit $unit $language x$scale]"
+            $problems = New-Object System.Collections.ArrayList
+            try {
+                $known = @{}
+                if ($setUnit) {
+                    $probe = New-Form $type $font ([single](96 * $scale)) $ui
+                    Set-LongLimitText $probe $ui
+                    try { $known = Get-PageProblems $probe } finally { $probe.Dispose() }
+                }
+                if (-not $angleType -or -not $setUnit -or -not $setCaptions) {
+                    [void]$problems.Add('no angle unit choice: AngleUnit, SetAngleUnit or SetJointCaptions is missing')
+                } else {
+                    [void]$setUnit.Invoke($form, @([Enum]::Parse($angleType, $unit)))
+                    [void]$setCaptions.Invoke($form, @('revolute'))
+                    Set-LongLimitText $form $ui
+                    foreach ($name in $angleCaptions[$unit].Keys) {
+                        $c = Find-One $form $name
+                        if (-not $c) { [void]$problems.Add("missing caption $name"); continue }
+                        if (-not $c.Text.Contains($angleCaptions[$unit][$name])) { [void]$problems.Add("caption $name '$($c.Text)' does not show '$($angleCaptions[$unit][$name])'") }
+                    }
+                }
+                foreach ($name in @('comboBoxAngleUnitJoint', 'comboBoxAngleUnitLink')) {
+                    $c = Find-One $form $name
+                    if (-not $c) { [void]$problems.Add("missing angle unit choice $name") }
+                    elseif (-not ($c -is [System.Windows.Forms.ComboBox]) -or $c.Items.Count -ne 2) { [void]$problems.Add("$name does not offer two units") }
+                }
+                $form.StartPosition = 'Manual'; $form.Location = New-Object System.Drawing.Point(-32000, -32000)
+                $wasVisible = @{}; foreach ($c in $form.Controls) { $wasVisible[$c.Name] = (Test-Shown $c) }
+                $form.ShowInTaskbar = $false; $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+                foreach ($page in (Get-Pages $form)) {
+                    $panel = $page[2]
+                    if ($page[0] -eq 'joint page') { $panel.Visible = $false; foreach ($c in $form.Controls) { if ($c -ne $panel -and $wasVisible[$c.Name]) { $c.Visible = $true } } }
+                    if ($page[0] -eq 'link page') { $panel.Visible = $true; foreach ($c in $form.Controls) { if ($c -ne $panel) { $c.Visible = $false } } }
+                    [System.Windows.Forms.Application]::DoEvents()
+                    Reset-Scrolling $page[1]
+                    $pageProblems = New-Object System.Collections.ArrayList
+                    Test-Container $page[1] ($page[0]) $false $pageProblems
+                    Test-Touching $page[1] ($page[0]) $pageProblems
+                    # The choice is a form-level setting in the page header: above the tree and the
+                    # properties, at the right end of the property area, at the same place on both pages.
+                    $which = if ($page[0] -eq 'joint page') { @('comboBoxAngleUnitJoint', 'labelAngleUnitJoint', 'treeViewJointTree', 'comboBoxOrigin') } else { @('comboBoxAngleUnitLink', 'labelAngleUnitLink', 'treeViewLinkProperties', 'groupBox5') }
+                    $choice = Find-One $form $which[0]; $caption = Find-One $form $which[1]; $tree = Find-One $form $which[2]; $edge = Find-One $form $which[3]
+                    if ($choice -and $caption -and $tree -and $edge) {
+                        $rc = Get-FormRect $form $choice; $rl = Get-FormRect $form $caption; $rt = Get-FormRect $form $tree; $re = Get-FormRect $form $edge
+                        if ($rc.Bottom -gt $rt.Top -or $rl.Bottom -gt $rt.Top) { [void]$pageProblems.Add("angle unit choice is not in the header band: $rc / $rl below the top of $($tree.Name) $($rt.Top)") }
+                        if ($rc.Right -lt $re.Right - 2) { [void]$pageProblems.Add("angle unit choice is not at the right: $rc ends left of $($edge.Name) $($re.Right)") }
+                        if ($rl.Right -gt $rc.Left) { [void]$pageProblems.Add("angle unit caption $rl is not left of its box $rc") }
+                        if ($page[0] -eq 'joint page') { $script:jointChoice = $rc } elseif ($script:jointChoice -and ([Math]::Abs($rc.X - $script:jointChoice.X) -gt 1 -or [Math]::Abs($rc.Y - $script:jointChoice.Y) -gt 1)) {
+                            [void]$pageProblems.Add("angle unit choice is at $rc on the link page but at $($script:jointChoice) on the joint page")
+                        }
+                    }
+                    foreach ($p in $pageProblems) {
+                        if ($p -notmatch 'AngleUnit|labelLimitSource' -and $known["$($page[0]): $(Get-ProblemKey $p)"]) { continue }
+                        [void]$problems.Add("$($page[0]): $p")
+                    }
+                    if ($ScreenshotDirectory) {
+                        $bmp = New-Object System.Drawing.Bitmap($form.Width, $form.Height)
+                        $form.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)))
+                        $name = ("{0}_angles_{1}_{2}_{3}_{4}" -f $type.Name, $unit, $language, $scale, ($page[0] -replace ' ', ''))
+                        $bmp.Save((Join-Path $ScreenshotDirectory "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+                        $bmp.Dispose()
+                    }
+                }
+            } finally { $form.Dispose(); $font.Dispose() }
+            foreach ($p in $problems) { [void]$report.Add("$label : $p") }
+            $total += $problems.Count
+        }
+    }
+}
+
+
 # The push buttons in the bottom row of a page share their top and height (issue #174): at every
 # scaling, with the captions of both languages, also after the window is resized and after a DPI
 # change. Page tops differ, so each page is checked on its own.
