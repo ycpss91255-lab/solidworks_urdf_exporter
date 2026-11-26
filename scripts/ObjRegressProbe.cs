@@ -5,6 +5,8 @@
 // It only opens and closes the scratch copies it is given, never saves them, and never changes the
 // visibility of SolidWorks. Plain C# 5 so that the .NET Framework csc.exe can compile it.
 //
+// scripts/FormE2eProbe.cs uses the internal members.
+//
 // Usage:
 //   ObjRegressProbe.exe assembly <pid> <assembly file> <out dir> <package>   exports OBJ and STL twice, then a cancelled run
 //   ObjRegressProbe.exe part     <pid> <part file> <out dir> <package>       exports OBJ and STL
@@ -40,7 +42,7 @@ public static class ObjRegressProbe
 
     static readonly List<string> rows = new List<string>();
     static readonly List<string> messages = new List<string>();
-    static SldWorks app;
+    internal static SldWorks app;
     static string outDir;
     static IMathUtility math;
 
@@ -84,7 +86,7 @@ public static class ObjRegressProbe
     }
 
     // Opens a scratch copy and points its references at the sibling copies in the same folder.
-    static ModelDoc2 Open(string file, bool part)
+    internal static ModelDoc2 Open(string file, bool part)
     {
         string folder = Path.GetDirectoryName(file);
         foreach (ModelDoc2 open in (object[])(app.GetDocuments() ?? new object[0]))
@@ -109,7 +111,7 @@ public static class ObjRegressProbe
         return model;
     }
 
-    static void CollectLinks(Link link, List<Link> links)
+    internal static void CollectLinks(Link link, List<Link> links)
     {
         links.Add(link);
         foreach (Link child in link.Children) CollectLinks(child, links);
@@ -122,7 +124,7 @@ public static class ObjRegressProbe
         return (System.Collections.IList)typeof(Link).GetField("SWComponents").GetValue(link);
     }
 
-    static Component2[] Components(Link link)
+    internal static Component2[] Components(Link link)
     {
         return ComponentList(link).Cast<object>().Select(o => (Component2)o).ToArray();
     }
