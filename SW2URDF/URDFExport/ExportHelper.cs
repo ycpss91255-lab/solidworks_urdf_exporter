@@ -374,19 +374,19 @@ namespace SW2URDF.URDFExport
             // Copy the texture file (if it was specified) to the textures directory
             if (!link.isFixedFrame && !String.IsNullOrWhiteSpace(link.Visual.Material.Texture.wFilename))
             {
-                if (File.Exists(link.Visual.Material.Texture.wFilename))
+                string textureSource = link.Visual.Material.Texture.wFilename;
+                string textureName;
+                // The same source file is copied once; different files with the same name get a suffix
+                if (!textureFileNames.TryGetValue(textureSource, out textureName))
                 {
-                    string textureSource = link.Visual.Material.Texture.wFilename;
-                    string textureName;
-                    // The same source file is copied once; different files with the same name get a suffix
-                    if (!textureFileNames.TryGetValue(textureSource, out textureName))
+                    textureName = Path.GetFileName(textureSource);
+                    if (File.Exists(textureSource))
                     {
-                        textureName = FileNames.UniqueFileNameWithExtension(Path.GetFileName(textureSource), usedTextureFileNames);
+                        textureName = FileNames.UniqueFileNameWithExtension(textureName, usedTextureFileNames);
                         textureFileNames[textureSource] = textureName;
-                        File.Copy(textureSource, package.WindowsTexturesDirectory + textureName, true);
                     }
-                    link.Visual.Material.Texture.Filename = package.TexturesDirectory + textureName;
                 }
+                link.Visual.Material.Texture.Filename = CopyTexture(textureSource, textureName, package);
             }
 
             MeshFile meshFile = meshFiles[link];
@@ -666,6 +666,24 @@ namespace SW2URDF.URDFExport
             return texturesDirectory + Path.GetFileName(textureFile);
         }
 
+        /// <summary>
+        /// Puts a texture into the package, unless it is the file in the package. Returns the reference for the
+        /// URDF, or null when the package does not have the texture.
+        /// </summary>
+        private static string CopyTexture(string source, string name, URDFPackage package)
+        {
+            string target = package.WindowsTexturesDirectory + name;
+            if (!File.Exists(source))
+            {
+                logger.Warn("The texture " + source + " was not found");
+            }
+            else if (!string.Equals(Path.GetFullPath(source), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
+            {
+                File.Copy(source, target, true);
+            }
+            return File.Exists(target) ? TextureUrdfFilename(name, package.TexturesDirectory) : null;
+        }
+
         public void ExportLink(bool zIsUp)
         {
             ExportLink(zIsUp, MeshExportFormat.STL);
@@ -751,14 +769,9 @@ namespace SW2URDF.URDFExport
             URDFRobot.BaseLink.Visual.Geometry.Mesh.Filename = meshFileName;
             URDFRobot.BaseLink.Collision.Geometry.Mesh.Filename = meshFileName;
 
-            URDFRobot.BaseLink.Visual.Material.Texture.Filename = TextureUrdfFilename(
-                URDFRobot.BaseLink.Visual.Material.Texture.wFilename, package.TexturesDirectory);
-            string textureSavePath =
-                package.WindowsTexturesDirectory + Path.GetFileName(URDFRobot.BaseLink.Visual.Material.Texture.wFilename);
-            if (!String.IsNullOrWhiteSpace(URDFRobot.BaseLink.Visual.Material.Texture.wFilename))
-            {
-                File.Copy(URDFRobot.BaseLink.Visual.Material.Texture.wFilename, textureSavePath, true);
-            }
+            string textureSource = URDFRobot.BaseLink.Visual.Material.Texture.wFilename;
+            URDFRobot.BaseLink.Visual.Material.Texture.Filename = String.IsNullOrWhiteSpace(textureSource)
+                ? null : CopyTexture(textureSource, Path.GetFileName(textureSource), package);
 
             //Writing URDF to file
             URDFWriter uWriter = new URDFWriter(windowsURDFFileName);

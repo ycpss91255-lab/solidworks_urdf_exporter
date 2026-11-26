@@ -388,6 +388,7 @@
     <Compile Include="Test\TestPartTexture.cs" />
     <Compile Include="Test\TestBlankLimitBoxes.cs" />
     <Compile Include="Test\TestPartSettings.cs" />
+    <Compile Include="Test\TestTextureCopy.cs" />
     <Compile Include="Test\TestPerConfiguration.cs" />
     <Compile Include="Test\TestTreeScans.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />
