@@ -82,6 +82,9 @@ again until the new name has settings (a copy of the legacy ones counts). The lo
 
 ### 1. Unit tests (no SolidWorks needed)
 
+Processes that run at the same time do not share a log: the first one has `sw2urdf_logs\sw2urdf.log`, the next
+one `sw2urdf-2.log` and so on.
+
 `TestConfigurationFormat` (format versions and fallback order) and `TestConfigurationStatus` (texts of the
 configuration indicator) run with `scripts\test_logic.ps1 -AssemblyPath <path to SW2URDF.dll> -Filter Configuration`.
 The `TestPerConfiguration` and `TestPartPerConfiguration` classes cover the same behaviour with the real

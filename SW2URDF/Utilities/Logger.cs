@@ -24,6 +24,10 @@ namespace SW2URDF.Utilities
     {
         private static bool Initialized = false;
 
+        // Held until the process ends.
+        private static LogFile logFile;
+        private static RollingFileAppender roller;
+
         public static void Setup()
         {
             if (Initialized)
@@ -44,10 +48,11 @@ namespace SW2URDF.Utilities
             patternLayout.ActivateOptions();
 
             string homeDir = Environment.ExpandEnvironmentVariables("%HOMEDRIVE%%HOMEPATH%");
-            RollingFileAppender roller = new RollingFileAppender
+            logFile = LogFile.Take(Path.Combine(homeDir, "sw2urdf_logs"));
+            roller = new RollingFileAppender
             {
                 AppendToFile = false,
-                File = Path.Combine(homeDir, "sw2urdf_logs", "sw2urdf.log"),
+                File = logFile.FileName,
                 Layout = patternLayout,
                 MaxSizeRollBackups = 5,
                 MaximumFileSize = "10MB",
@@ -81,19 +86,13 @@ namespace SW2URDF.Utilities
                 MethodBase.GetCurrentMethod().DeclaringType);
         }
 
+        /// <summary>
+        /// The log file of this process. The first appender of the repository could also belong to another
+        /// add-in that uses log4net.
+        /// </summary>
         public static string GetFileName()
         {
-            RollingFileAppender rootAppender =
-                LogManager.GetRepository().GetAppenders().OfType<RollingFileAppender>()
-                                         .FirstOrDefault();
-            if (rootAppender != null)
-            {
-                return rootAppender.File;
-            }
-            else
-            {
-                return null;
-            }
+            return roller == null ? null : roller.File;
         }
     }
 }
