@@ -29,6 +29,8 @@ using SW2URDF.URDFExport;
 using SW2URDF.Utilities;
 using System;
 using System.Collections;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -247,14 +249,11 @@ namespace SW2URDF.SW
         public void AddCommandMgr()
         {
             // Do not use AddMenuItem5 here despite the obselete warning, AddMenuItem5 doesn't work
-            string[] images = {
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_20x20.png",
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_32x32.png",
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_40x40.png",
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_64x64.png",
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_96x96.png",
-                "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\URDFExporter\\images\\ros_logo_128x128.png",
-            };
+            string[] images = MenuImages();
+            foreach (string missing in images.Where(image => !File.Exists(image)))
+            {
+                logger.Warn("Menu icon not found: " + missing);
+            }
             int ret = SwApp.AddMenuItem5((int)swDocumentTypes_e.swDocASSEMBLY, add_in_id_, ui.ExportMenuPath,
                 -1, "AssemblyURDFExporter", "", ui.ExportAssemblyHint, images);
             if (ret < 0)
@@ -272,6 +271,21 @@ namespace SW2URDF.SW
             }
 
             logger.Info("Adding Part export to file menu");
+        }
+
+        // The icon of the menu items in the sizes SOLIDWORKS picks from. The build and the installer put
+        // the files beside the add-in, which can be installed in any folder.
+        internal static string[] MenuImages()
+        {
+            string folder = Path.Combine(Path.GetDirectoryName(typeof(SwAddin).Assembly.Location), "images");
+            return new[] {
+                Path.Combine(folder, "ros_logo_20x20.png"),
+                Path.Combine(folder, "ros_logo_32x32.png"),
+                Path.Combine(folder, "ros_logo_40x40.png"),
+                Path.Combine(folder, "ros_logo_64x64.png"),
+                Path.Combine(folder, "ros_logo_96x96.png"),
+                Path.Combine(folder, "ros_logo_128x128.png"),
+            };
         }
 
         public int ToolbarEnableMethod()
