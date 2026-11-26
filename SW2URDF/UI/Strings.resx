@@ -547,17 +547,8 @@
   <data xml:space="preserve" name="the following nodes are incomplete. you need to fix them before continuing.">
     <value>The following nodes are incomplete. You need to fix them before continuing.</value>
   </data>
-  <data xml:space="preserve" name="links with children cannot be empty. select its associated components">
-    <value>Links with children cannot be empty. Select its associated components</value>
-  </data>
   <data xml:space="preserve" name="the origin reference coordinate system cannot be automatically generated without components. either select an origin or at least one component.">
     <value>The origin reference coordinate system cannot be automatically generated without components. Either select an origin or at least one component.</value>
-  </data>
-  <data xml:space="preserve" name="the reference axis cannot be automatically generated without components. either select an axis or at least one component.">
-    <value>The reference axis cannot be automatically generated without components. Either select an axis or at least one component.</value>
-  </data>
-  <data xml:space="preserve" name="the joint type cannot be automatically detected without components. either select a joint type or at least one component.">
-    <value>The joint type cannot be automatically detected without components. Either select a joint type or at least one component.</value>
   </data>
   <data xml:space="preserve" name="link name is empty. fill in a unique link name">
     <value>Link name is empty. Fill in a unique link name</value>

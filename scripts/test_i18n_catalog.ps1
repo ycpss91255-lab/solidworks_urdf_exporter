@@ -95,10 +95,13 @@ if ($english -and $chinese) {
     $used = New-Object System.Collections.Generic.HashSet[string]
     foreach ($file in Get-ChildItem -Path (Join-Path $Root 'SW2URDF') -Recurse -Filter *.cs) {
         $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
-        foreach ($m in [regex]::Matches($text, '(?:\bui\.|(?<![\w.]))Get\(' + $literal + '\)')) {
-            $key = $m.Groups[1].Value.Replace('\"', '"').Replace('\n', "`n").Replace('\r', "`r").Replace('\\', '\').ToLowerInvariant()
+        # A lookup is ui.Get("..."), UiText.FromSolidWorks(app).Get("...") or Get("...") inside UiText;
+        # the text may be several literals joined with +.
+        foreach ($m in [regex]::Matches($text, '(?:\bui\.|\bUiText\.From\w+\([^()]*\)\.|(?<![\w.]))Get\(\s*(' + $literal + '(?:\s*\+\s*' + $literal + ')*)\s*\)')) {
+            $raw = ([regex]::Matches($m.Groups[1].Value, $literal) | ForEach-Object { $_.Groups[1].Value }) -join ''
+            $key = $raw.Replace('\"', '"').Replace('\n', "`n").Replace('\r', "`r").Replace('\\', '\').ToLowerInvariant()
             [void]$used.Add($key)
-            if (-not $chinese.Contains($key)) { Fail "$($file.Name) uses untranslated '$($m.Groups[1].Value)'" }
+            if (-not $chinese.Contains($key)) { Fail "$($file.Name) uses untranslated '$raw'" }
         }
         # Combo-box protocol values are shown through ComboDisplay, not Get("..."), so their
         # catalog entries are referenced from UiText.ProtocolValues.
