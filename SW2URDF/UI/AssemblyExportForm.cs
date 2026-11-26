@@ -825,6 +825,21 @@ namespace SW2URDF.UI
                 {
                     meshFormat = MeshExportFormat.STL;
                 }
+                if (!exportSTL)
+                {
+                    List<string> linksWithoutMesh = Exporter.GetLinksWithoutMeshFile(meshFormat);
+                    MissingMeshChoice choice = MissingMeshPrompt.Ask(linksWithoutMesh, URDFPackage.MessageBox, ui);
+                    if (linksWithoutMesh.Count > 0)
+                    {
+                        logger.Warn("Links without a mesh file: " +
+                            MeshExportCheck.JoinLinkNames(linksWithoutMesh) + ". Choice: " + choice);
+                    }
+                    if (choice == MissingMeshChoice.Cancel)
+                    {
+                        return;
+                    }
+                    exportSTL = choice == MissingMeshChoice.ExportMeshes;
+                }
                 Exporter.URDFRobot.BaseLink.WriteXacro = checkBoxXacro.Checked;
                 Exporter.ExportRobot(exportSTL, meshFormat);
                 ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);

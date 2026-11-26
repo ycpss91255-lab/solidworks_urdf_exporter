@@ -65,9 +65,9 @@ namespace SW2URDF.URDFExport
 
         private UserProgressBar progressBar;
 
-        // File names already used for meshes and textures in the current export. Two links or textures
-        // must never end up in the same file (issue 62); the names inside the URDF are not affected.
-        private readonly HashSet<string> usedMeshFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // File names of the meshes and textures of the current export. Two links or textures must never
+        // end up in the same file (issue 62); the names inside the URDF are not affected.
+        private readonly Dictionary<Link, MeshFile> meshFiles = new Dictionary<Link, MeshFile>();
         private readonly HashSet<string> usedTextureFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> textureFileNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -160,7 +160,7 @@ namespace SW2URDF.URDFExport
         {
             //Setting up the progress bar
             logger.Info("Beginning the export process");
-            usedMeshFileNames.Clear();
+            meshFiles.Clear();
             usedTextureFileNames.Clear();
             textureFileNames.Clear();
             int progressBarBound = CommonSwOperations.GetCount(URDFRobot.BaseLink);
@@ -228,6 +228,10 @@ namespace SW2URDF.URDFExport
             try
             {
                 logger.Info("Beginning individual files export");
+                foreach (MeshFile meshFile in MeshFiles.ForRobot(URDFRobot.BaseLink, package, meshFormat))
+                {
+                    meshFiles[meshFile.Link] = meshFile;
+                }
                 ExportFiles(URDFRobot.BaseLink, package, 0, exportSTL, meshFormat);
                 success = true;
             }
@@ -274,6 +278,15 @@ namespace SW2URDF.URDFExport
             logger.Info("Resetting STL preferences");
             ResetUserPreferences();
             progressBar.End();
+        }
+
+        /// <summary>
+        /// Names of the links whose mesh file the URDF would refer to but that does not exist in the package.
+        /// </summary>
+        public List<string> GetLinksWithoutMeshFile(MeshExportFormat meshFormat)
+        {
+            return MeshFiles.LinksWithoutFile(
+                URDFRobot.BaseLink, new URDFPackage(PackageName, SavePath), meshFormat);
         }
 
         public List<string> GetJointNames()
@@ -343,33 +356,9 @@ namespace SW2URDF.URDFExport
                 }
             }
 
-            // Create the mesh filenames. Link names may hold characters that are not allowed in file names
-            // (SolidWorks likes to use /), so the file name is derived from the name; the link name itself is kept.
-            string linkName = FileNames.UniqueFileName(link.Name, usedMeshFileNames);
-            string meshFilename = package.MeshesDirectory + linkName;
-            string windowsMeshFileName = package.WindowsMeshesDirectory + linkName;
-            switch(meshFormat)
-            {
-                case MeshExportFormat.STL:
-                    meshFilename += ".STL";
-                    windowsMeshFileName += ".STL";
-                    break;
-
-                case MeshExportFormat.OBJ:
-                    meshFilename += ".obj";
-                    windowsMeshFileName += ".obj";
-                    break;
-
-                case MeshExportFormat.THREEDXML:
-                    meshFilename += ".3dxml";
-                    windowsMeshFileName += ".3dxml";
-                    break;
-
-                default:
-                    meshFilename += ".STL";
-                    windowsMeshFileName += ".STL";
-                    break;
-            }
+            MeshFile meshFile = meshFiles[link];
+            string meshFilename = meshFile.Filename;
+            string windowsMeshFileName = meshFile.WindowsFilename;
             // Export STL
             if (exportSTL)
             {

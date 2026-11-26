@@ -339,6 +339,8 @@
     <Compile Include="Test\TestLogger.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMeshOriginBoxes.cs" />
+    <Compile Include="Test\TestMeshFiles.cs" />
+    <Compile Include="Test\TestMissingMeshPrompt.cs" />
     <Compile Include="Test\TestMathOps.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateComponents.cs" />
@@ -417,6 +419,8 @@
     <Compile Include="URDFExport\XacroOutput.cs" />
     <Compile Include="Test\TestXacroOutput.cs" />
     <Compile Include="URDFExport\MeshExportCheck.cs" />
+    <Compile Include="URDFExport\MeshFiles.cs" />
+    <Compile Include="URDFExport\MissingMeshPrompt.cs" />
     <Compile Include="URDFExport\ObjConversionRunner.cs" />
     <Compile Include="URDFExport\ObjConverter.cs" />
     <Compile Include="URDFExport\ThreeDxmlReader.cs" />
