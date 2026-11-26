@@ -74,9 +74,11 @@ manual checklist for the user interface.
 
 The same applies to assemblies and parts (the part exporter stores the inertial, visual and collision values
 this way). Details and versioning rules: `CONFIGURATION_FORMAT.md`.
-Renaming a SolidWorks configuration does not rename its attribute: the settings are then not found for the new
-name (the legacy fallback applies, else "new settings") and the old attribute is reported in the log as an
-orphan. Nothing is deleted or blocked. The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
+Renaming a SolidWorks configuration does not rename its attribute. When the exporter opens with the renamed
+configuration active, and it has no settings of its own, it asks whether to use the settings of the old name.
+*Yes* moves them to the new name (the old entry stays, empty). *No* changes nothing: the legacy fallback
+applies, else "new settings", the old attribute is reported in the log as an orphan, and the question comes
+again until the new name has settings (a copy of the legacy ones counts). The log is `sw2urdf_logs\sw2urdf.log` in your user folder.
 
 ### 1. Unit tests (no SolidWorks needed)
 
@@ -143,10 +145,11 @@ data; they are saved to this configuration on the next save."* or *"... New sett
 1. Non-ASCII: name the link `連桿_底座` and save. Reopen the exporter and the model. Expect the name unchanged
    (no `?` and no empty name). Also create a configuration named `配置_甲`, save a link there and switch back
    and forth.
-1. Rename a configuration (`CFG_RED_ONLY` to `CFG_RENAMED`). Open the exporter: expect the legacy data or
-   *new settings* for `CFG_RENAMED`, no error dialog. In the log expect a warning "URDF configuration
+1. Rename a configuration (`CFG_RED_ONLY` to `CFG_RENAMED`). Open the exporter with `CFG_RENAMED` active: expect
+   the question whether to use the settings of `CFG_RED_ONLY`. Answer *No*: expect the legacy data or *new
+   settings*, no error dialog. Without legacy data: cancel, open again and answer *Yes*: expect the tree of `CFG_RED_ONLY` and
+   *Stored for this configuration*. Open again: expect no question. After the *No*, in the log expect a warning "URDF configuration
    attributes that match no SolidWorks configuration (a configuration may have been renamed): CFG_RED_ONLY".
-   Save once to give the new name its own settings.
 1. Suppressed part: with `CFG_RED_ONLY` active and a link that holds the blue box (saved under the shared
    data), expect the missing-component warning only in that configuration.
 

@@ -593,6 +593,12 @@
   <data xml:space="preserve" name="new: nothing stored yet">
     <value>新設定：尚未儲存</value>
   </data>
+  <data xml:space="preserve" name="the configuration &quot;{0}&quot; has no urdf settings of its own. the settings stored under the name &quot;{1}&quot; belong to no configuration any more, which happens when a configuration is renamed. use them for &quot;{0}&quot;?">
+    <value>組態「{0}」沒有自己的 URDF 設定。以「{1}」為名儲存的設定已不屬於任何組態，組態重新命名後會出現這種情況。要將這些設定用於「{0}」嗎？</value>
+  </data>
+  <data xml:space="preserve" name="configuration renamed">
+    <value>組態已重新命名</value>
+  </data>
   <data xml:space="preserve" name="settings not saved">
     <value>設定尚未儲存</value>
   </data>

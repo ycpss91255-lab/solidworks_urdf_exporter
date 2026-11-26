@@ -47,8 +47,8 @@ namespace SW2URDF.URDFExport
         /// SolidWorks configuration and is named after that configuration. The serialization format
         /// is the same as the shared attribute (<see cref="SerializationVersion"/>), only the
         /// storage location differs. Note: if a SolidWorks configuration is renamed its attribute no
-        /// longer matches and the exporter falls back to the shared attribute until the
-        /// configuration is saved again (the stale attribute is harmless and can be deleted).
+        /// longer matches; the exporter then offers to move the settings to the new name (see
+        /// <see cref="EnsureConfigurationAttributes"/>).
         /// </summary>
         private const string ConfigurationAttributeDefinitionName = "URDF Export Configuration Data";
 
@@ -142,11 +142,13 @@ namespace SW2URDF.URDFExport
         /// the "URDF Export Configuration" feature tree folder, named like the configuration). Other
         /// configurations get theirs when the user switches to them and opens the exporter. A
         /// configuration without one gets a copy of the shared (legacy) data, or a blank attribute
-        /// when there is none. Existing attributes are never changed. A missing folder is rebuilt
+        /// when there is none. A configuration without settings is offered the ones of an attribute
+        /// that matches no configuration any more (the configuration was renamed); they are moved
+        /// when the user says yes. Other existing attributes are never changed. A missing folder is rebuilt
         /// around the attributes that exist. Returns true when anything was created or rebuilt
         /// (the document then needs saving).
         /// </summary>
-        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model)
+        public static bool EnsureConfigurationAttributes(SldWorks swApp, ModelDoc2 model, UiText ui = null)
         {
             string[] names = model.GetConfigurationNames() as string[];
             string active = GetActiveConfigurationName(model);
@@ -164,7 +166,11 @@ namespace SW2URDF.URDFExport
 
             bool created = false;
             string[] toCreate = DocumentPersistence.NamesToCreate(names, active, existing.ToArray());
-            if (toCreate.Length > 0)
+            if (AdoptOrphan(swApp, model, names, active, ui ?? new UiText(null)))
+            {
+                created = true;
+            }
+            else if (toCreate.Length > 0 && !HasConfigurationAttribute(model))
             {
                 SolidWorks.Interop.sldworks.Attribute shared =
                     FindSWSaveAttribute(model, UrdfConfigurationSwAttributeName) ?? CheckForOldAttributes(model);
@@ -179,12 +185,8 @@ namespace SW2URDF.URDFExport
                 }
                 else
                 {
-                    int options = (int)swInConfigurationOpts_e.swThisConfiguration;
-                    att.GetParameter("data").SetStringValue2(init == AttributeInit.CopyShared ? sharedData : "", options, "");
-                    att.GetParameter("name").SetStringValue2("config1", options, "");
-                    att.GetParameter("date").SetStringValue2(DateTime.Now.ToString(), options, "");
-                    att.GetParameter("exporterVersion").SetDoubleValue2(
-                        init == AttributeInit.CopyShared ? sharedVersion : SerializationVersion, options, "");
+                    bool copy = init == AttributeInit.CopyShared;
+                    WriteAttribute(att, copy ? sharedData : "", copy ? sharedVersion : SerializationVersion);
                     created = true;
                 }
             }
@@ -192,6 +194,78 @@ namespace SW2URDF.URDFExport
             bool removed = RemoveMigratedSharedAttributes(model);
             bool regrouped = RegroupFolder(model, active);
             return created || regrouped || removed;
+        }
+
+        /// <summary>
+        /// When the active configuration has no settings of its own, asks whether it takes over the
+        /// settings of an attribute that matches no configuration. Attribute values belong to the
+        /// configuration they were written for and stay with it when it is renamed, so only an
+        /// attribute that holds data for the active configuration is offered. True when the settings
+        /// were moved.
+        /// </summary>
+        private static bool AdoptOrphan(SldWorks swApp, ModelDoc2 model, string[] names, string active, UiText ui)
+        {
+            if (names == null || string.IsNullOrEmpty(active) || !names.Contains(active))
+            {
+                return false;
+            }
+            Feature ownFeature = FindConfigurationAttributeFeature(model, active);
+            SolidWorks.Interop.sldworks.Attribute own = ownFeature == null ? null :
+                (SolidWorks.Interop.sldworks.Attribute)ownFeature.GetSpecificFeature2();
+            if (own != null && !string.IsNullOrEmpty(own.GetParameter("data").GetStringValue()))
+            {
+                return false;
+            }
+            List<SolidWorks.Interop.sldworks.Attribute> attributes = GetConfigurationAttributeFeatures(model)
+                .Select(feature => (SolidWorks.Interop.sldworks.Attribute)feature.GetSpecificFeature2())
+                .Where(att => att.GetName() != null && !IsSharedAttributeName(att.GetName())).ToList();
+            foreach (string orphan in OrphanAttributes.FindOrphans(attributes.Select(att => att.GetName()), names))
+            {
+                SolidWorks.Interop.sldworks.Attribute source = attributes.First(att => att.GetName() == orphan);
+                string data = source.GetParameter("data").GetStringValue();
+                if (string.IsNullOrEmpty(data))
+                {
+                    continue;
+                }
+                bool adopt = MessageBox.Show(
+                    string.Format(ui.Get("The configuration \"{0}\" has no URDF settings of its own. The settings stored under the name \"{1}\" belong to no configuration any more, which happens when a configuration is renamed. Use them for \"{0}\"?"), active, orphan),
+                    ui.Get("Configuration renamed"), MessageBoxButton.YesNo) == MessageBoxResult.Yes;
+                logger.Info("URDF settings of \"" + orphan + "\" offered to \"" + active + "\", accepted: " + adopt);
+                if (adopt)
+                {
+                    own = own ?? CreateConfigurationAttribute(swApp, model, active);
+                    return own != null && MoveSettings(source, own);
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The source is only emptied after the target holds its data.</summary>
+        private static bool MoveSettings(
+            SolidWorks.Interop.sldworks.Attribute source, SolidWorks.Interop.sldworks.Attribute target)
+        {
+            string data = source.GetParameter("data").GetStringValue();
+            double version = source.GetParameter("exporterVersion").GetDoubleValue();
+            WriteAttribute(target, data, version);
+            if (target.GetParameter("data").GetStringValue() != data ||
+                target.GetParameter("exporterVersion").GetDoubleValue() != version)
+            {
+                logger.Warn("The URDF settings of \"" + source.GetName() + "\" could not be moved, they are kept there");
+                return false;
+            }
+            source.GetParameter("data").SetStringValue2(
+                "", (int)swInConfigurationOpts_e.swThisConfiguration, "");
+            return true;
+        }
+
+        /// <summary>Writes the values of the active configuration.</summary>
+        private static void WriteAttribute(SolidWorks.Interop.sldworks.Attribute att, string data, double version)
+        {
+            int options = (int)swInConfigurationOpts_e.swThisConfiguration;
+            att.GetParameter("data").SetStringValue2(data, options, "");
+            att.GetParameter("name").SetStringValue2("config1", options, "");
+            att.GetParameter("date").SetStringValue2(DateTime.Now.ToString(), options, "");
+            att.GetParameter("exporterVersion").SetDoubleValue2(version, options, "");
         }
 
         /// <summary>
