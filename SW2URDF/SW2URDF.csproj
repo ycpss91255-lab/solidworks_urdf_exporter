@@ -462,6 +462,7 @@
     <Compile Include="UI\AngleUnits.cs" />
     <Compile Include="UI\UiLayout.cs" />
     <Compile Include="UI\UiText.cs" />
+    <Compile Include="UI\ValueFormat.cs" />
     <EmbeddedResource Include="UI\Strings.resx" />
     <EmbeddedResource Include="UI\Strings.zh-TW.resx" />
     <Compile Include="Versioning\Version.cs" />

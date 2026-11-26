@@ -42,14 +42,14 @@ namespace SW2URDF.UI
             angles.Forget(linkBoxes);
             if (!Link.isFixedFrame)
             {
-                //R: round-trip format, shows the full precision of the stored value
+                // 12 significant digits (ValueFormat.Box); a box that is not edited keeps the exact value
                 Link.Visual.Origin.FillBoxes(textBoxVisualOriginX,
                                              textBoxVisualOriginY,
                                              textBoxVisualOriginZ,
                                              textBoxVisualOriginRoll,
                                              textBoxVisualOriginPitch,
                                              textBoxVisualOriginYaw,
-                                             "R");
+                                             ValueFormat.Box);
 
                 Link.Inertial.Origin.FillBoxes(textBoxInertialOriginX,
                                                textBoxInertialOriginY,
@@ -57,9 +57,9 @@ namespace SW2URDF.UI
                                                textBoxInertialOriginRoll,
                                                textBoxInertialOriginPitch,
                                                textBoxInertialOriginYaw,
-                                               "R");
+                                               ValueFormat.Box);
 
-                Link.Inertial.Mass.FillBoxes(textBoxMass, "R");
+                Link.Inertial.Mass.FillBoxes(textBoxMass, ValueFormat.Box);
 
                 Link.Inertial.Inertia.FillBoxes(textBoxIxx,
                                                 textBoxIxy,
@@ -67,7 +67,7 @@ namespace SW2URDF.UI
                                                 textBoxIyy,
                                                 textBoxIyz,
                                                 textBoxIzz,
-                                                "R");
+                                                ValueFormat.Box);
 
                 Link.Visual.Material.FillBoxes(comboBoxMaterials);
                 textBoxTexture.Text = Link.Visual.Material.Texture.wFilename;
@@ -76,7 +76,7 @@ namespace SW2URDF.UI
                                                      domainUpDownGreen,
                                                      domainUpDownBlue,
                                                      domainUpDownAlpha,
-                                                     "R");
+                                                     ValueFormat.Box);
 
                 // Display only: the boxes hold radians, shown in the chosen unit.
                 ShowRpy(Link.Visual.Origin, textBoxVisualOriginRoll, textBoxVisualOriginPitch, textBoxVisualOriginYaw);
@@ -104,7 +104,7 @@ namespace SW2URDF.UI
                 joint.Parent.FillBoxes(labelParent);
                 joint.Child.FillBoxes(labelChild);
 
-                //R: round-trip format, shows the full precision of the stored value
+                // 12 significant digits (ValueFormat.Box); a box that is not edited keeps the exact value
 
                 joint.Origin.FillBoxes(textBoxJointX,
                                        textBoxJointY,
@@ -112,11 +112,11 @@ namespace SW2URDF.UI
                                        textBoxJointRoll,
                                        textBoxJointPitch,
                                        textBoxJointYaw,
-                                       "R");
+                                       ValueFormat.Box);
 
                 if (joint.Type != "fixed")
                 {
-                    joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, "R");
+                    joint.Axis.FillBoxes(textBoxAxisX, textBoxAxisY, textBoxAxisZ, ValueFormat.Box);
                 }
 
                 if (joint.Limit != null && joint.Type != "fixed")
@@ -125,7 +125,7 @@ namespace SW2URDF.UI
                                           textBoxLimitUpper,
                                           textBoxLimitEffort,
                                           textBoxLimitVelocity,
-                                          "R");
+                                          ValueFormat.Box);
                 }
 
                 // Display only: where the limits come from. Nothing here is exported.
@@ -137,14 +137,14 @@ namespace SW2URDF.UI
                 {
                     joint.Calibration.FillBoxes(textBoxCalibrationRising,
                                                 textBoxCalibrationFalling,
-                                                "R");
+                                                ValueFormat.Box);
                 }
 
                 if (joint.Dynamics != null)
                 {
                     joint.Dynamics.FillBoxes(textBoxDamping,
                                              textBoxFriction,
-                                             "R");
+                                             ValueFormat.Box);
                 }
 
                 if (joint.Safety != null)
@@ -153,7 +153,7 @@ namespace SW2URDF.UI
                                            textBoxSoftUpper,
                                            textBoxKPosition,
                                            textBoxKVelocity,
-                                           "R");
+                                           ValueFormat.Box);
                 }
             }
 
