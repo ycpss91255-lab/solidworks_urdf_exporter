@@ -614,6 +614,8 @@ namespace SW2URDF.UI
                 treeViewJointTree.Nodes.Remove(node);
                 BaseNode.Nodes.Add(node);
             }
+            // Moving the nodes selects a remaining joint; the link page would save its boxes into the link of it.
+            previouslySelectedNode = null;
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
 
             FillLinkTree();
@@ -725,6 +727,15 @@ namespace SW2URDF.UI
             ChangeAllNodeFont(BaseNode, new Font(treeViewJointTree.Font, FontStyle.Regular));
             FillJointTree();
             panelLinkProperties.Visible = false;
+
+            // Moving the nodes can select one of the link page, so this is cleared after it. The boxes
+            // still show a joint, so one is selected; nothing typed could be saved otherwise.
+            previouslySelectedNode = null;
+            treeViewJointTree.SelectedNode = null;
+            if (treeViewJointTree.Nodes.Count > 0)
+            {
+                treeViewJointTree.SelectedNode = treeViewJointTree.Nodes[0];
+            }
         }
 
         private void ButtonLinksFinishClick(object sender, EventArgs e)
