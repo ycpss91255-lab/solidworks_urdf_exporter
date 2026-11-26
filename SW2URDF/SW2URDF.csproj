@@ -361,6 +361,7 @@
     <Compile Include="Test\TestPartOriginBoxes.cs" />
     <Compile Include="Test\TestPartPerConfiguration.cs" />
     <Compile Include="Test\TestPartTexture.cs" />
+    <Compile Include="Test\TestBlankLimitBoxes.cs" />
     <Compile Include="Test\TestPartSettings.cs" />
     <Compile Include="Test\TestPerConfiguration.cs" />
     <Compile Include="Test\TestMissingComponentPolicy.cs" />

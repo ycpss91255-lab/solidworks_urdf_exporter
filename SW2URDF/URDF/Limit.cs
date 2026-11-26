@@ -83,10 +83,24 @@ namespace SW2URDF.URDF
                 // If all text boxes are empty and this element isn't required, then leave blank
                 return;
             }
-            LowerAttribute.SetDoubleValueFromString(boxLower.Text);
-            UpperAttribute.SetDoubleValueFromString(boxUpper.Text);
-            EffortAttribute.SetDoubleValueFromString(boxEffort.Text);
-            VelocityAttribute.SetDoubleValueFromString(boxVelocity.Text);
+            SetValue(LowerAttribute, boxLower.Text);
+            SetValue(UpperAttribute, boxUpper.Text);
+            SetValue(EffortAttribute, boxEffort.Text);
+            SetValue(VelocityAttribute, boxVelocity.Text);
+        }
+
+        // A blank box of a joint that needs limits leaves the value unset, which is reported as a missing
+        // required field; a 0 nobody typed would be exported as a limit.
+        private void SetValue(URDFAttribute attribute, string text)
+        {
+            if (IsRequired() && string.IsNullOrWhiteSpace(text))
+            {
+                attribute.Value = null;
+            }
+            else
+            {
+                attribute.SetDoubleValueFromString(text);
+            }
         }
 
         public override void SetRequired(bool required)
