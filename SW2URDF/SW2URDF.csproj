@@ -330,6 +330,7 @@
     <Compile Include="Test\SWTestFixture.cs" />
     <Compile Include="Test\TestAngleUnits.cs" />
     <Compile Include="Test\TestBoxPrecision.cs" />
+    <Compile Include="Test\TestMissingAppearance.cs" />
     <Compile Include="Test\TestCommon.cs" />
     <Compile Include="Test\TestChosenJointType.cs" />
     <Compile Include="Test\TestConfigurationFormat.cs" />

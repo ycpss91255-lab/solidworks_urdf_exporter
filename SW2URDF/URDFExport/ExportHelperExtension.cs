@@ -187,12 +187,7 @@ namespace SW2URDF.URDFExport
             Link.Collision.Origin.SetXYZ(new double[3] { 0, 0, 0 });
             Link.Collision.Origin.SetRPY(new double[3] { 0, 0, 0 });
 
-            // [ R, G, B, Ambient, Diffuse, Specular, Shininess, Transparency, Emission ]
-            double[] values = swModel.MaterialPropertyValues;
-            Link.Visual.Material.Color.Red = values[0];
-            Link.Visual.Material.Color.Green = values[1];
-            Link.Visual.Material.Color.Blue = values[2];
-            Link.Visual.Material.Color.Alpha = 1.0 - values[7];
+            SetColor(Link, swModel);
             Link.Visual.Material.Name = "material_" + Link.Name;
 
             return Link;
@@ -566,10 +561,24 @@ namespace SW2URDF.URDFExport
                 return;
             }
 
-            ModelDoc2 mainCompdoc = link.SWComponents[0].GetModelDoc2();
+            SetColor(link, (ModelDoc2)link.SWComponents[0].GetModelDoc2());
+        }
 
+        /// <summary>
+        /// Gives the link the color of a document. A suppressed or lightweight component has no document, and
+        /// a document can report no appearance: the color stays as it is then.
+        /// </summary>
+        private static void SetColor(Link link, ModelDoc2 model)
+        {
             // [ R, G, B, Ambient, Diffuse, Specular, Shininess, Transparency, Emission ]
-            double[] values = mainCompdoc.MaterialPropertyValues;
+            object appearance = model == null ? null : model.MaterialPropertyValues;
+            double[] values = appearance as double[];
+            if (values == null || values.Length < 8)
+            {
+                logger.Warn("No appearance for link " + link.Name + (model == null ? ", its model is not loaded" : "") +
+                    ". The color is not changed.");
+                return;
+            }
             link.Visual.Material.Color.Red = values[0];
             link.Visual.Material.Color.Green = values[1];
             link.Visual.Material.Color.Blue = values[2];
