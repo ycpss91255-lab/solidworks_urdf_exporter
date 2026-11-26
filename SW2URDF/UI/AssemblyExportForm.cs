@@ -792,9 +792,8 @@ namespace SW2URDF.UI
                 }
             }
 
-            SaveFileDialog saveFileDialog1 = new SaveFileDialog
+            PackageDialog saveFileDialog1 = new PackageDialog
             {
-                RestoreDirectory = true,
                 InitialDirectory = Exporter.SavePath,
                 FileName = Exporter.PackageName
             };

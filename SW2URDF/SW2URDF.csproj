@@ -321,6 +321,7 @@
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Legacy\SerialNode.cs" />
     <Compile Include="UI\IMessageBox.cs" />
+    <Compile Include="UI\PackageDialog.cs" />
     <Compile Include="UI\MessageBoxHelper.cs" />
     <Compile Include="UI\NumberBoxDisplay.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
@@ -337,6 +338,7 @@
     <Compile Include="Test\TestFileNames.cs" />
     <Compile Include="Test\TestPackageXmlFile.cs" />
     <Compile Include="Test\TestLogger.cs" />
+    <Compile Include="Test\TestPackageDialog.cs" />
     <Compile Include="Test\TestMeshExportCheck.cs" />
     <Compile Include="Test\TestMeshOriginBoxes.cs" />
     <Compile Include="Test\TestMeshFiles.cs" />
