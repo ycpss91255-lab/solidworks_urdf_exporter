@@ -127,6 +127,66 @@ namespace SW2URDF.Test
             });
         }
 
+        // Issue #275: the default Save As value of the part form
+
+        [Fact]
+        public void DefaultSaveAsDropsTheExtensionOfTheTitle()
+        {
+            // ExportHelper starts with the document title, which SolidWorks shows with .SLDPRT
+            Assert.Equal(@"C:\home\ARM", PartPackage.DefaultSaveAs(@"C:\home", "ARM.SLDPRT"));
+            Assert.Equal(@"C:\home\arm", PartPackage.DefaultSaveAs(@"C:\home\", "arm.sldprt"));
+            Assert.Equal(@"C:\home\x_part", PartPackage.DefaultSaveAs(@"C:\home", "x_part"));
+        }
+
+        [Fact]
+        public void DefaultSaveAsIsThePackageNameThatIsUsed()
+        {
+            string saveAs = PartPackage.DefaultSaveAs(@"C:\home", "my arm.SLDPRT");
+            URDFPackage package = new URDFPackage(Path.GetFileName(saveAs), Path.GetDirectoryName(saveAs));
+            Assert.Equal(package.PackageName, Path.GetFileName(saveAs));
+        }
+
+        [Fact]
+        public void LinkIsNamedAfterThePackageThatIsUsed()
+        {
+            // The form passes the file name of the Save As box, as typed or as left from an older default
+            foreach (string saveAsName in new[] { "ARM.SLDPRT", "ARM", "my arm.SLDPRT", "x_part" })
+            {
+                URDFPackage package = new URDFPackage(saveAsName, @"C:\out\");
+                Assert.Equal(package.PackageName, PartPackage.LinkName(saveAsName));
+            }
+            Assert.Equal("ARM", PartPackage.LinkName("ARM.SLDPRT"));
+            Assert.Equal("x_part", PartPackage.LinkName("x_part"));
+        }
+
+        [Fact]
+        public void MeshIsNamedAfterTheLink()
+        {
+            Robot robot = TitledRobot();
+            robot.BaseLink.Name = PartPackage.LinkName("ARM.SLDPRT");
+            Assert.Equal("ARM.STL", PartPackage.MeshFileName(robot.BaseLink, ".STL"));
+            robot.BaseLink.Name = PartPackage.LinkName("x_part");
+            Assert.Equal("x_part.STL", PartPackage.MeshFileName(robot.BaseLink, ".STL"));
+        }
+
+        [Fact]
+        public void DefaultExportNamesPackageRobotLinkAndMeshAlike()
+        {
+            // The values that ButtonFinishClick and ExportLink use when the default is left as it is
+            string saveAs = PartPackage.DefaultSaveAs(@"C:\home", "ARM.SLDPRT");
+            string saveAsName = Path.GetFileName(saveAs);
+            URDFPackage package = new URDFPackage(saveAsName, Path.GetDirectoryName(saveAs));
+            Robot robot = TitledRobot();
+            robot.BaseLink.Name = PartPackage.LinkName(saveAsName);
+            PartPackage.NameRobot(robot, package, false);
+
+            Assert.Equal("ARM", package.PackageName);
+            Assert.Equal("ARM", robot.Name);
+            Assert.Equal("ARM", robot.BaseLink.Name);
+            Assert.Equal("package://ARM/meshes/ARM.STL",
+                package.MeshesDirectory + PartPackage.MeshFileName(robot.BaseLink, ".STL"));
+        }
+
         private static void WithPackage(string name, System.Action<URDFPackage> test)
         {
             string dir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());

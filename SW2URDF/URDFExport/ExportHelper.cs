@@ -726,9 +726,9 @@ namespace SW2URDF.URDFExport
             //Creating package directories
             URDFPackage package = new URDFPackage(PackageName, SavePath, UiText.FromSolidWorks(iSwApp));
             package.CreateDirectories();
-            string meshBaseName = FileNames.SanitizeFileName(URDFRobot.BaseLink.Name);
-            string meshFileName = package.MeshesDirectory + meshBaseName + ".STL";
-            string windowsMeshFileName = package.WindowsMeshesDirectory + meshBaseName + ".STL";
+            string meshName = PartPackage.MeshFileName(URDFRobot.BaseLink, ".STL");
+            string meshFileName = package.MeshesDirectory + meshName;
+            string windowsMeshFileName = package.WindowsMeshesDirectory + meshName;
             // The robot and its file are named after the package, as in the assembly export
             string windowsURDFFileName = PartPackage.NameRobot(URDFRobot, package, URDFRobot.BaseLink.WriteXacro);
 
