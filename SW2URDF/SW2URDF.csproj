@@ -326,6 +326,7 @@
     <Compile Include="UI\MessageBoxHelper.cs" />
     <Compile Include="UI\NumberBoxDisplay.cs" />
     <Compile Include="Test\SW2URDFTest.cs" />
+    <Compile Include="Test\FakeExport.cs" />
     <Compile Include="Test\SWTestFixture.cs" />
     <Compile Include="Test\TestAngleUnits.cs" />
     <Compile Include="Test\TestBoxPrecision.cs" />
@@ -368,6 +369,7 @@
     <Compile Include="Test\TestTreeKeyActions.cs" />
     <Compile Include="Test\TestJointPageAfterPrevious.cs" />
     <Compile Include="Test\TestDocumentPersistence.cs" />
+    <Compile Include="Test\TestExportRestoresState.cs" />
     <Compile Include="Test\TestFolderNameCollision.cs" />
     <Compile Include="Test\TestGeneratedFeatureLog.cs" />
     <Compile Include="Test\TestJointAtOrigin.cs" />
