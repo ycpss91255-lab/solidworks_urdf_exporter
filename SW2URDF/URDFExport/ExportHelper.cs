@@ -406,7 +406,15 @@ namespace SW2URDF.URDFExport
                             break;
 
                         case MeshExportFormat.THREEDXML:
-                            exported = Save3dxml(link, windowsMeshFileName);
+                            // The components are hidden here so that they are also after an exception.
+                            try
+                            {
+                                exported = Save3dxml(link, windowsMeshFileName);
+                            }
+                            finally
+                            {
+                                CommonSwOperations.HideComponents(ActiveSWModel, link.SWComponents);
+                            }
                             break;
 
                         default:
@@ -546,7 +554,6 @@ namespace SW2URDF.URDFExport
                 logger.Warn("Exporting 3dxml for link " + link.Name + " failed with error " + errors +
                     " or warnings " + warnings);
             }
-            CommonSwOperations.HideComponents(ActiveSWModel, link.SWComponents);
             return MeshSaveSucceeded(link, saved, errors, windowsMeshFilename);
         }
 

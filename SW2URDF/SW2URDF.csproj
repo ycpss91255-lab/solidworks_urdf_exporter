@@ -368,6 +368,7 @@
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
     <Compile Include="Test\TestJointPageAfterErrors.cs" />
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />
+    <Compile Include="Test\TestMeshVisibility.cs" />
     <Compile Include="Test\TestTreeKeyActions.cs" />
     <Compile Include="Test\TestJointPageAfterPrevious.cs" />
     <Compile Include="Test\TestDocumentPersistence.cs" />
