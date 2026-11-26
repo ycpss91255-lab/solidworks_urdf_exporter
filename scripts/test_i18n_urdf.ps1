@@ -4,7 +4,8 @@
 #  1. The same robot is written while the English and the Traditional Chinese UiText are in
 #     use (under a non-English numeric culture) and the two documents are compared.
 #  2. Non-ASCII names a user typed are written verbatim, never translated.
-#  3. The URDF model and writer sources never touch UiText, and the package writer only
+#  3. The URDF model never gets hold of a UiText by itself: it may only be given one for display
+#     (the joint type list, the limit mate notice), never where it writes. The package writer only
 #     uses it for the message box.
 param(
     [string]$Root = "$PSScriptRoot/..",
@@ -54,13 +55,26 @@ $thread = [Threading.Thread]::CurrentThread
 $originalCulture = $thread.CurrentCulture
 try {
     $thread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('de-DE')
-    $documents = @{}
+    $documents = @{}; $shown = @{}
     foreach ($language in 'english', 'chinese') {
         $ui = [Activator]::CreateInstance($uiType, @(, $language))
         # Use the language the way the forms do before the robot is written.
         $form = New-Object System.Windows.Forms.Form; $form.Text = 'Cancel'; $ui.Apply($form); $form.Dispose()
-        $documents[$language] = Write-Urdf (New-Robot 'demo_robot' 'base_link' 'arm_link' 'shoulder')
+        $robot = New-Robot 'demo_robot' 'base_link' 'arm_link' 'shoulder'
+        # The joint page shows the joint type and the limit notice in that language and stores the type again.
+        $joint = $robot.BaseLink.Children[0].Joint
+        $nameBox = New-Object System.Windows.Forms.TextBox; $typeBox = New-Object System.Windows.Forms.ComboBox
+        foreach ($type in 'revolute', 'continuous', 'prismatic', 'fixed') { [void]$typeBox.Items.Add($ui.ComboDisplay($type)) }
+        $joint.FillBoxes($nameBox, $typeBox, $ui)
+        $shownType = $typeBox.Text
+        $joint.Update($nameBox, $typeBox, $ui)
+        $joint.LimitInfo = $assembly.GetType('SW2URDF.URDF.LimitMateInfo', $true)::new()
+        $shown[$language] = @($shownType, $joint.LimitInfo.Describe($ui))
+        $nameBox.Dispose(); $typeBox.Dispose()
+        $documents[$language] = Write-Urdf $robot
     }
+    Require ($shown['english'][0] -ceq 'revolute' -and $shown['chinese'][0] -cne 'revolute' -and
+        $shown['english'][1] -cne $shown['chinese'][1]) 'the joint page shows the same text in both languages, so this comparison proves nothing'
     Require ($documents['english'] -ceq $documents['chinese']) 'URDF differs between English and Traditional Chinese'
     $xml = [xml]$documents['chinese']
     Require ($xml.robot.name -ceq 'demo_robot') 'robot name'
@@ -79,10 +93,13 @@ try {
 
 foreach ($file in Get-ChildItem -Path (Join-Path $Root 'SW2URDF/URDF') -Filter *.cs) {
     $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
-    Require ($text -notmatch '\bUiText\b|\bui\.Get\(') "$($file.Name) in the URDF model uses interface text"
+    $code = $text -replace '(?m)//.*$', ''
+    Require ($code -notmatch '\b(Write|Append|Set|Save|Serialize|ToString)\w*\([^()]*\bUiText\b') "$($file.Name) in the URDF model is given interface text where it writes"
+    $code = $code -replace '(?<=[(,]\s*)(SW2URDF\.UI\.)?UiText ui(\s*=\s*null)?(?=\s*[,)])', ''
+    Require ($code -notmatch '\bUiText\b') "$($file.Name) in the URDF model uses interface text it was not given"
 }
 $package = Get-Content -LiteralPath (Join-Path $Root 'SW2URDF/URDFExport/URDFPackage.cs') -Encoding UTF8
 foreach ($line in @($package | Where-Object { $_ -match '\bui\.Get\(' })) {
     Require ($line -match 'MessageBox') "URDFPackage uses interface text outside a message box: $line"
 }
-Write-Output 'PASS: English and Traditional Chinese write identical URDF; user names verbatim; model code independent of UiText'
+Write-Output 'PASS: English and Traditional Chinese write identical URDF; user names verbatim; the model only uses a UiText it is given for display'

@@ -15,6 +15,8 @@ namespace SW2URDF.URDF
                 Encoding = new UTF8Encoding(false),
                 Indent = true,
                 NewLineOnAttributes = true,
+                // A file that could not be written completely must not be closed into a complete one
+                WriteEndDocumentOnClose = false,
             };
             writer = XmlWriter.Create(savePath, settings);
         }

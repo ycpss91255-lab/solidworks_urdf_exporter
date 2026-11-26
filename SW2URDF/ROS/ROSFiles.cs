@@ -215,29 +215,29 @@ namespace SW2URDF.ROS
 
         public void WriteFile(string dir)
         {
-            XmlWriter writer;
             XmlWriterSettings settings = new XmlWriterSettings
             {
                 Encoding = new UTF8Encoding(false),
                 OmitXmlDeclaration = true,
                 Indent = true,
-                NewLineOnAttributes = true
+                NewLineOnAttributes = true,
+                WriteEndDocumentOnClose = false
             };
 
             string displayLaunch = dir + @"gazebo.launch";
-            writer = XmlWriter.Create(displayLaunch, settings);
-
-            writer.WriteStartDocument();
-            writer.WriteStartElement("launch");
-
-            foreach (LaunchElement element in elements)
+            using (XmlWriter writer = XmlWriter.Create(displayLaunch, settings))
             {
-                element.WriteFile(writer);
-            }
+                writer.WriteStartDocument();
+                writer.WriteStartElement("launch");
 
-            writer.WriteEndElement();
-            writer.WriteEndDocument();
-            writer.Close();
+                foreach (LaunchElement element in elements)
+                {
+                    element.WriteFile(writer);
+                }
+
+                writer.WriteEndElement();
+                writer.WriteEndDocument();
+            }
         }
     }
 
@@ -268,29 +268,29 @@ namespace SW2URDF.ROS
 
         public void WriteFiles(string dir)
         {
-            XmlWriter writer;
             XmlWriterSettings settings = new XmlWriterSettings
             {
                 Encoding = new UTF8Encoding(false),
                 OmitXmlDeclaration = true,
                 Indent = true,
-                NewLineOnAttributes = true
+                NewLineOnAttributes = true,
+                WriteEndDocumentOnClose = false
             };
 
             string displayLaunch = dir + @"display.launch";
-            writer = XmlWriter.Create(displayLaunch, settings);
-
-            writer.WriteStartDocument();
-            writer.WriteStartElement("launch");
-
-            foreach (LaunchElement element in elements)
+            using (XmlWriter writer = XmlWriter.Create(displayLaunch, settings))
             {
-                element.WriteFile(writer);
-            }
+                writer.WriteStartDocument();
+                writer.WriteStartElement("launch");
 
-            writer.WriteEndElement();
-            writer.WriteEndDocument();
-            writer.Close();
+                foreach (LaunchElement element in elements)
+                {
+                    element.WriteFile(writer);
+                }
+
+                writer.WriteEndElement();
+                writer.WriteEndDocument();
+            }
         }
     }
 }
