@@ -291,7 +291,6 @@
             // 
             this.buttonLinksExportUrdfOnly.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonLinksExportUrdfOnly.Location = new System.Drawing.Point(759, 7);
-            this.buttonLinksExportUrdfOnly.Margin = new System.Windows.Forms.Padding(2);
             this.buttonLinksExportUrdfOnly.Name = "buttonLinksExportUrdfOnly";
             this.buttonLinksExportUrdfOnly.Size = new System.Drawing.Size(150, 21);
             this.buttonLinksExportUrdfOnly.TabIndex = 94;
