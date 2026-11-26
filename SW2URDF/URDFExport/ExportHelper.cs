@@ -160,13 +160,19 @@ namespace SW2URDF.URDFExport
 
         #region Export Methods
 
-        // Beginning method for exporting the full package
-        public void ExportRobot(bool exportSTL = true, MeshExportFormat meshFormat = MeshExportFormat.STL)
+        // Whether the current export wrote all files of the package
+        private bool packageComplete;
+
+        // Beginning method for exporting the full package. Returns whether the package is complete; when it is
+        // not, the user was told and the export can be repeated.
+        public bool ExportRobot(bool exportSTL = true, MeshExportFormat meshFormat = MeshExportFormat.STL)
         {
+            packageComplete = false;
             using (new LinkPlacement(URDFRobot.BaseLink))
             {
                 ExportRobotFiles(exportSTL, meshFormat);
             }
+            return packageComplete;
         }
 
         private void ExportRobotFiles(bool exportSTL, MeshExportFormat meshFormat)
@@ -306,6 +312,7 @@ namespace SW2URDF.URDFExport
             URDFRobot.WriteURDF(uWriter.writer);
 
             ImportExport.WriteRobotToCSV(URDFRobot, windowsCSVFileName);
+            packageComplete = true;
 
             logger.Info("Copying log file");
             CopyLogFile(package);
@@ -689,12 +696,22 @@ namespace SW2URDF.URDFExport
             ExportLink(zIsUp, MeshExportFormat.STL);
         }
 
-        public void ExportLink(bool zIsUp, MeshExportFormat meshFormat)
+        // Returns whether the package is complete, as ExportRobot
+        public bool ExportLink(bool zIsUp, MeshExportFormat meshFormat)
         {
-            using (new LinkPlacement(URDFRobot.BaseLink))
+            packageComplete = false;
+            try
             {
-                ExportLinkFiles(zIsUp, meshFormat);
+                using (new LinkPlacement(URDFRobot.BaseLink))
+                {
+                    ExportLinkFiles(zIsUp, meshFormat);
+                }
             }
+            catch (OperationCanceledException e)
+            {
+                logger.Info("The export of the part was cancelled", e);
+            }
+            return packageComplete;
         }
 
         private void ExportLinkFiles(bool zIsUp, MeshExportFormat meshFormat)
@@ -778,6 +795,7 @@ namespace SW2URDF.URDFExport
             URDFRobot.WriteXacro = URDFRobot.BaseLink.WriteXacro;
             //mRobot.addLink(mLink);
             URDFRobot.WriteURDF(uWriter.writer);
+            packageComplete = true;
         }
 
         // Waits for SolidWorks to release a binary STL, verifies that its triangle data is

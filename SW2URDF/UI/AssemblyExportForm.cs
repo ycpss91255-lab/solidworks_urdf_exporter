@@ -845,13 +845,23 @@ namespace SW2URDF.UI
                     exportSTL = choice == MissingMeshChoice.ExportMeshes;
                 }
                 Exporter.URDFRobot.BaseLink.WriteXacro = checkBoxXacro.Checked;
-                Exporter.ExportRobot(exportSTL, meshFormat);
-                ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);
-
-                // A completed export keeps the generated features
-                exportCompleted = true;
-                Close();
+                ExportAndClose(exportSTL, meshFormat);
             }
+        }
+
+        private void ExportAndClose(bool exportSTL, MeshExportFormat meshFormat)
+        {
+            if (!Exporter.ExportRobot(exportSTL, meshFormat))
+            {
+                // Another format or name can be tried; closing the form discards the generated features
+                logger.Info("The package is not complete, the export form stays open");
+                return;
+            }
+            ConfigurationSerialization.GroupUrdfFeatures(ActiveSWModel, ui);
+
+            // A completed export keeps the generated features
+            exportCompleted = true;
+            Close();
         }
 
         private string CheckLinksForErrors(Link baseLink)
