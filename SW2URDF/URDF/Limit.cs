@@ -43,6 +43,12 @@ namespace SW2URDF.URDF
             set => VelocityAttribute.Value = value;
         }
 
+        /// <summary>True when both the lower and the upper limit have a value; Lower and Upper can only be read then.</summary>
+        public bool HasRange()
+        {
+            return LowerAttribute.IsSet() && UpperAttribute.IsSet();
+        }
+
         public Limit() : base("limit", false)
         {
             EffortAttribute = new URDFAttribute("effort", true, null);
