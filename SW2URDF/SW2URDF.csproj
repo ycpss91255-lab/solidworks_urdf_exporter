@@ -380,6 +380,7 @@
     <Compile Include="Test\TestTwoBoxesFixture.cs" />
     <Compile Include="Test\Test3dxmlPlacement.cs" />
     <Compile Include="Test\TwoBoxesModel.cs" />
+    <Compile Include="Test\TestMissingComponent.cs" />
     <Compile Include="Test\TestSerialization.cs" />
     <Compile Include="Test\TestNestedReferenceGeometry.cs" />
     <Compile Include="Test\TestSWAttached.cs" />
