@@ -347,6 +347,7 @@
     <Compile Include="Test\TestMeshFiles.cs" />
     <Compile Include="Test\TestMissingMeshPrompt.cs" />
     <Compile Include="Test\TestMathOps.cs" />
+    <Compile Include="Test\TestObjProgressDialog.cs" />
     <Compile Include="Test\TestLimitFromMate.cs" />
     <Compile Include="Test\TestLimitMateComponents.cs" />
     <Compile Include="Test\TestLimitMateInfo.cs" />
