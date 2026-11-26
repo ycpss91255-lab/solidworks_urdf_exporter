@@ -5,6 +5,7 @@ using SW2URDF.URDF;
 using SW2URDF.UI;
 using SW2URDF.Utilities;
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -187,6 +188,12 @@ namespace SW2URDF.URDFExport
             return created || regrouped || removed;
         }
 
+        /// <summary>The "date" parameter of a URDF attribute: when its settings were written (ISO 8601, not read back).</summary>
+        internal static string AttributeDate(DateTimeOffset time)
+        {
+            return time.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+        }
+
         /// <summary>
         /// When the active configuration has no settings of its own, asks whether it takes over the
         /// settings of an attribute that matches no configuration. Attribute values belong to the
@@ -255,7 +262,7 @@ namespace SW2URDF.URDFExport
             int options = (int)swInConfigurationOpts_e.swThisConfiguration;
             att.GetParameter("data").SetStringValue2(data, options, "");
             att.GetParameter("name").SetStringValue2("config1", options, "");
-            att.GetParameter("date").SetStringValue2(DateTime.Now.ToString(), options, "");
+            att.GetParameter("date").SetStringValue2(AttributeDate(DateTimeOffset.Now), options, "");
             att.GetParameter("exporterVersion").SetDoubleValue2(version, options, "");
         }
 
@@ -725,6 +732,25 @@ namespace SW2URDF.URDFExport
         {
             return name == ConfigurationFormat.SharedAttributeName ||
                 ConfigurationFormat.PreviousSharedAttributeNames.Contains(name);
+        }
+
+        /// <summary>
+        /// False, with a message, when another configuration was activated since the exporter was
+        /// opened for <paramref name="opened"/>: its settings must not be replaced by the ones of
+        /// that configuration. A configuration that was renamed meanwhile is still the same one.
+        /// </summary>
+        public static bool CheckSameConfiguration(ModelDoc2 model, string opened, UiText ui)
+        {
+            string active = GetActiveConfigurationName(model);
+            string[] names = model.GetConfigurationNames() as string[];
+            if (opened == null || active == null || active == opened || names == null || !names.Contains(opened))
+            {
+                return true;
+            }
+            logger.Warn("The exporter was opened for configuration \"" + opened + "\", now \"" + active +
+                "\" is active: nothing is saved or exported");
+            MessageBox.Show(string.Format(ui.Get("The exporter was opened for the configuration \"{0}\", but now \"{1}\" is active. Nothing was saved or exported, so that the settings of \"{1}\" are kept. Activate \"{0}\" again, or open the exporter again for \"{1}\"."), opened, active));
+            return false;
         }
 
         public static string GetActiveConfigurationName(ModelDoc2 model)
@@ -1255,7 +1281,7 @@ namespace SW2URDF.URDFExport
             param = saveExporterAttribute.GetParameter("name");
             param.SetStringValue2("config1", ConfigurationOptions, "");
             param = saveExporterAttribute.GetParameter("date");
-            param.SetStringValue2(DateTime.Now.ToString(), ConfigurationOptions, "");
+            param.SetStringValue2(AttributeDate(DateTimeOffset.Now), ConfigurationOptions, "");
             param = saveExporterAttribute.GetParameter("exporterVersion");
             param.SetDoubleValue2(SerializationVersion, ConfigurationOptions, "");
 
