@@ -139,7 +139,8 @@ namespace SW2URDF.UI
         {
             Exporter.PackageName = Path.GetFileName(textBox_save_as.Text);
             Exporter.SavePath = Path.GetDirectoryName(textBox_save_as.Text);
-            Exporter.URDFRobot.BaseLink.Name = Exporter.PackageName;
+            // The link, and so its mesh, is named after the package that URDFPackage makes of this name
+            Exporter.URDFRobot.BaseLink.Name = PartPackage.LinkName(Exporter.PackageName);
 
             Exporter.URDFRobot.BaseLink.Inertial.Origin.Update(textBox_inertial_origin_x,
                                                             textBox_inertial_origin_y,
@@ -261,7 +262,7 @@ namespace SW2URDF.UI
                 // Settings that cannot be read leave the values computed from the part.
                 logger.Warn("Could not load the saved part settings", ex);
             }
-            textBox_save_as.Text = Exporter.SavePath + "\\" + Exporter.PackageName;
+            textBox_save_as.Text = PartPackage.DefaultSaveAs(Exporter.SavePath, Exporter.PackageName);
             checkBoxXacro.Checked = Exporter.URDFRobot.BaseLink.WriteXacro;
 
             Exporter.URDFRobot.BaseLink.Visual.Origin.FillBoxes(textBox_collision_origin_x,
