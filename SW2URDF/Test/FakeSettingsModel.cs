@@ -40,6 +40,10 @@ namespace SW2URDF.Test
         public readonly List<string> Shown = new List<string>();
         public readonly List<Node> Selection = new List<Node>();
         public int Walks;
+        /// <summary>
+        /// Undo recordings and tree changes in their order: "start", "finish", "delete", "insert", "rename".
+        /// </summary>
+        public readonly List<string> UndoEvents = new List<string>();
         public int Deletions;
         public int FoldersInserted;
         /// <summary>Whether SolidWorks refuses the n-th folder insertion (from 1).</summary>
@@ -93,9 +97,16 @@ namespace SW2URDF.Test
             document.Setup(d => d.ClearSelection2(It.IsAny<bool>())).Callback(() => Selection.Clear());
 
             var extension = new Mock<ModelDocExtension>();
+            extension.Setup(e => e.StartRecordingUndoObject()).Callback(() => UndoEvents.Add("start"));
+            extension.Setup(e => e.FinishRecordingUndoObject2(It.IsAny<string>(), It.IsAny<bool>())).Returns(() =>
+            {
+                UndoEvents.Add("finish");
+                return true;
+            });
             extension.Setup(e => e.DeleteSelection2(It.IsAny<int>())).Returns(() =>
             {
                 Deletions++;
+                UndoEvents.Add("delete");
                 foreach (Node node in Selection)
                 {
                     Tree.Remove(node);
@@ -210,6 +221,7 @@ namespace SW2URDF.Test
             feature.SetupSet(f => f.Name = It.IsAny<string>()).Callback((string value) =>
             {
                 if (Tree.Any(n => n.Name == value)) return;
+                UndoEvents.Add("rename");
                 foreach (Node end in Tree.Where(n => node.Type == FolderType && n.Name == node.Name + EndTag))
                 {
                     end.Name = value + EndTag;
@@ -283,6 +295,7 @@ namespace SW2URDF.Test
         private Feature InsertFolder()
         {
             FoldersInserted++;
+            UndoEvents.Add("insert");
             if (InsertThrows) throw new InvalidOperationException("folder");
             if (InsertFails(FoldersInserted) || Selection.Count == 0) return null;
             return WrapInFolder(Selection.ToList(), "Folder" + FoldersInserted).Feature;
