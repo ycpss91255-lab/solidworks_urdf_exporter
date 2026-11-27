@@ -340,6 +340,14 @@ public static class FormE2eProbe
         foreach (Control c in parent.Controls) { yield return c; foreach (Control d in AllControls(c)) yield return d; }
     }
 
+    static string Snapshot(string folder)
+    {
+        if (!Directory.Exists(folder)) return "none";
+        var lines = Directory.GetFiles(folder, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal)
+            .Select(f => { var i = new FileInfo(f); return f.Substring(folder.Length) + ":" + i.Length + ":" + i.LastWriteTimeUtc.Ticks; });
+        return lines.Count() + " files " + string.Join("|", lines).GetHashCode().ToString("x8");
+    }
+
     static void Export(string button, string dir, string package)
     {
         Directory.CreateDirectory(dir);
@@ -407,6 +415,11 @@ public static class FormE2eProbe
             // the answer to a question of the exporter (URDFPackage.MessageBox)
             case "answer": LimitLiveProbe.Answer = (System.Windows.MessageBoxResult)Enum.Parse(typeof(System.Windows.MessageBoxResult), s[1]); break;
             case "asked": Put("asked." + s[1], LimitLiveProbe.questions.Count); break;
+            // the answer to the question before an existing package is overwritten, and how often it was asked
+            case "overwrite": LimitLiveProbe.OverwriteAnswer = (System.Windows.MessageBoxResult)Enum.Parse(typeof(System.Windows.MessageBoxResult), s[1]); break;
+            case "overwritten": Put("overwrite." + s[1], LimitLiveProbe.overwrites.Count); break;
+            // the files of a package folder: name, size and time of every file
+            case "snapshot": Put("snapshot." + s[1], Snapshot(Path.Combine(outDir, "export", s[2]))); break;
             case "choose": Choose(s[1], s[2]); break;
             case "saved": Saved(s[1]); break;
             case "ensure": Ensure(); break;
@@ -836,6 +849,7 @@ public static class FormE2eProbe
             else throw new Exception("unknown mode " + args[0]);
             for (int i = 0; i < LimitLiveProbe.confirmations.Count; i++) Put("dialog.message.confirm" + i, LimitLiveProbe.confirmations[i]);
             Put("questions", string.Join(" | ", LimitLiveProbe.questions.ToArray()));
+            Put("overwrites", string.Join(" | ", LimitLiveProbe.overwrites.ToArray()));
             Put("messages", string.Join(" | ", LimitLiveProbe.messages.ToArray()));
             Put("status", "ok");
             return 0;

@@ -816,6 +816,13 @@ namespace SW2URDF.UI
                 Exporter.PackageName = Path.GetFileName(saveFileDialog1.FileName);
 
                 logger.Info("Saving URDF package to " + saveFileDialog1.FileName);
+                if (!ExistingPackagePrompt.Confirm(
+                    new URDFPackage(Exporter.PackageName, Exporter.SavePath, ui).WindowsPackageDirectory,
+                    URDFPackage.MessageBox, ui))
+                {
+                    logger.Info("Export cancelled: the existing package is not overwritten");
+                    return;
+                }
 
                 MeshExportFormat meshFormat;
                 if(radioButtonStl.Checked)

@@ -106,12 +106,20 @@ public static class LimitLiveProbe
     internal static readonly List<string> questions = new List<string>();
     internal static readonly List<string> confirmations = new List<string>();
     internal static System.Windows.MessageBoxResult Answer = System.Windows.MessageBoxResult.No;
+    // the question before an existing package is overwritten: its own answer, recorded apart
+    internal static readonly List<string> overwrites = new List<string>();
+    internal static System.Windows.MessageBoxResult OverwriteAnswer = System.Windows.MessageBoxResult.Yes;
 
     internal sealed class RecordingMessages : IMessageBox
     {
         public System.Windows.MessageBoxResult Show(string message) { messages.Add(message); return System.Windows.MessageBoxResult.OK; }
         public System.Windows.MessageBoxResult Show(string message, string caption, System.Windows.MessageBoxButton buttons)
         {
+            if (buttons == System.Windows.MessageBoxButton.YesNo && message.Contains("package.xml") && message.Contains("CMakeLists.txt"))
+            {
+                overwrites.Add(message);
+                return OverwriteAnswer;
+            }
             Show(message);
             if (buttons == System.Windows.MessageBoxButton.OK) return System.Windows.MessageBoxResult.OK;
             if (buttons == System.Windows.MessageBoxButton.YesNo)

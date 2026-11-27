@@ -650,6 +650,15 @@
   <data xml:space="preserve" name="mesh files are missing">
     <value>缺少網格檔</value>
   </data>
+  <data xml:space="preserve" name="the package folder exists already">
+    <value>套件資料夾已經存在</value>
+  </data>
+  <data xml:space="preserve" name="the export replaces the files in it, files edited by hand included: the urdf, package.xml, cmakelists.txt, the launch and config files, the meshes and the textures. overwrite them? choose no to go back and choose another folder or name.">
+    <value>匯出會取代裡面的檔案，包括手動修改過的 URDF、package.xml、CMakeLists.txt、launch 與 config 檔、網格和貼圖。要覆蓋嗎？選「否」可返回，改選其他資料夾或名稱。</value>
+  </data>
+  <data xml:space="preserve" name="the package exists already">
+    <value>套件已經存在</value>
+  </data>
   <data xml:space="preserve" name="the mesh of these links could not be exported: {0}. the urdf was not written and the package is incomplete (see {1}). check the log and the output folder, then export again.">
     <value>下列連桿的網格無法匯出: {0}。URDF 未寫入，套件不完整 (請見 {1})。請檢查記錄檔與輸出資料夾後再重新匯出。</value>
   </data>
