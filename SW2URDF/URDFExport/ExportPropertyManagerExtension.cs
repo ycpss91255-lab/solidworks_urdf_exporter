@@ -34,9 +34,6 @@ namespace SW2URDF.URDFExport
 {
     public partial class ExportPropertyManager : PropertyManagerPage2Handler9
     {
-        public static readonly double ConfigurationVersion = 1.3;
-        public static readonly double SoapMinVersion = 1.3;
-
         /// <summary>The configuration the tree was loaded for.</summary>
         private string loadedConfiguration;
 
