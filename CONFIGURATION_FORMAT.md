@@ -71,11 +71,28 @@ when an older file does not have it, and an older exporter ignores it.
 |---|---|---|---|
 | `WriteXacro` | the base link of the configuration entry | The export writes the robot as `<robot_name>.xacro` instead of `<robot_name>.urdf` (the "Write xacro" checkbox of the export forms). | `false`. It is not written when false, so the data of a configuration without xacro is byte-for-byte what it was before the member existed. |
 
-With `WriteXacro` set, only the `.xacro` file is written (no extra plain `.urdf`). The `<robot>` element
-declares `xmlns:xacro="http://www.ros.org/wiki/xacro"` and the rest of the file is the plain URDF, including the
-`package://` mesh paths. The ROS 1 `display.launch` and `gazebo.launch` expand it with
-`$(find xacro)/xacro`; without the member they are unchanged. The CSV next to the robot file keeps the name
-`<robot_name>.csv`. Macros and parameters are not generated.
+With `WriteXacro` set, two files are written into `urdf/` instead of the plain `.urdf` (issue 139):
+
+- `<robot_name>_macro.xacro` defines the robot as a macro,
+  `<xacro:macro name="<macro_name>" params="prefix:='' parent:='' xyz:='0 0 0' rpy:='0 0 0'">`. Its body is the
+  plain URDF with `${prefix}` in front of every link and joint name and of the links a joint refers to (`parent`,
+  `child`, and the joint of `mimic`). A `$` of the URDF is written as `$$`, so xacro keeps it. When `parent` is
+  not empty, a fixed joint `${prefix}<base_link>_parent_joint` attaches the base link to that link at `xyz` /
+  `rpy`. Mesh paths stay `package://`. The macro name is the robot name with every character other than a letter,
+  digit or underscore replaced by `_`, with `_` in front when it does not start with a letter or `_` (for example
+  `_3_DOF_ARM_description`), and `_robot` after it when it is a xacro keyword.
+- `<robot_name>.xacro` includes the macro file (by its file name, next to it) and calls the macro with its
+  defaults, so its expansion is the plain URDF.
+
+The ROS 1 `display.launch` and `gazebo.launch` expand `<robot_name>.xacro` with `$(find xacro)/xacro`; without
+the member they are unchanged. The CSV next to the robot file keeps the name `<robot_name>.csv`.
+
+Another description uses the robot like this:
+
+```xml
+<xacro:include filename="$(find <package>)/urdf/<robot_name>_macro.xacro"/>
+<xacro:<macro_name> prefix="left_" parent="body" xyz="0 0.3 0" rpy="0 0 0"/>
+```
 
 Exports before this change wrote `<robot_name>.urdf.xacro`. Exporting again into such a package writes
 `<robot_name>.xacro` and launch files that expand it; the old `.urdf.xacro` is left in place, unused, and can
