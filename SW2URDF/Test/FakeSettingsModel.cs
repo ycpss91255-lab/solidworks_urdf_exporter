@@ -25,6 +25,10 @@ namespace SW2URDF.Test
             public readonly Dictionary<int, string> Data = new Dictionary<int, string>();
             public readonly Dictionary<int, double> Version = new Dictionary<int, double>();
             public Feature Feature;
+            public SolidWorks.Interop.sldworks.Attribute Attribute;
+            /// <summary>How often the feature (its attribute) was handed out and not released yet.</summary>
+            public int Held;
+            public int AttributeHeld;
         }
 
         private sealed class Config
@@ -40,6 +44,9 @@ namespace SW2URDF.Test
         public readonly List<string> Shown = new List<string>();
         public readonly List<Node> Selection = new List<Node>();
         public int Walks;
+        /// <summary>Features or attributes used after they were released, or released too often.</summary>
+        public readonly List<string> ReleaseErrors = new List<string>();
+        private bool tracking;
         public int Deletions;
         public int FoldersInserted;
         /// <summary>Whether SolidWorks refuses the n-th folder insertion (from 1).</summary>
@@ -88,7 +95,7 @@ namespace SW2URDF.Test
             document.Setup(d => d.FirstFeature()).Returns(() =>
             {
                 Walks++;
-                return Tree.Count == 0 ? null : Tree[0].Feature;
+                return Tree.Count == 0 ? null : HandOut(Tree[0]);
             });
             document.Setup(d => d.ClearSelection2(It.IsAny<bool>())).Callback(() => Selection.Clear());
 
@@ -99,8 +106,10 @@ namespace SW2URDF.Test
                 foreach (Node node in Selection)
                 {
                     Tree.Remove(node);
+                    removed.Add(node);
                     if (node.Type == FolderType)
                     {
+                        removed.AddRange(Tree.Where(n => n.Type == FolderType && n.Name == node.Name + EndTag));
                         Tree.RemoveAll(n => n.Type == FolderType && n.Name == node.Name + EndTag);
                     }
                 }
@@ -113,7 +122,7 @@ namespace SW2URDF.Test
             featureManager.Setup(m => m.GetFeatures(It.IsAny<bool>())).Returns(() =>
             {
                 Walks++;
-                return Tree.Select(n => (object)n.Feature).ToArray();
+                return Tree.Select(n => (object)HandOut(n)).ToArray();
             });
             featureManager.Setup(m => m.InsertFeatureTreeFolder2(It.IsAny<int>())).Returns(() => InsertFolder());
             document.SetupGet(d => d.FeatureManager).Returns(featureManager.Object);
@@ -134,6 +143,74 @@ namespace SW2URDF.Test
         }
 
         public ModelDoc2 Document { get { return document.Object; } }
+
+        /// <summary>
+        /// Counts the features and attributes handed out and released like the runtime callable
+        /// wrappers of COM objects: each hand-out adds one, each release takes one away, and a
+        /// feature cannot be used when all of its hand-outs were released.
+        /// </summary>
+        public IDisposable TrackReleases()
+        {
+            return new ReleaseTracking(this);
+        }
+
+        /// <summary>Names of the features or attributes that were handed out and not released.</summary>
+        public string[] NotReleased()
+        {
+            return Tree.Concat(removed).Where(n => n.Held != 0).Select(n => n.Name)
+                .Concat(Tree.Concat(removed).Where(n => n.AttributeHeld != 0).Select(n => "attribute " + n.Name)).ToArray();
+        }
+
+        private sealed class ReleaseTracking : IDisposable
+        {
+            private readonly FakeSettingsModel model;
+            private readonly Action<object> previous = FeatureTreeScan.Release;
+
+            public ReleaseTracking(FakeSettingsModel model)
+            {
+                this.model = model;
+                model.tracking = true;
+                FeatureTreeScan.Release = model.Release;
+            }
+
+            public void Dispose()
+            {
+                FeatureTreeScan.Release = previous;
+                model.tracking = false;
+            }
+        }
+
+        private readonly List<Node> removed = new List<Node>();
+
+        private void Release(object value)
+        {
+            Node node = Tree.Concat(removed).FirstOrDefault(n => ReferenceEquals(n.Feature, value));
+            if (node != null)
+            {
+                if (--node.Held < 0) ReleaseErrors.Add("released too often: " + node.Name);
+                return;
+            }
+            node = Tree.Concat(removed).FirstOrDefault(n => ReferenceEquals(n.Attribute, value));
+            if (node != null && --node.AttributeHeld < 0)
+            {
+                ReleaseErrors.Add("released too often: attribute " + node.Name);
+            }
+        }
+
+        private Feature HandOut(Node node)
+        {
+            node.Held++;
+            return node.Feature;
+        }
+
+        private void Use(Node node)
+        {
+            if (tracking && node.Held <= 0)
+            {
+                ReleaseErrors.Add("used after release: " + node.Name);
+                throw new System.Runtime.InteropServices.InvalidComObjectException(node.Name);
+            }
+        }
         public SldWorks App { get { return app.Object; } }
 
         public void Activate(string configuration)
@@ -205,10 +282,11 @@ namespace SW2URDF.Test
         {
             Node node = new Node { Type = type, Name = name };
             var feature = new Mock<Feature>();
-            feature.Setup(f => f.GetTypeName2()).Returns(() => node.Type);
-            feature.SetupGet(f => f.Name).Returns(() => node.Name);
+            feature.Setup(f => f.GetTypeName2()).Returns(() => { Use(node); return node.Type; });
+            feature.SetupGet(f => f.Name).Returns(() => { Use(node); return node.Name; });
             feature.SetupSet(f => f.Name = It.IsAny<string>()).Callback((string value) =>
             {
+                Use(node);
                 if (Tree.Any(n => n.Name == value)) return;
                 foreach (Node end in Tree.Where(n => node.Type == FolderType && n.Name == node.Name + EndTag))
                 {
@@ -218,11 +296,13 @@ namespace SW2URDF.Test
             });
             feature.Setup(f => f.GetNextFeature()).Returns(() =>
             {
+                Use(node);
                 int next = Tree.IndexOf(node) + 1;
-                return next > 0 && next < Tree.Count ? Tree[next].Feature : null;
+                return next > 0 && next < Tree.Count ? HandOut(Tree[next]) : null;
             });
             feature.Setup(f => f.Select2(It.IsAny<bool>(), It.IsAny<int>())).Returns((bool append, int mark) =>
             {
+                Use(node);
                 if (!append) Selection.Clear();
                 if (!node.CanBeSelected || !Tree.Contains(node)) return false;
                 Selection.Add(node);
@@ -263,7 +343,13 @@ namespace SW2URDF.Test
             attribute.Setup(a => a.GetParameter("exporterVersion")).Returns(version.Object);
 
             result = attribute.Object;
-            Mock.Get(node.Feature).Setup(f => f.GetSpecificFeature2()).Returns(attribute.Object);
+            node.Attribute = attribute.Object;
+            Mock.Get(node.Feature).Setup(f => f.GetSpecificFeature2()).Returns(() =>
+            {
+                Use(node);
+                node.AttributeHeld++;
+                return attribute.Object;
+            });
             Tree.Add(node);
             return node;
         }
@@ -285,7 +371,7 @@ namespace SW2URDF.Test
             FoldersInserted++;
             if (InsertThrows) throw new InvalidOperationException("folder");
             if (InsertFails(FoldersInserted) || Selection.Count == 0) return null;
-            return WrapInFolder(Selection.ToList(), "Folder" + FoldersInserted).Feature;
+            return HandOut(WrapInFolder(Selection.ToList(), "Folder" + FoldersInserted));
         }
 
         private Node WrapInFolder(List<Node> nodes, string name)
