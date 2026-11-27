@@ -1099,10 +1099,9 @@ namespace SW2URDF.URDFExport
                 "It just silently does nothing. Ok, except for this logging message");
         }
 
+        // Required by IPropertyManagerPage2Handler9; the page has no preview.
         bool IPropertyManagerPage2Handler9.OnPreview()
         {
-            logger.Info("OnPreview called. This method no longer throws an Exception. " +
-                "It just silently does nothing. Ok, except for this logging message");
             return true;
         }
 
@@ -1113,10 +1112,9 @@ namespace SW2URDF.URDFExport
             return true;
         }
 
+        // Required by IPropertyManagerPage2Handler9; the page has no undo history.
         void IPropertyManagerPage2Handler9.OnRedo()
         {
-            logger.Info("OnRedo called. This method no longer throws an Exception. " +
-                "It just silently does nothing. Ok, except for this logging message");
         }
 
         void IPropertyManagerPage2Handler9.OnSelectionboxCalloutCreated(int Id)
@@ -1150,10 +1148,9 @@ namespace SW2URDF.URDFExport
             return true;
         }
 
+        // Required by IPropertyManagerPage2Handler9; the page has no undo history.
         void IPropertyManagerPage2Handler9.OnUndo()
         {
-            logger.Info("OnUndo called. This method no longer throws an Exception. It just " +
-                "silently does nothing. Ok, except for this logging message");
         }
 
         void IPropertyManagerPage2Handler9.OnWhatsNew()
