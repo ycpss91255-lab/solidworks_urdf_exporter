@@ -9,7 +9,7 @@ attribute order, XML comments and number formatting (1e-3 vs 0.001) are ignored.
 Modes (each prints one PASS / FAIL / SKIP line per file, a summary, and can write JSON / Markdown):
 
   (default)   every committed examples/**/urdf/*.urdf is expanded with xacro and compared with itself.
-              Needs the external `xacro` command or `python -m xacro`. Without it every file is SKIPPED.
+              Needs the external `xacro` command or the xacro Python module. Without it every file is SKIPPED.
   --pair URDF XACRO       compare a plain URDF with the expansion of a matching xacro (repeatable)
   --expanded URDF FILE    compare a plain URDF with an already expanded file; needs no xacro (repeatable)
   --identity              compare each committed example with itself; needs no xacro, proves the parser
@@ -158,13 +158,17 @@ def parse_file(path):
 
 # ------------------------------------------------------------------------------------------------- xacro
 
+XACRO_MAIN = "import sys, xacro; sys.argv[0] = 'xacro'; sys.exit(xacro.main())"
+
+
 def find_xacro():
     """Returns the command list that runs xacro, or None."""
     exe = shutil.which("xacro")
     if exe:
         return [exe]
     if importlib.util.find_spec("xacro") is not None:
-        return [sys.executable, "-m", "xacro"]
+        # The xacro package on PyPI has no __main__, so "python -m xacro" cannot run it; call its main().
+        return [sys.executable, "-c", XACRO_MAIN]
     return None
 
 
@@ -287,7 +291,7 @@ def main(argv=None):
     if needs_xacro:
         command = find_xacro()
         if command is None:
-            print("xacro is not installed (no `xacro` command, no `python -m xacro`): the xacro-dependent checks "
+            print("xacro is not installed (no `xacro` command, no xacro Python module): the xacro-dependent checks "
                   "are SKIPPED, not passed. Install it (for example from the ROS packages or `pip install xacro`) "
                   "and run again; --expanded and --identity work without it.", flush=True)
         for original, source in needs_xacro:
