@@ -866,7 +866,8 @@ public static class FormE2eProbe
     {
         outDir = Path.GetFullPath(args[args.Length - 1]);
         Directory.CreateDirectory(outDir);
-        int code = 1, seconds = 240;
+        // only a guard against a call that hangs: a busy machine may need many minutes for the models
+        int code = 1, seconds = 1800;
         var worker = new Thread(() => { code = Work(args); });
         worker.SetApartmentState(ApartmentState.STA);
         worker.IsBackground = true;
