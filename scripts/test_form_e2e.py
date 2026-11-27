@@ -174,7 +174,7 @@ class FormRun(obj.Live):
         self.desktop = None
         self.desktop_name = "sw2urdf_form_check_%d" % os.getpid()
 
-    def host(self, mode, out, *arguments, timeout=300):
+    def host(self, mode, out, *arguments, timeout=1800):
         """Runs the host; returns its exit code (or 'timeout')."""
         import win32con
         import win32event
@@ -995,7 +995,7 @@ def main():
     parser.add_argument("--launcher-python", help="Python used to run the launcher (default: this one)")
     parser.add_argument("--pid", type=int, help="use this SolidWorks instance, which must hold no documents; it is left running")
     parser.add_argument("--timeout", type=int, default=3000, help="overall limit in seconds (default 3000)")
-    parser.add_argument("--case-timeout", type=int, default=300, help="limit per scenario in seconds (default 300)")
+    parser.add_argument("--case-timeout", type=int, default=1800, help="limit per scenario in seconds (default 1800)")
     parser.add_argument("--min-free-gb", type=float, default=4.0, help="stop when Windows has less memory left than this (default 4)")
     parser.add_argument("--exe-hook", help="command run on the compiled host program before it starts; {exe} is the file")
     parser.add_argument("--scenario", action="append", choices=list(all_scenarios()), help="only this scenario (repeatable; checks of the others fail)")

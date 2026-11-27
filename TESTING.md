@@ -495,7 +495,9 @@ the run; only copies are exported.
 
 Nothing appears on the user's desktop. The host runs on a Windows desktop of its own and refuses to run on another
 one; every dialog there is answered by a watcher, recorded, and reported as a failure unless it is the Save As dialog.
-The host has a time limit per scenario, the script one for the whole run. `HKCU\Software\SW2URDF\AngleUnit` is written
+The host has a time limit of 30 minutes for building the models and for each scenario (`--case-timeout`), the script
+one for the whole run (`--timeout`). The limits only catch a call that never returns; a busy machine may need many
+minutes for the models. `HKCU\Software\SW2URDF\AngleUnit` is written
 to `angle_unit_before.json`, cleared before each scenario and put back at the end (also after a time limit). The
 exporter log goes to a scratch folder. `--exe-hook` runs a command on the host program after it is compiled.
 
