@@ -768,6 +768,7 @@ public static class FormE2eProbe
         FieldInfo extension = xacro == null ? null : xacro.GetField("XacroExtension");
         Put("xacro", xacro != null && typeof(AssemblyExportForm).GetField("checkBoxXacro", BindingFlags.NonPublic | BindingFlags.Instance) != null);
         Put("xacro_extension", extension == null ? "" : extension.GetRawConstantValue());
+        Put("xacro_macro", dll.GetType("SW2URDF.URDFExport.XacroMacro") != null);
         Put("digits12", dll.GetType("SW2URDF.UI.ValueFormat") != null);
         var version = (AssemblyInformationalVersionAttribute)System.Attribute.GetCustomAttribute(dll, typeof(AssemblyInformationalVersionAttribute));
         Put("version", version == null ? "" : version.InformationalVersion);
