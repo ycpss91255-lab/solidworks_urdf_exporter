@@ -28,7 +28,9 @@
     <DelaySign>false</DelaySign>
     <OutputType>Library</OutputType>
     <RootNamespace>SW2URDF</RootNamespace>
-    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' ">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
+    <!-- SolidWorks installation folder; override with /p:SolidWorksDir=... or the SolidWorksDir environment variable (TESTING.md) -->
+    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' And '$(ProgramW6432)' != '' ">$(ProgramW6432)\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
+    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' ">$(ProgramFiles)\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
     <StartupObject>
     </StartupObject>
@@ -467,6 +469,7 @@
     </Compile>
     <Compile Include="URDFExport\CommonSwOperations.cs" />
     <Compile Include="URDFExport\ConfigurationStatus.cs" />
+    <Compile Include="URDFExport\FeatureTreeScan.cs" />
     <Compile Include="URDFExport\TreeKeyActions.cs" />
     <Compile Include="URDFExport\DocumentPersistence.cs" />
     <Compile Include="URDFExport\GeneratedFeatureLog.cs" />

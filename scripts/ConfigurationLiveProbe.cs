@@ -111,8 +111,22 @@ public static class ConfigurationLiveProbe
     {
         Type type = typeof(ConfigurationSerialization);
         string data = (string)type.GetMethod("SerializeToString", NonPublicStatic).Invoke(null, new object[] { node });
-        var attribute = (SolidWorks.Interop.sldworks.Attribute)type.GetMethod("CreateSWSaveAttribute", NonPublicStatic)
-            .Invoke(null, new object[] { app, doc, ConfigurationSerialization.UrdfConfigurationSwAttributeName });
+        // Builds before the one walk per operation take the document, later ones its feature tree
+        MethodInfo create = type.GetMethod("CreateSWSaveAttribute", NonPublicStatic);
+        Type treeType = type.Assembly.GetType("SW2URDF.URDFExport.FeatureTree");
+        bool takesTree = treeType != null && create.GetParameters()[1].ParameterType == treeType;
+        object target = takesTree ? Activator.CreateInstance(treeType, BindingFlags.Public | BindingFlags.Instance, null, new object[] { doc }, null) : doc;
+        SolidWorks.Interop.sldworks.Attribute attribute;
+        try
+        {
+            attribute = (SolidWorks.Interop.sldworks.Attribute)create.Invoke(
+                null, new object[] { app, target, ConfigurationSerialization.UrdfConfigurationSwAttributeName });
+        }
+        finally
+        {
+            IDisposable tree = target as IDisposable;
+            if (tree != null) tree.Dispose();
+        }
         int all = (int)swInConfigurationOpts_e.swAllConfiguration;
         attribute.GetParameter("data").SetStringValue2(data, all, "");
         attribute.GetParameter("name").SetStringValue2("config1", all, "");

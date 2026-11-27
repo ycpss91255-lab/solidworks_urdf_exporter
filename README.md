@@ -26,6 +26,55 @@ See the [ROS Wiki](http://wiki.ros.org/sw_urdf_exporter) and associated [tutoria
 
 Loading values from the CSV of an earlier export: [docs/LOAD_FROM_CSV.md](docs/LOAD_FROM_CSV.md) (English and 繁體中文).
 
+### Settings per SolidWorks configuration
+
+The exporter keeps its settings (link tree, joints and options) separately for
+each SolidWorks configuration of the model. The *Active configuration* group of
+the PropertyManager shows which configuration is active and where its settings come from:
+*Stored for this configuration*, *Using shared (legacy) settings* (a model saved
+by an older exporter, one set for all configurations) or *New: nothing stored
+yet*. Activate the configuration you want to export before you open the exporter.
+
+- Saving or exporting writes only the settings of the configuration that was
+  active when the exporter was opened. If another configuration has been
+  activated in the meantime, nothing is saved or exported, so the settings of
+  that configuration are kept.
+- When a configuration was renamed, the exporter offers it the settings stored
+  under its old name.
+- The settings live in the feature tree folder `URDF Export Configuration`, one
+  entry per configuration. The data format is described in
+  [CONFIGURATION_FORMAT.md](CONFIGURATION_FORMAT.md).
+
+### Export options
+
+- **Angle unit** (joint and link pages of the assembly form): show the angle
+  boxes (origin roll/pitch/yaw, limits and velocity of revolute and continuous
+  joints) in `rad` or `deg`. The URDF and the saved settings always hold
+  radians. The choice is remembered per Windows user; the default is radians.
+- **Write xacro** (assembly and part forms): write the robot as
+  `<robot_name>.xacro` instead of `<robot_name>.urdf`; the generated launch
+  files then expand it with xacro.
+- **OBJ + MTL** mesh format (assembly form) or **OBJ + MTL (native colors)**
+  (part form): write OBJ meshes with their SolidWorks colors instead of STL.
+  See [OBJ_EXPORT.md](OBJ_EXPORT.md).
+
+### Questions during an export
+
+- **The package folder exists already**: when the chosen package folder already
+  holds files, the export asks before it replaces them (files edited by hand
+  included). *No* goes back to the form and writes nothing.
+- **Mesh files are missing**: when *Export Model File Only...* would write a
+  URDF or xacro that refers to mesh files that are not in the package folder,
+  the exporter lists the links. *Yes* exports the meshes as well, *No* writes
+  only the model file anyway, *Cancel* goes back without writing anything.
+
+### Interface language
+
+When SolidWorks runs in Traditional Chinese, the export forms, PropertyManager
+and menus are shown in Traditional Chinese (zh-TW); every other language uses
+English. CAD names, URDF identifiers and numbers are not translated. Details,
+including how to add a language: [I18N.md](I18N.md).
+
 ### Reference-only links
 
 In the assembly exporter, leave **Link Components** empty to export a reference

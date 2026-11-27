@@ -3,6 +3,23 @@
 The tests are xUnit tests in `SW2URDF/Test/`. Some need SolidWorks, some do not. See
 `TestRunner/README.md` for building and starting the runner.
 
+## SolidWorks installation folder
+
+`SW2URDF.csproj` and `TestRunner.csproj` take the SolidWorks interop DLLs from the property `SolidWorksDir`.
+Its default is `SOLIDWORKS Corp\SOLIDWORKS` under the 64-bit Program Files folder (`%ProgramW6432%`,
+normally `C:\Program Files`). When SolidWorks is installed elsewhere, set the folder that holds
+`SLDWORKS.exe` and `SolidWorks.Interop.sldworks.dll`, either for one build:
+
+    msbuild SW2URDF\SW2URDF.csproj /p:SolidWorksDir="D:\SOLIDWORKS Corp\SOLIDWORKS"
+
+or for every build and script, as an environment variable (MSBuild reads environment variables as
+properties):
+
+    set SolidWorksDir=D:\SOLIDWORKS Corp\SOLIDWORKS
+
+`scripts/test_configuration_live.py` uses the same variable, or `--solidworks-dir <folder>`, to find the
+interop DLLs it compiles its probe against.
+
 ## Choosing the SolidWorks instance
 
 `SWTestFixture` starts SolidWorks through the generic `SldWorks.Application` ProgID by default, which lets

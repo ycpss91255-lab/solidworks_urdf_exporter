@@ -7,7 +7,9 @@
     <ApplicationIcon />
     <OutputType>Exe</OutputType>
     <StartupObject />
-    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' ">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
+    <!-- SolidWorks installation folder; override with /p:SolidWorksDir=... or the SolidWorksDir environment variable (TESTING.md) -->
+    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' And '$(ProgramW6432)' != '' ">$(ProgramW6432)\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
+    <SolidWorksDir Condition=" '$(SolidWorksDir)' == '' ">$(ProgramFiles)\SOLIDWORKS Corp\SOLIDWORKS</SolidWorksDir>
   </PropertyGroup>
 
   <ItemGroup>
