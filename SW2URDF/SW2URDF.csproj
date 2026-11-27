@@ -369,6 +369,7 @@
     <Compile Include="Test\TestJointNamesUnique.cs" />
     <Compile Include="Test\TestConfigurationStatus.cs" />
     <Compile Include="Test\TestFolderRegroup.cs" />
+    <Compile Include="Test\TestRegroupUndo.cs" />
     <Compile Include="Test\TestStlOutputCoordinateSystem.cs" />
     <Compile Include="Test\TestJointPageAfterErrors.cs" />
     <Compile Include="Test\TestSubAssemblyVisibility.cs" />

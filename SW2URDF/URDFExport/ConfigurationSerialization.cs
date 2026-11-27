@@ -211,8 +211,13 @@ namespace SW2URDF.URDFExport
                 tree.Changed();
             }
 
-            bool removed = RemoveMigratedSharedAttributes(tree);
-            bool regrouped = RegroupFolder(tree, active, ui);
+            bool removed = false;
+            bool regrouped = false;
+            InOneUndoStep(model, () =>
+            {
+                removed = RemoveMigratedSharedAttributes(tree);
+                regrouped = RegroupFolder(tree, active, ui);
+            });
             return created || regrouped || removed;
         }
 
@@ -746,10 +751,10 @@ namespace SW2URDF.URDFExport
         {
             try
             {
-                bool changed;
+                bool changed = false;
                 using (FeatureTree tree = new FeatureTree(model))
                 {
-                    changed = RegroupFolder(tree, GetActiveConfigurationName(model), ui);
+                    InOneUndoStep(model, () => changed = RegroupFolder(tree, GetActiveConfigurationName(model), ui));
                 }
                 if (changed)
                 {
@@ -759,6 +764,45 @@ namespace SW2URDF.URDFExport
             catch (Exception e)
             {
                 logger.Warn("Could not tidy the URDF folder after the export", e);
+            }
+        }
+
+        /// <summary>
+        /// Runs the folder changes of one operation as one undo step. SolidWorks records deleting the
+        /// folder and inserting the new one as two steps, and undoing only the last one leaves the
+        /// entries without their folder. A recording without a change adds no step. Creating an entry
+        /// is no undo step, so undoing the folder change does not remove the entry.
+        /// </summary>
+        private static void InOneUndoStep(ModelDoc2 model, Action change)
+        {
+            ModelDocExtension extension = null;
+            try
+            {
+                extension = model.Extension;
+                extension.StartRecordingUndoObject();
+            }
+            catch (Exception e)
+            {
+                logger.Warn("Could not start recording the URDF folder changes as one undo step", e);
+                extension = null;
+            }
+            try
+            {
+                change();
+            }
+            finally
+            {
+                if (extension != null)
+                {
+                    try
+                    {
+                        extension.FinishRecordingUndoObject2(ConfigurationAttributeFolderName, false);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Warn("Could not finish recording the URDF folder changes", e);
+                    }
+                }
             }
         }
 
@@ -1149,7 +1193,7 @@ namespace SW2URDF.URDFExport
             param = saveExporterAttribute.GetParameter("exporterVersion");
             param.SetDoubleValue2(SerializationVersion, ConfigurationOptions, "");
 
-            RegroupFolder(tree, configurationName, ui);
+            InOneUndoStep(model, () => RegroupFolder(tree, configurationName, ui));
             return true;
         }
 
