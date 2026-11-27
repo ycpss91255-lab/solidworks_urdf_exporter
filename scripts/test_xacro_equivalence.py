@@ -242,6 +242,44 @@ class MacroDefaults(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.expand(macro, robot)
 
+    def write(self, folder, macro, robot):
+        for name, text in (("r_macro.xacro", macro), ("r.xacro", robot)):
+            with open(os.path.join(folder, name), "w", encoding="utf-8") as stream:
+                stream.write(text)
+        return os.path.join(folder, "r.xacro")
+
+    def test_the_xacro_tool_gives_the_same_robot(self):
+        command = cx.find_xacro()
+        if command is None:
+            self.skipTest("the xacro tool is not installed")
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.write(folder, MACRO % body(), ROBOT)
+            differences, _ = cx.compare_robots(cx.ET.fromstring(BASE), cx.expand_xacro(command, path))
+            self.assertEqual(differences, [])
+            self.assertEqual(cx.compare_robots(cx.default_macro_expansion(path), cx.expand_xacro(command, path))[0], [])
+
+    def test_the_xacro_tool_attaches_two_prefixed_copies(self):
+        command = cx.find_xacro()
+        if command is None:
+            self.skipTest("the xacro tool is not installed")
+        two = ROBOT.replace('<xacro:r/>', '<link name="body"/>\n'
+                            '  <xacro:r prefix="l_" parent="body" xyz="0 0.3 0" rpy="0 0 1.5"/>\n'
+                            '  <xacro:r prefix="r_" parent="body"/>')
+        with tempfile.TemporaryDirectory() as folder:
+            root = cx.expand_xacro(command, self.write(folder, MACRO % body(), two))
+        links = [link.get("name") for link in root.findall("link")]
+        joints = {joint.get("name"): joint for joint in root.findall("joint")}
+        self.assertEqual(sorted(links), ["body", "l_arm", "l_base_link", "r_arm", "r_base_link"])
+        self.assertEqual(sorted(joints), ["l_base_link_parent_joint", "l_j1", "r_base_link_parent_joint", "r_j1"])
+        attach = joints["l_base_link_parent_joint"]
+        self.assertEqual((attach.get("type"), attach.find("parent").get("link"), attach.find("child").get("link")),
+                         ("fixed", "body", "l_base_link"))
+        self.assertEqual((attach.find("origin").get("xyz"), attach.find("origin").get("rpy")), ("0 0.3 0", "0 0 1.5"))
+        self.assertEqual(joints["r_base_link_parent_joint"].find("origin").get("xyz"), "0 0 0")
+        self.assertEqual((joints["r_j1"].find("parent").get("link"), joints["r_j1"].find("child").get("link")),
+                         ("r_base_link", "r_arm"))
+        self.assertEqual(sorted(set(m.get("filename") for m in root.iter("mesh"))), ["package://r/meshes/base_link.STL"])
+
     def test_a_plain_xacro_has_no_macro_file(self):
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "r.xacro")
