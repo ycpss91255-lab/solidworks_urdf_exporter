@@ -43,11 +43,17 @@ def csc_path():
     return os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe")
 
 
-def solidworks_dir():
-    for root in (os.environ.get("ProgramFiles", r"C:\Program Files"),):
-        candidate = os.path.join(root, "SOLIDWORKS Corp", "SOLIDWORKS")
-        if os.path.isdir(candidate):
-            return candidate
+def solidworks_dir(explicit=None):
+    """SolidWorks installation folder: --solidworks-dir, then the SolidWorksDir environment variable (the same
+    name the project files read), then the default folder under the 64-bit Program Files."""
+    chosen = explicit or os.environ.get("SolidWorksDir")
+    if chosen:
+        return chosen if os.path.isdir(chosen) else None
+    for root in (os.environ.get("ProgramW6432"), os.environ.get("ProgramFiles")):
+        if root:
+            candidate = os.path.join(root, "SOLIDWORKS Corp", "SOLIDWORKS")
+            if os.path.isdir(candidate):
+                return candidate
     return None
 
 
@@ -75,10 +81,13 @@ def exit_instance(pid):
     subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=False)
 
 
-def compile_probe(dll_dir, thumbprint):
-    sw = solidworks_dir()
+def compile_probe(dll_dir, thumbprint, sw_dir=None):
+    sw = solidworks_dir(sw_dir)
     for name in ("SolidWorks.Interop.sldworks.dll", "SolidWorks.Interop.swconst.dll"):
-        if not os.path.isfile(os.path.join(dll_dir, name)) and sw:
+        if not os.path.isfile(os.path.join(dll_dir, name)):
+            if not sw:
+                raise SystemExit("%s is not in %s and no SolidWorks installation folder was found; "
+                                 "give --solidworks-dir or set SolidWorksDir" % (name, dll_dir))
             shutil.copy(os.path.join(sw, name), dll_dir)
     exe = os.path.join(dll_dir, "ConfigurationLiveProbe.exe")
     framework = os.path.dirname(csc_path())
@@ -114,6 +123,9 @@ def main():
     parser.add_argument("--sign", metavar="THUMBPRINT",
                         help="code signing certificate (CurrentUser/My) used to sign the probe exe, if your policy requires signed binaries")
     parser.add_argument("--keep", action="store_true", help="keep the scratch folder")
+    parser.add_argument("--solidworks-dir", metavar="FOLDER",
+                        help="SolidWorks installation folder with the interop DLLs (default: env SolidWorksDir, "
+                             "else SOLIDWORKS Corp\\SOLIDWORKS under the 64-bit Program Files)")
     args = parser.parse_args()
     if not args.pid and not args.launcher:
         parser.error("give --launcher (to start an instance) or --pid (to use one you own)")
@@ -125,7 +137,7 @@ def main():
     started = None
     code = 1
     try:
-        exe = compile_probe(dll_dir, args.sign)
+        exe = compile_probe(dll_dir, args.sign, args.solidworks_dir)
         pid = args.pid
         if not pid:
             pid = started = launch(args.launcher, work)
