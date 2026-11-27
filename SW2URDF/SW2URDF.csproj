@@ -468,6 +468,7 @@
     </Compile>
     <Compile Include="URDFExport\CommonSwOperations.cs" />
     <Compile Include="URDFExport\ConfigurationStatus.cs" />
+    <Compile Include="URDFExport\FeatureTreeScan.cs" />
     <Compile Include="URDFExport\TreeKeyActions.cs" />
     <Compile Include="URDFExport\DocumentPersistence.cs" />
     <Compile Include="URDFExport\GeneratedFeatureLog.cs" />
