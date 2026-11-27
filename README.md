@@ -51,9 +51,14 @@ yet*. Activate the configuration you want to export before you open the exporter
   boxes (origin roll/pitch/yaw, limits and velocity of revolute and continuous
   joints) in `rad` or `deg`. The URDF and the saved settings always hold
   radians. The choice is remembered per Windows user; the default is radians.
-- **Write xacro** (assembly and part forms): write the robot as
-  `<robot_name>.xacro` instead of `<robot_name>.urdf`; the generated launch
-  files then expand it with xacro.
+- **Write xacro** (assembly and part forms): write the robot as a xacro
+  macro instead of `<robot_name>.urdf`. `<robot_name>_macro.xacro` defines
+  the macro (parameters `prefix`, `parent`, `xyz`, `rpy`, all optional) and
+  `<robot_name>.xacro` calls it with its defaults, which gives the same robot
+  as the plain URDF; the generated launch files expand it with xacro. Another
+  description can include the macro file and use the robot several times, for
+  example `prefix="left_" parent="body" xyz="0 0.3 0"`. See
+  `CONFIGURATION_FORMAT.md`.
 - **OBJ + MTL** mesh format (assembly form) or **OBJ + MTL (native colors)**
   (part form): write OBJ meshes with their SolidWorks colors instead of STL.
   See [OBJ_EXPORT.md](OBJ_EXPORT.md).

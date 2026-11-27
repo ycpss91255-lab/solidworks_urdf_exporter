@@ -176,6 +176,46 @@ def expand_xacro(command, path):
     return ET.fromstring(done.stdout)
 
 
+XACRO = "{http://www.ros.org/wiki/xacro}"
+MACRO_PARAMS = "prefix:='' parent:='' xyz:='0 0 0' rpy:='0 0 0'"
+
+
+def macro_file_of(path):
+    """The macro file that the exporter's <robot>.xacro includes, or None for a xacro without one."""
+    children = list(parse_file(path))
+    if children and children[0].tag == XACRO + "include":
+        return os.path.join(os.path.dirname(path), children[0].get("filename", ""))
+    return None
+
+
+def default_macro_expansion(path):
+    """The robot the exporter's <robot>.xacro gives with the macro defaults, without the xacro tool (issue 139).
+
+    The robot file includes one macro file and calls one macro without arguments; the macro has the parameters
+    prefix, parent, xyz and rpy. With the defaults ${prefix} is empty, the xacro:if on parent adds nothing and $$ is
+    a literal $. Raises ValueError for any other layout or for another expression in the macro.
+    """
+    top = parse_file(path)
+    children = list(top)
+    if (len(children) != 2 or children[0].tag != XACRO + "include" or not children[1].tag.startswith(XACRO)
+            or children[1].attrib or len(children[1])):
+        raise ValueError("%s: not one xacro:include and one macro call without arguments" % os.path.basename(path))
+    name = children[1].tag[len(XACRO):]
+    macros = [m for m in parse_file(macro_file_of(path)) if m.tag == XACRO + "macro" and m.get("name") == name]
+    if len(macros) != 1:
+        raise ValueError("%s: %d macros named %s" % (os.path.basename(path), len(macros), name))
+    if macros[0].get("params") != MACRO_PARAMS:
+        raise ValueError("%s: macro parameters %r" % (os.path.basename(path), macros[0].get("params")))
+    robot = ET.Element("robot", {"name": top.get("name", "")})
+    for child in macros[0]:
+        if child.tag != XACRO + "if":
+            robot.append(child)
+    text = ET.tostring(robot, encoding="unicode").replace("${prefix}", "")
+    if "${" in text.replace("$$", "") or XACRO in text:
+        raise ValueError("%s: an expression or xacro element other than ${prefix} is left" % os.path.basename(path))
+    return ET.fromstring(text.replace("$$", "$"))
+
+
 # -------------------------------------------------------------------------------------------------- results
 
 class Results:

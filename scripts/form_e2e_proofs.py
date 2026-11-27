@@ -108,7 +108,22 @@ def xacro_rename(c):
 
 
 def xacro_mass(c):
-    c.attribute("hinge_xacro", "link[@name='arm']/inertial/mass", "value", lambda v: repr(float(v) * 1.001))
+    macro = form.Case(c.out, "hinge_xacro").macro_file()
+    if macro is None:
+        c.attribute("hinge_xacro", "link[@name='arm']/inertial/mass", "value", lambda v: repr(float(v) * 1.001))
+        return
+    ET.register_namespace("xacro", "http://www.ros.org/wiki/xacro")
+    tree = ET.parse(macro)
+    mass = tree.getroot().find("{http://www.ros.org/wiki/xacro}macro/link[@name='${prefix}arm']/inertial/mass")
+    mass.set("value", repr(float(mass.get("value")) * 1.001))
+    tree.write(macro, encoding="utf-8")
+
+
+def xacro_include(c):
+    if form.Case(c.out, "hinge_xacro").macro_file() is None:
+        return xacro_mass(c)
+    name = os.path.basename(form.Case(c.out, "hinge_xacro").robot_file())
+    return replace_text(PKG + "_macro.xacro", PKG + ".urdf", "hinge_xacro", "export", PKG, "urdf", name)(c)
 
 
 def launch_name(c):
@@ -161,7 +176,7 @@ CHANGES = {
     "unit.kept.rad": box("unit_remembered", "rad", "comboBoxAngleUnitJoint.index", "1"),
     "xacro.file": write("hinge_xacro", "export", PKG, "urdf", PKG + ".urdf"),
     "xacro.name": xacro_rename,
-    "xacro.content": xacro_mass,
+    "xacro.content": xacro_include,
     "xacro.equivalent": xacro_mass,
     "xacro.expanded": xacro_mass,
     "xacro.launch": launch_name,

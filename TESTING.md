@@ -378,6 +378,12 @@ The comparison logic is tested without xacro by `python scripts/test_xacro_equiv
 whitespace, attribute order, comment and number-format differences pass; a changed mass, origin, mesh path, a
 missing joint or a renamed link fail).
 
+The exporter writes the xacro as a robot macro: `<robot>.xacro` includes `<robot>_macro.xacro` and calls the macro
+without arguments. `--pair a.urdf a.xacro` expands `a.xacro` with the xacro tool, which follows the include.
+Without the tool, `default_macro_expansion(path)` in the same script gives the robot of `<robot>.xacro` with the
+macro defaults (`${prefix}` empty, no parent joint, `$$` a literal `$`) and refuses any other layout; the form check
+below uses it, and `test_xacro_equivalence.py` tests it.
+
 ## Joint limits from limit mates (`scripts/LimitLiveProbe.cs`)
 
 The live host compares the joint axis and the `<limit lower upper>` the exporter writes with the motion
@@ -539,7 +545,8 @@ What it checks:
 * several joints: boxes kept while switching, an edit of one joint changes only that joint in the URDF;
 * slide: m stays m, only roll, pitch and yaw are converted;
 * the unit is remembered by the next form;
-* xacro: file name, content, launch files (the expansion only when the `xacro` tool is installed);
+* xacro: the robot file and its macro file, the include and the macro call, the macro with its defaults against the
+  plain URDF, launch files (the expansion only when the `xacro` tool is installed);
 * Export Model File Only writes no mesh; the full export one per link (STL; OBJ and MTL; 3DXML);
 * limit mates on the second component of the child link and inside a sub-assembly; a child on the assembly origin;
 * the joint type the user chose against what the mates allow: the URDF, or a message and no preview;

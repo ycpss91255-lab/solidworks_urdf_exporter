@@ -37,6 +37,7 @@ import regress_obj_export as obj
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PACKAGE = "robot_pkg"
+MACRO_SUFFIX = "_macro.xacro"
 KEY, VALUE = r"Software\SW2URDF", "AngleUnit"
 AUTO = "Automatically Generate"
 
@@ -458,7 +459,11 @@ class Case:
         return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
 
     def robot_file(self):
-        found = [f for f in self.files("urdf") if not f.lower().endswith(".csv")]
+        found = [f for f in self.files("urdf") if not f.lower().endswith((".csv", MACRO_SUFFIX))]
+        return os.path.join(self.package, "urdf", found[0]) if len(found) == 1 else None
+
+    def macro_file(self):
+        found = [f for f in self.files("urdf") if f.lower().endswith(MACRO_SUFFIX)]
         return os.path.join(self.package, "urdf", found[0]) if len(found) == 1 else None
 
     def robot(self):
@@ -756,8 +761,17 @@ def evaluate(out):
     # ---- xacro
     xacro = cases["hinge_xacro"]
 
+    macro = features.get("xacro_macro") == "True"
+
     def xacro_file():
         robots = [f for f in xacro.files("urdf") if not f.lower().endswith(".csv")]
+        if macro:
+            check.equal("xacro.file", "xacro: the robot file and its macro file are written, not a plain .urdf",
+                        "2 files, macro file: yes, plain .urdf: no",
+                        "%d files, macro file: %s, plain .urdf: %s" % (len(robots), "yes" if xacro.macro_file() else "no",
+                                                                        "yes" if any(f.lower().endswith(".urdf") for f in robots) else "no"),
+                        "hinge_xacro/export")
+            return
         check.equal("xacro.file", "xacro: exactly one robot file is written, not a plain .urdf", "1 file, plain .urdf: no",
                     "%d file, plain .urdf: %s" % (len(robots), "yes" if any(f.lower().endswith(".urdf") for f in robots) else "no"), "hinge_xacro/export")
     guard("xacro.file", "xacro: file", xacro_file)
@@ -766,11 +780,37 @@ def evaluate(out):
         if features.get("xacro_extension") != ".xacro":
             check.add("xacro.name", "xacro: the file is named <robot>.xacro", "", "this build names it <robot>%s" % features.get("xacro_extension"), "SKIPPED")
             return
+        if macro:
+            check.equal("xacro.name", "xacro: the files are named <robot>.xacro and <robot>_macro.xacro",
+                        sorted([PACKAGE + ".xacro", PACKAGE + MACRO_SUFFIX]),
+                        [f for f in xacro.files("urdf") if not f.lower().endswith(".csv")], "hinge_xacro/export")
+            return
         check.equal("xacro.name", "xacro: the file is named <robot>.xacro", [PACKAGE + ".xacro"], [f for f in xacro.files("urdf") if not f.lower().endswith(".csv")],
                     "hinge_xacro/export")
     guard("xacro.name", "xacro: file name", xacro_name)
 
+    def xacro_macro_content():
+        path, plain = xacro.robot_file(), cases["hinge_plain"].robot_file()
+        children = list(xacro_check.parse_file(path))
+        layout = [c.tag.replace(xacro_check.XACRO, "xacro:") for c in children]
+        included = os.path.basename(xacro_check.macro_file_of(path) or "")
+        check.equal("xacro.content", "xacro: the robot file includes <robot>_macro.xacro and calls the macro without arguments",
+                    "xacro:include %s, 1 call" % (PACKAGE + MACRO_SUFFIX),
+                    "%s %s, %d call" % (layout[0] if layout else "-", included, len(layout) - 1), xacro.urdf_proof())
+        try:
+            expanded = xacro_check.default_macro_expansion(path)
+        except ValueError as error:
+            check.add("xacro.equivalent", "xacro: the macro with its defaults is the plain URDF (check_xacro_equivalence.py, file not expanded)",
+                      "0 differences", str(error), "FAIL", xacro.urdf_proof())
+            return
+        differences, facts = xacro_check.compare_robots(xacro_check.parse_file(plain), expanded)
+        check.equal("xacro.equivalent", "xacro: the macro with its defaults is the plain URDF (check_xacro_equivalence.py, file not expanded)",
+                    "0 differences", "%d differences%s" % (len(differences), " " + str(differences[:3]) if differences else ""), xacro.urdf_proof())
+
     def xacro_content():
+        if macro:
+            xacro_macro_content()
+            return
         path, plain = xacro.robot_file(), cases["hinge_plain"].robot_file()
         a, b = (open(p, encoding="utf-8-sig").read() for p in (plain, path))
         declaration = re.compile(r'\s+xmlns:xacro="http://www\.ros\.org/wiki/xacro"')
