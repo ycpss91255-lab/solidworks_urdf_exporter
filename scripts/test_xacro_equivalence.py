@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_xacro_equivalence as cx  # noqa: E402
@@ -286,6 +287,25 @@ class MacroDefaults(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as stream:
                 stream.write(BASE)
             self.assertIsNone(cx.macro_file_of(path))
+
+
+class FindXacro(unittest.TestCase):
+    def test_the_python_module_is_run_through_its_main(self):
+        if cx.importlib.util.find_spec("xacro") is None:
+            self.skipTest("the xacro Python module is not installed")
+        with unittest.mock.patch.object(cx.shutil, "which", return_value=None):
+            command = cx.find_xacro()
+        self.assertEqual(command, [sys.executable, "-c", cx.XACRO_MAIN])
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "r.xacro")
+            with open(path, "w", encoding="utf-8") as stream:
+                stream.write(BASE)
+            self.assertEqual(cx.compare_robots(cx.ET.fromstring(BASE), cx.expand_xacro(command, path))[0], [])
+
+    def test_nothing_without_command_and_module(self):
+        with unittest.mock.patch.object(cx.shutil, "which", return_value=None), \
+                unittest.mock.patch.object(cx.importlib.util, "find_spec", return_value=None):
+            self.assertIsNone(cx.find_xacro())
 
 
 if __name__ == "__main__":

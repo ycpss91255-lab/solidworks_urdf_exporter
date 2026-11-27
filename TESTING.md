@@ -356,7 +356,7 @@ Observations (`INFO`, not failures):
 
 Offline check for the optional xacro output discussed in issue 139: expanding a xacro with its default parameters
 must give the same robot as the plain URDF. It needs Python 3 (standard library only) and, for the expansion
-itself, the external `xacro` command or `python -m xacro`. It compares the two files semantically: link names
+itself, the external `xacro` command or the xacro Python module (`pip install xacro`). It compares the two files semantically: link names
 and count, joint names, types, parents and children, origins, axes, limits, inertial mass, origin and inertia,
 visual and collision geometry and mesh filenames. Numbers are compared with a tolerance (`--tolerance`, default
 1e-9); whitespace, attribute order, XML comments, link and joint order and number formatting (`1e-3` against
