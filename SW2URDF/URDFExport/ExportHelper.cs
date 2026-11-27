@@ -308,8 +308,7 @@ namespace SW2URDF.URDFExport
             }
 
             logger.Info("Writing URDF file to " + windowsURDFFileName);
-            URDFWriter uWriter = new URDFWriter(windowsURDFFileName);
-            URDFRobot.WriteURDF(uWriter.writer);
+            XacroMacro.WriteRobotFile(URDFRobot, windowsURDFFileName, writeXacro);
 
             ImportExport.WriteRobotToCSV(URDFRobot, windowsCSVFileName);
             packageComplete = true;
@@ -791,10 +790,8 @@ namespace SW2URDF.URDFExport
                 ? null : CopyTexture(textureSource, Path.GetFileName(textureSource), package);
 
             //Writing URDF to file
-            URDFWriter uWriter = new URDFWriter(windowsURDFFileName);
             URDFRobot.WriteXacro = URDFRobot.BaseLink.WriteXacro;
-            //mRobot.addLink(mLink);
-            URDFRobot.WriteURDF(uWriter.writer);
+            XacroMacro.WriteRobotFile(URDFRobot, windowsURDFFileName, URDFRobot.WriteXacro);
 
             //Writing the launch, config and CMake files of the assembly export
             PartPackage.WriteRosFiles(URDFRobot, package, URDFRobot.BaseLink.WriteXacro);

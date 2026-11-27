@@ -181,6 +181,114 @@ class CommandLine(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
 
+MACRO = """<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="r" params="prefix:='' parent:='' xyz:='0 0 0' rpy:='0 0 0'">
+%s
+    <xacro:if value="${parent != ''}">
+      <joint name="${prefix}base_link_parent_joint" type="fixed">
+        <origin xyz="${xyz}" rpy="${rpy}"/>
+        <parent link="${parent}"/>
+        <child link="${prefix}base_link"/>
+      </joint>
+    </xacro:if>
+  </xacro:macro>
+</robot>
+"""
+ROBOT = """<?xml version="1.0" encoding="utf-8"?>
+<robot name="r" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="r_macro.xacro"/>
+  <xacro:r/>
+</robot>
+"""
+
+
+def body(text=BASE):
+    inner = text.split("<robot name=\"r\">", 1)[1].rsplit("</robot>", 1)[0]
+    for name in ("base_link", "arm", "j1"):
+        inner = inner.replace('name="%s"' % name, 'name="${prefix}%s"' % name)
+        inner = inner.replace('link="%s"' % name, 'link="${prefix}%s"' % name)
+    return inner
+
+
+class MacroDefaults(unittest.TestCase):
+    def expand(self, macro, robot=ROBOT):
+        with tempfile.TemporaryDirectory() as folder:
+            for name, text in (("r_macro.xacro", macro), ("r.xacro", robot)):
+                with open(os.path.join(folder, name), "w", encoding="utf-8") as stream:
+                    stream.write(text)
+            path = os.path.join(folder, "r.xacro")
+            self.assertEqual(cx.macro_file_of(path), os.path.join(folder, "r_macro.xacro"))
+            return cx.default_macro_expansion(path)
+
+    def test_defaults_give_the_plain_robot(self):
+        differences, _ = cx.compare_robots(cx.ET.fromstring(BASE), self.expand(MACRO % body()))
+        self.assertEqual(differences, [])
+
+    def test_a_changed_value_is_found(self):
+        differences, _ = cx.compare_robots(cx.ET.fromstring(BASE),
+                                           self.expand(MACRO % body(replaced('<mass value="1.5"/>', '<mass value="1.6"/>'))))
+        self.assertTrue(differences)
+
+    def test_dollars_are_literal(self):
+        macro = MACRO % body().replace("base_link.STL", "a$$b.STL")
+        meshes = [m.get("filename") for m in self.expand(macro).iter("mesh")]
+        self.assertEqual(meshes, ["package://r/meshes/a$b.STL"] * 2)
+
+    def test_other_layouts_are_refused(self):
+        for macro, robot in ((MACRO % body(), ROBOT.replace("<xacro:r/>", '<xacro:r prefix="x_"/>')),
+                             (MACRO % body(), ROBOT.replace("<xacro:r/>", "<xacro:other/>")),
+                             (MACRO.replace("prefix:=''", "prefix") % body(), ROBOT),
+                             (MACRO % body().replace("1.5", "${m}"), ROBOT)):
+            with self.assertRaises(ValueError):
+                self.expand(macro, robot)
+
+    def write(self, folder, macro, robot):
+        for name, text in (("r_macro.xacro", macro), ("r.xacro", robot)):
+            with open(os.path.join(folder, name), "w", encoding="utf-8") as stream:
+                stream.write(text)
+        return os.path.join(folder, "r.xacro")
+
+    def test_the_xacro_tool_gives_the_same_robot(self):
+        command = cx.find_xacro()
+        if command is None:
+            self.skipTest("the xacro tool is not installed")
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.write(folder, MACRO % body(), ROBOT)
+            differences, _ = cx.compare_robots(cx.ET.fromstring(BASE), cx.expand_xacro(command, path))
+            self.assertEqual(differences, [])
+            self.assertEqual(cx.compare_robots(cx.default_macro_expansion(path), cx.expand_xacro(command, path))[0], [])
+
+    def test_the_xacro_tool_attaches_two_prefixed_copies(self):
+        command = cx.find_xacro()
+        if command is None:
+            self.skipTest("the xacro tool is not installed")
+        two = ROBOT.replace('<xacro:r/>', '<link name="body"/>\n'
+                            '  <xacro:r prefix="l_" parent="body" xyz="0 0.3 0" rpy="0 0 1.5"/>\n'
+                            '  <xacro:r prefix="r_" parent="body"/>')
+        with tempfile.TemporaryDirectory() as folder:
+            root = cx.expand_xacro(command, self.write(folder, MACRO % body(), two))
+        links = [link.get("name") for link in root.findall("link")]
+        joints = {joint.get("name"): joint for joint in root.findall("joint")}
+        self.assertEqual(sorted(links), ["body", "l_arm", "l_base_link", "r_arm", "r_base_link"])
+        self.assertEqual(sorted(joints), ["l_base_link_parent_joint", "l_j1", "r_base_link_parent_joint", "r_j1"])
+        attach = joints["l_base_link_parent_joint"]
+        self.assertEqual((attach.get("type"), attach.find("parent").get("link"), attach.find("child").get("link")),
+                         ("fixed", "body", "l_base_link"))
+        self.assertEqual((attach.find("origin").get("xyz"), attach.find("origin").get("rpy")), ("0 0.3 0", "0 0 1.5"))
+        self.assertEqual(joints["r_base_link_parent_joint"].find("origin").get("xyz"), "0 0 0")
+        self.assertEqual((joints["r_j1"].find("parent").get("link"), joints["r_j1"].find("child").get("link")),
+                         ("r_base_link", "r_arm"))
+        self.assertEqual(sorted(set(m.get("filename") for m in root.iter("mesh"))), ["package://r/meshes/base_link.STL"])
+
+    def test_a_plain_xacro_has_no_macro_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "r.xacro")
+            with open(path, "w", encoding="utf-8") as stream:
+                stream.write(BASE)
+            self.assertIsNone(cx.macro_file_of(path))
+
+
 class FindXacro(unittest.TestCase):
     def test_the_python_module_is_run_through_its_main(self):
         if cx.importlib.util.find_spec("xacro") is None:
